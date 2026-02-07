@@ -187,15 +187,11 @@ The system follows a three-tier architecture:
 - Application Layer: Django REST API
 - Data Layer: MySQL relational database
 
-An architecture diagram can be included in:
-
-```
-
-
 ![System Architecture](screenshots/system_architecture.png)
-```
 
 ---
+
+## Designs
 
 ### Figma Mockups
 
@@ -205,13 +201,31 @@ https://www.figma.com/design/Wm6KJwRO8ORANAFwRMx7t8/Untitled?node-id=0-1&t=kA82b
 
 Screenshots are located in the `screenshots/` directory:
 
-- Login interface
-  ![login](<Screenshot 2026-02-07 144312.png>)
-- Teacher dashboard
-  ![Teacher dashbaord](<Screenshot 2026-02-07 143920.png>)
-- Attendance interface
-  ![Attendance dashbaord](<Screenshot 2026-02-07 144029.png>)
-  ![Database schema](<Screenshot 2026-02-07 144203.png>)
+## Screenshots
+
+Screenshots are located in the `screenshots/` directory:
+
+## Screenshots
+
+### Login Interface
+
+![Login Interface](screenshots/login.png)
+
+### Teacher Dashboard
+
+![Teacher Dashboard](screenshots/teacher_dashboard.png)
+
+### Attendance Interface
+
+![Attendance Interface](screenshots/attendance_dashboard.png)
+
+### Database Schema
+
+![Database Schema](screenshots/database_schema.png)
+
+### System Architecture
+
+![System Architecture](screenshots/system_architecture.png)
 
 - Database schema (MySQL Workbench)
 
