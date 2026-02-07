@@ -1,5 +1,8 @@
 # School Early Warning Support System
 
+##watch the demo here:
+https://youtu.be/PFkA5nrmrZM
+
 ## Description
 
 The School Early Warning Support System is a full-stack web application designed to assist schools in monitoring student attendance, identifying early academic risk indicators, and supporting structured intervention workflows between teachers, counselors, and administrators.
