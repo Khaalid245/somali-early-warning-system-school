@@ -1,52 +1,76 @@
 from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated
 
-from .models import RiskProfile
-from .serializers import RiskProfileSerializer
-from alerts.models import Alert
+from .models import StudentRiskProfile, SubjectRiskInsight
+from .serializers import (
+    StudentRiskProfileSerializer,
+    SubjectRiskInsightSerializer,
+)
 
 
-class RiskProfileListView(generics.ListAPIView):
+# -----------------------------------
+# OVERALL STUDENT RISK
+# -----------------------------------
+class StudentRiskListView(generics.ListAPIView):
     """
-    Read-only list of subject-based risk profiles.
+    List overall student risk profiles.
     """
-    serializer_class = RiskProfileSerializer
+    serializer_class = StudentRiskProfileSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        qs = RiskProfile.objects.all()
+        qs = StudentRiskProfile.objects.all()
 
-        # Optional filters
         student_id = self.request.query_params.get("student")
+        risk_level = self.request.query_params.get("level")
+
         if student_id:
             qs = qs.filter(student_id=student_id)
 
+        if risk_level:
+            qs = qs.filter(risk_level=risk_level)
+
+        return qs
+
+
+class StudentRiskDetailView(generics.RetrieveAPIView):
+    """
+    Retrieve single student's overall risk.
+    """
+    queryset = StudentRiskProfile.objects.all()
+    serializer_class = StudentRiskProfileSerializer
+    permission_classes = [IsAuthenticated]
+
+
+# -----------------------------------
+# SUBJECT-LEVEL ANALYTICS
+# -----------------------------------
+class SubjectRiskInsightListView(generics.ListAPIView):
+    """
+    List subject-based attendance analytics.
+    """
+    serializer_class = SubjectRiskInsightSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        qs = SubjectRiskInsight.objects.all()
+
+        student_id = self.request.query_params.get("student")
         subject_id = self.request.query_params.get("subject")
+
+        if student_id:
+            qs = qs.filter(student_id=student_id)
+
         if subject_id:
             qs = qs.filter(subject_id=subject_id)
 
         return qs
 
 
-class RiskProfileDetailView(generics.RetrieveUpdateAPIView):
+class SubjectRiskInsightDetailView(generics.RetrieveAPIView):
     """
-    Allows counsellors/admins to adjust subject risk.
+    Retrieve subject analytics for a student.
     """
-    serializer_class = RiskProfileSerializer
+    queryset = SubjectRiskInsight.objects.all()
+    serializer_class = SubjectRiskInsightSerializer
     permission_classes = [IsAuthenticated]
-
-    def get_queryset(self):
-        return RiskProfile.objects.all()
-
-    def perform_update(self, serializer):
-        old = self.get_object()
-        new = serializer.save()
-
-        # Create subject-based alert when risk moves to HIGH
-        if old.risk_level != new.risk_level and new.risk_level.lower() == "high":
-            Alert.objects.create(
-                student=new.student,
-                alert_type=f"High Risk in {new.subject.name}",
-                risk_level=new.risk_level,
-                status="active"
-            )

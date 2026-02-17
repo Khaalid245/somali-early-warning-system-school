@@ -2,96 +2,77 @@ from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import PermissionDenied
 
-from .models import Attendance
-from .serializers import AttendanceSerializer
+from .models import AttendanceSession
+from .serializers import AttendanceSessionSerializer
 
-from risk.models import RiskProfile
-from alerts.models import Alert
 from academics.models import TeachingAssignment
+from risk.services import update_risk_after_session
 
 
-class AttendanceListCreateView(generics.ListCreateAPIView):
-    serializer_class = AttendanceSerializer
+# -----------------------------------
+# Attendance Session Create & List
+# -----------------------------------
+class AttendanceSessionListCreateView(generics.ListCreateAPIView):
+    serializer_class = AttendanceSessionSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        qs = Attendance.objects.all().order_by("-attendance_date")
+        user = self.request.user
 
-        student_id = self.request.query_params.get("student")
-        if student_id:
-            qs = qs.filter(student_id=student_id)
+        if user.role == "admin":
+            return AttendanceSession.objects.all().order_by("-attendance_date")
 
-        subject_id = self.request.query_params.get("subject")
-        if subject_id:
-            qs = qs.filter(subject_id=subject_id)
+        if user.role == "teacher":
+            return AttendanceSession.objects.filter(
+                teacher=user
+            ).order_by("-attendance_date")
 
-        date = self.request.query_params.get("date")
-        if date:
-            qs = qs.filter(attendance_date=date)
+        if user.role == "form_master":
+            return AttendanceSession.objects.filter(
+                classroom__form_master=user
+            ).order_by("-attendance_date")
 
-        return qs
+        return AttendanceSession.objects.none()
 
     def perform_create(self, serializer):
         user = self.request.user
-        student = serializer.validated_data["student"]
-        subject = serializer.validated_data["subject"]
-        attendance_date = serializer.validated_data["attendance_date"]
-        status = serializer.validated_data["status"].lower()
 
         if user.role != "teacher":
             raise PermissionDenied("Only teachers can record attendance.")
 
+        classroom = serializer.validated_data["classroom"]
+        subject = serializer.validated_data["subject"]
+        attendance_date = serializer.validated_data["attendance_date"]
+
+        # Validate teacher assignment
         if not TeachingAssignment.objects.filter(
             teacher=user,
             subject=subject,
-            classroom=student.classroom
+            classroom=classroom
         ).exists():
-            raise PermissionDenied("You are not assigned to teach this subject for this class.")
+            raise PermissionDenied("You are not assigned to this class/subject.")
 
-        # DB already enforces uniqueness, but we give a clean message
-        if Attendance.objects.filter(
-            student=student,
+        # Prevent duplicate session
+        if AttendanceSession.objects.filter(
+            classroom=classroom,
             subject=subject,
             attendance_date=attendance_date
         ).exists():
-            raise PermissionDenied("Attendance already exists for this student, subject and date.")
-
-        attendance = serializer.save(recorded_by=user)
-
-        self.update_risk(student, subject, status)
-
-        return attendance
-
-    def update_risk(self, student, subject, status):
-        risk, _ = RiskProfile.objects.get_or_create(student=student)
-
-        if status == "absent":
-            risk.risk_score += 15
-        elif status == "late":
-            risk.risk_score += 5
-        else:
-            risk.risk_score = max(risk.risk_score - 5, 0)
-
-        if risk.risk_score >= 60:
-            new_level = "high"
-        elif risk.risk_score >= 30:
-            new_level = "medium"
-        else:
-            new_level = "low"
-
-        old_level = risk.risk_level
-        risk.risk_level = new_level
-        risk.save()
-
-        if new_level == "high" and old_level != "high":
-            Alert.objects.get_or_create(
-                student=student,
-                alert_type=f"High Risk in {subject.name}",
-                defaults={"risk_level": new_level, "status": "active"}
+            raise PermissionDenied(
+                "Attendance already recorded for this class, subject and date."
             )
 
+        # Save session
+        session = serializer.save(teacher=user)
 
-class AttendanceRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = Attendance.objects.all()
-    serializer_class = AttendanceSerializer
+        # 🔥 Call risk engine (SERVICE LAYER)
+        update_risk_after_session(session)
+
+
+# -----------------------------------
+# Attendance Session Detail
+# -----------------------------------
+class AttendanceSessionDetailView(generics.RetrieveAPIView):
+    queryset = AttendanceSession.objects.all()
+    serializer_class = AttendanceSessionSerializer
     permission_classes = [IsAuthenticated]

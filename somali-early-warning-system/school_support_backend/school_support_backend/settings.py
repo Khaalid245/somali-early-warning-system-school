@@ -44,7 +44,7 @@ INSTALLED_APPS = [
     'core',
     'users',
     'students',
-    'attendance',
+    'attendance.apps.AttendanceConfig',
     'risk',
     'alerts',
     'counselling',

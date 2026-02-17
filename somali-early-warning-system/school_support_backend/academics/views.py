@@ -7,35 +7,69 @@ from .serializers import SubjectSerializer, TeachingAssignmentSerializer
 
 
 # -----------------------
-# Admin Only Mixin
+# SUBJECTS
 # -----------------------
-class AdminOnlyMixin:
-    def dispatch(self, request, *args, **kwargs):
-        # This runs AFTER authentication because of inheritance order
-        if request.user.role != "admin":
-            raise PermissionDenied("Only admins can perform this action.")
-        return super().dispatch(request, *args, **kwargs)
 
-
-# -----------------------
-# Subjects (Admin only)
-# -----------------------
-class SubjectListCreateView(generics.ListCreateAPIView, AdminOnlyMixin):
+class SubjectListCreateView(generics.ListCreateAPIView):
     queryset = Subject.objects.all()
     serializer_class = SubjectSerializer
     permission_classes = [IsAuthenticated]
 
+    def perform_create(self, serializer):
+        if self.request.user.role != "admin":
+            raise PermissionDenied("Only admins can create subjects.")
+        serializer.save()
+
+
+class SubjectDetailView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Subject.objects.all()
+    serializer_class = SubjectSerializer
+    permission_classes = [IsAuthenticated]
+
+    def perform_update(self, serializer):
+        if self.request.user.role != "admin":
+            raise PermissionDenied("Only admins can update subjects.")
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        if self.request.user.role != "admin":
+            raise PermissionDenied("Only admins can delete subjects.")
+        instance.delete()
+
 
 # -----------------------
-# Teaching Assignments (Admin only)
+# TEACHING ASSIGNMENTS
 # -----------------------
-class TeachingAssignmentListCreateView(generics.ListCreateAPIView, AdminOnlyMixin):
+
+class TeachingAssignmentListCreateView(generics.ListCreateAPIView):
+    serializer_class = TeachingAssignmentSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+
+        if user.role == "teacher":
+            return TeachingAssignment.objects.filter(teacher=user)
+
+        return TeachingAssignment.objects.all()
+
+    def perform_create(self, serializer):
+        if self.request.user.role != "admin":
+            raise PermissionDenied("Only admins can create teaching assignments.")
+        serializer.save()
+
+
+class TeachingAssignmentDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = TeachingAssignment.objects.all()
     serializer_class = TeachingAssignmentSerializer
     permission_classes = [IsAuthenticated]
 
+    def perform_update(self, serializer):
+        if self.request.user.role != "admin":
+            raise PermissionDenied("Only admins can update assignments.")
+        serializer.save()
 
-class TeachingAssignmentDetailView(generics.RetrieveUpdateDestroyAPIView, AdminOnlyMixin):
-    queryset = TeachingAssignment.objects.all()
-    serializer_class = TeachingAssignmentSerializer
-    permission_classes = [IsAuthenticated]
+    def perform_destroy(self, instance):
+        if self.request.user.role != "admin":
+            raise PermissionDenied("Only admins can delete assignments.")
+        instance.delete()

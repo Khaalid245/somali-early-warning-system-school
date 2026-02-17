@@ -26,8 +26,7 @@ urlpatterns = [
     # USERS
     path('api/users/', include('users.urls')),
 
-    # CLASSROOMS & STUDENTS
-    path('api/classrooms/', include('students.urls_classrooms')),
+    # STUDENTS (includes classrooms + enrollments inside it)
     path('api/students/', include('students.urls')),
 
     # ATTENDANCE
@@ -45,7 +44,6 @@ urlpatterns = [
     # INTERVENTIONS
     path('api/interventions/', include('interventions.urls')),
 
-    #academics
-    path("api/", include("academics.urls")),
-
+    # ACADEMICS
+    path('api/academics/', include('academics.urls')),
 ]

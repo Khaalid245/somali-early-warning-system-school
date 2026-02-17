@@ -4,26 +4,69 @@ from academics.models import Subject
 
 
 class Alert(models.Model):
+
+    ALERT_TYPE_CHOICES = [
+        ("attendance", "Attendance Risk"),
+        ("behavior", "Behavior Risk"),
+        ("academic", "Academic Risk"),
+    ]
+
+    RISK_LEVEL_CHOICES = [
+        ("low", "Low"),
+        ("medium", "Medium"),
+        ("high", "High"),
+        ("critical", "Critical"),
+    ]
+
+    STATUS_CHOICES = [
+        ("active", "Active"),
+        ("resolved", "Resolved"),
+        ("dismissed", "Dismissed"),
+    ]
+
     alert_id = models.AutoField(primary_key=True)
 
-    # Example: "High Risk in Mathematics", "Admin Referral – English"
-    alert_type = models.CharField(max_length=100)
+    alert_type = models.CharField(
+        max_length=20,
+        choices=ALERT_TYPE_CHOICES
+    )
 
-    alert_date = models.DateField(auto_now_add=True)
-    risk_level = models.CharField(max_length=20)
-    status = models.CharField(max_length=20, default="active")
+    risk_level = models.CharField(
+        max_length=20,
+        choices=RISK_LEVEL_CHOICES
+    )
 
-    student = models.ForeignKey(Student, on_delete=models.CASCADE)
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default="active"
+    )
 
-    # NEW: Which subject caused this alert
+    student = models.ForeignKey(
+        Student,
+        on_delete=models.CASCADE,
+        related_name="alerts"
+    )
+
     subject = models.ForeignKey(
         Subject,
         on_delete=models.SET_NULL,
         null=True,
-        blank=True
+        blank=True,
+        related_name="alerts"
     )
+
+    alert_date = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["risk_level"]),
+            models.Index(fields=["status"]),
+            models.Index(fields=["student"]),
+        ]
 
     def __str__(self):
         if self.subject:
-            return f"{self.alert_type} ({self.student.full_name} - {self.subject.name})"
-        return f"{self.alert_type} ({self.student.full_name})"
+            return f"{self.student.full_name} - {self.subject.name} ({self.risk_level})"
+        return f"{self.student.full_name} - Overall Risk ({self.risk_level})"
