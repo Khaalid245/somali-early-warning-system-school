@@ -38,9 +38,6 @@ urlpatterns = [
     # ALERTS
     path('api/alerts/', include('alerts.urls')),
 
-    # COUNSELLING
-    path('api/counselling/', include('counselling.urls')),
-
     # INTERVENTIONS
     path('api/interventions/', include('interventions.urls')),
 

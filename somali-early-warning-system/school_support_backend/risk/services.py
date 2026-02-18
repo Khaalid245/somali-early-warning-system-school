@@ -6,20 +6,13 @@ from attendance.models import AttendanceRecord
 from students.models import StudentEnrollment
 from .models import StudentRiskProfile, SubjectRiskInsight
 from alerts.models import Alert
+from interventions.models import InterventionCase
 
 
 # =====================================================
 # MAIN ENTRY POINT
 # =====================================================
 def update_risk_after_session(session):
-    """
-    Triggered automatically after attendance session is complete.
-    Handles:
-    - Subject analytics update
-    - Consecutive absence detection
-    - Overall risk calculation
-    - Alert escalation & assignment
-    """
 
     records = session.records.select_related("student")
 
@@ -74,7 +67,7 @@ def _update_subject_insight(student, subject):
 
 
 # =====================================================
-# SUBJECT CONSECUTIVE STREAK
+# SUBJECT STREAK
 # =====================================================
 def _calculate_subject_streak(student, subject):
 
@@ -95,7 +88,7 @@ def _calculate_subject_streak(student, subject):
 
 
 # =====================================================
-# FULL DAY CONSECUTIVE STREAK
+# FULL DAY STREAK
 # =====================================================
 def _calculate_full_day_streak(student):
 
@@ -110,7 +103,6 @@ def _calculate_full_day_streak(student):
     streak = 0
 
     for date in dates:
-
         records_that_day = AttendanceRecord.objects.filter(
             student=student,
             session__attendance_date=date
@@ -140,9 +132,7 @@ def _update_overall_student_risk(student, subject_streak, full_day_streak):
             total=Sum("absence_rate")
         )["total"] or Decimal("0.00")
 
-        avg_absence_rate = (
-            total_rate / Decimal(insights.count())
-        )
+        avg_absence_rate = total_rate / Decimal(insights.count())
 
     profile, _ = StudentRiskProfile.objects.get_or_create(
         student=student
@@ -150,7 +140,6 @@ def _update_overall_student_risk(student, subject_streak, full_day_streak):
 
     risk_score = avg_absence_rate
 
-    # Subject streak weight
     if subject_streak >= 7:
         risk_score += Decimal("40")
     elif subject_streak >= 5:
@@ -158,7 +147,6 @@ def _update_overall_student_risk(student, subject_streak, full_day_streak):
     elif subject_streak >= 3:
         risk_score += Decimal("15")
 
-    # Full day streak weight (stronger)
     if full_day_streak >= 5:
         risk_score += Decimal("40")
     elif full_day_streak >= 3:
@@ -168,7 +156,6 @@ def _update_overall_student_risk(student, subject_streak, full_day_streak):
 
     old_level = profile.risk_level
 
-    # Risk mapping
     if risk_score >= Decimal("75"):
         new_level = "critical"
     elif risk_score >= Decimal("55"):
@@ -183,13 +170,13 @@ def _update_overall_student_risk(student, subject_streak, full_day_streak):
     profile.last_calculated = timezone.now()
     profile.save()
 
-    _handle_alerts(student, old_level, new_level)
+    _handle_alerts_and_interventions(student, old_level, new_level)
 
 
 # =====================================================
-# ALERT MANAGEMENT ENGINE
+# ALERT + INTERVENTION AUTOMATION
 # =====================================================
-def _handle_alerts(student, old_level, new_level):
+def _handle_alerts_and_interventions(student, old_level, new_level):
 
     enrollment = (
         StudentEnrollment.objects
@@ -214,24 +201,38 @@ def _handle_alerts(student, old_level, new_level):
     )
 
     # ------------------------------------------------
-    # CREATE OR ESCALATE ALERT
+    # HIGH OR CRITICAL → ALERT + INTERVENTION
     # ------------------------------------------------
     if new_level in ["high", "critical"]:
 
-        if active_alert:
-            # Only escalate upward
-            if active_alert.risk_level != new_level:
-                active_alert.risk_level = new_level
-                active_alert.updated_at = timezone.now()
-                active_alert.save()
-
-        else:
-            Alert.objects.create(
+        if not active_alert:
+            active_alert = Alert.objects.create(
                 student=student,
                 alert_type="attendance",
                 risk_level=new_level,
                 status="active",
                 assigned_to=form_master
+            )
+        else:
+            if active_alert.risk_level != new_level:
+                active_alert.risk_level = new_level
+                active_alert.save()
+
+        # ------------------------------------------------
+        # CREATE INTERVENTION IF NOT EXISTS
+        # ------------------------------------------------
+        existing_case = InterventionCase.objects.filter(
+            student=student,
+            alert=active_alert,
+            status__in=["open", "in_progress", "awaiting_parent"]
+        ).first()
+
+        if not existing_case:
+            InterventionCase.objects.create(
+                student=student,
+                alert=active_alert,
+                assigned_to=form_master,
+                status="open"
             )
 
     # ------------------------------------------------
@@ -239,5 +240,11 @@ def _handle_alerts(student, old_level, new_level):
     # ------------------------------------------------
     elif new_level in ["medium", "low"] and active_alert:
         active_alert.status = "resolved"
-        active_alert.updated_at = timezone.now()
         active_alert.save()
+
+        # Close open intervention cases
+        InterventionCase.objects.filter(
+            student=student,
+            alert=active_alert,
+            status__in=["open", "in_progress", "awaiting_parent"]
+        ).update(status="closed")

@@ -1,14 +1,12 @@
 from django.urls import path
 from .views import (
-    InterventionListCreateView,
-    InterventionDetailView,
-    InterventionsByUserView,
-    InterventionsBySessionView
+    InterventionCaseListCreateView,
+    InterventionCaseDetailView,
+    InterventionsByAlertView,
 )
 
 urlpatterns = [
-    path('', InterventionListCreateView.as_view(), name='intervention-list-create'),
-    path('<int:pk>/', InterventionDetailView.as_view(), name='intervention-detail'),
-    path('assigned/<int:user_id>/', InterventionsByUserView.as_view(), name='interventions-by-user'),
-    path('session/<int:session_id>/', InterventionsBySessionView.as_view(), name='interventions-by-session'),
+    path("", InterventionCaseListCreateView.as_view(), name="intervention-list-create"),
+    path("<int:pk>/", InterventionCaseDetailView.as_view(), name="intervention-detail"),
+    path("alert/<int:alert_id>/", InterventionsByAlertView.as_view(), name="interventions-by-alert"),
 ]
