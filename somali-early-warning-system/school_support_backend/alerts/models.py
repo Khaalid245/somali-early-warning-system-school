@@ -20,6 +20,8 @@ class Alert(models.Model):
 
     STATUS_CHOICES = [
         ("active", "Active"),
+        ("under_review", "Under Review"),
+        ("escalated", "Escalated"),
         ("resolved", "Resolved"),
         ("dismissed", "Dismissed"),
     ]

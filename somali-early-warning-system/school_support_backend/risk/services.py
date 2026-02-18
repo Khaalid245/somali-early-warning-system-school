@@ -1,6 +1,6 @@
 from decimal import Decimal
 from django.utils import timezone
-from django.db.models import Count
+from django.db.models import Q
 
 from attendance.models import AttendanceRecord
 from .models import StudentRiskProfile, SubjectRiskInsight
@@ -12,26 +12,23 @@ from alerts.models import Alert
 # =====================================================
 def update_risk_after_session(session):
     """
-    Called automatically after attendance session is completed.
-    Updates:
-    - Subject analytics
+    Triggered automatically after attendance session is complete.
+    Handles:
+    - Subject analytics update
     - Consecutive absence detection
-    - Overall risk profile
-    - Alert escalation
+    - Overall risk calculation
+    - Alert management
     """
 
     for record in session.records.select_related("student"):
         student = record.student
         subject = session.subject
 
-        # 1️⃣ Update subject analytics
         _update_subject_insight(student, subject)
 
-        # 2️⃣ Calculate streaks
         subject_streak = _calculate_subject_streak(student, subject)
         full_day_streak = _calculate_full_day_streak(student)
 
-        # 3️⃣ Update overall risk
         _update_overall_student_risk(
             student,
             subject_streak,
@@ -58,7 +55,7 @@ def _update_subject_insight(student, subject):
     if total_sessions > 0:
         absence_rate = (
             Decimal(absence_count) / Decimal(total_sessions)
-        ) * 100
+        ) * Decimal("100")
 
     insight, _ = SubjectRiskInsight.objects.get_or_create(
         student=student,
@@ -68,7 +65,7 @@ def _update_subject_insight(student, subject):
     insight.total_sessions = total_sessions
     insight.absence_count = absence_count
     insight.late_count = late_count
-    insight.absence_rate = round(absence_rate, 2)
+    insight.absence_rate = absence_rate.quantize(Decimal("0.01"))
     insight.last_calculated = timezone.now()
     insight.save()
 
@@ -95,7 +92,7 @@ def _calculate_subject_streak(student, subject):
 
 
 # =====================================================
-# FULL-DAY CONSECUTIVE STREAK
+# FULL DAY CONSECUTIVE STREAK
 # =====================================================
 def _calculate_full_day_streak(student):
 
@@ -116,7 +113,6 @@ def _calculate_full_day_streak(student):
             session__attendance_date=date
         )
 
-        # If ALL subjects that day are absent
         if records_that_day.exists() and all(
             r.status == "absent" for r in records_that_day
         ):
@@ -137,65 +133,63 @@ def _update_overall_student_risk(student, subject_streak, full_day_streak):
     avg_absence_rate = Decimal("0.00")
 
     if insights.exists():
-        avg_absence_rate = sum(
+        total_rate = sum(
             insight.absence_rate for insight in insights
-        ) / insights.count()
+        )
+        avg_absence_rate = (
+            total_rate / Decimal(insights.count())
+        )
 
     profile, _ = StudentRiskProfile.objects.get_or_create(
         student=student
     )
 
-    # -------------------------------------------------
-    # BASE RISK FROM ABSENCE RATE
-    # -------------------------------------------------
     risk_score = avg_absence_rate
 
-    # -------------------------------------------------
+    # --------------------------------------------
     # SUBJECT STREAK WEIGHT
-    # -------------------------------------------------
+    # --------------------------------------------
     if subject_streak >= 7:
-        risk_score += 40
+        risk_score += Decimal("40")
     elif subject_streak >= 5:
-        risk_score += 25
+        risk_score += Decimal("25")
     elif subject_streak >= 3:
-        risk_score += 15
+        risk_score += Decimal("15")
 
-    # -------------------------------------------------
+    # --------------------------------------------
     # FULL DAY STREAK WEIGHT (STRONGER)
-    # -------------------------------------------------
+    # --------------------------------------------
     if full_day_streak >= 5:
-        risk_score += 40
+        risk_score += Decimal("40")
     elif full_day_streak >= 3:
-        risk_score += 25
+        risk_score += Decimal("25")
 
-    profile.risk_score = round(risk_score, 2)
+    risk_score = risk_score.quantize(Decimal("0.01"))
 
-    # -------------------------------------------------
-    # RISK LEVEL MAPPING
-    # -------------------------------------------------
     old_level = profile.risk_level
 
-    if profile.risk_score >= 75:
+    # --------------------------------------------
+    # RISK LEVEL MAPPING
+    # --------------------------------------------
+    if risk_score >= Decimal("75"):
         new_level = "critical"
-    elif profile.risk_score >= 55:
+    elif risk_score >= Decimal("55"):
         new_level = "high"
-    elif profile.risk_score >= 30:
+    elif risk_score >= Decimal("30"):
         new_level = "medium"
     else:
         new_level = "low"
 
+    profile.risk_score = risk_score
     profile.risk_level = new_level
     profile.last_calculated = timezone.now()
     profile.save()
 
-    # -------------------------------------------------
-    # AUTOMATIC ALERT MANAGEMENT
-    # -------------------------------------------------
     _handle_alerts(student, old_level, new_level)
 
 
 # =====================================================
-# ALERT MANAGEMENT (ESCALATION SYSTEM)
+# ALERT MANAGEMENT (INDUSTRY ESCALATION ENGINE)
 # =====================================================
 def _handle_alerts(student, old_level, new_level):
 
@@ -204,21 +198,29 @@ def _handle_alerts(student, old_level, new_level):
         status="active"
     ).first()
 
-    # Escalate or create alert
+    # ------------------------------------------------
+    # CREATE OR ESCALATE ALERT
+    # ------------------------------------------------
     if new_level in ["high", "critical"]:
 
         if active_alert:
-            active_alert.risk_level = new_level
-            active_alert.save()
+            # Escalate if needed
+            if active_alert.risk_level != new_level:
+                active_alert.risk_level = new_level
+                active_alert.updated_at = timezone.now()
+                active_alert.save()
         else:
             Alert.objects.create(
                 student=student,
-                alert_type="Attendance Risk",
+                alert_type="attendance",
                 risk_level=new_level,
                 status="active"
             )
 
-    # Auto resolve if student improves
-    elif new_level == "low" and active_alert:
+    # ------------------------------------------------
+    # AUTO RESOLVE IF STUDENT IMPROVES
+    # ------------------------------------------------
+    elif new_level in ["medium", "low"] and active_alert:
         active_alert.status = "resolved"
+        active_alert.updated_at = timezone.now()
         active_alert.save()
