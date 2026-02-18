@@ -7,112 +7,129 @@ from .models import Alert
 from .serializers import AlertSerializer
 
 
-# -------------------------------------------------
+# =====================================================
 # ALERT LIST & CREATE
-# -------------------------------------------------
+# =====================================================
 class AlertListCreateView(generics.ListCreateAPIView):
     serializer_class = AlertSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         user = self.request.user
-
         qs = Alert.objects.all().order_by("-alert_date")
 
-        # 🔐 Role-based filtering
+        # --------------------------------------------
+        # ROLE-BASED ACCESS CONTROL
+        # --------------------------------------------
         if user.role == "admin":
-            pass  # Admin sees everything
-
-        elif user.role == "counsellor":
-            qs = qs.filter(status__in=["active", "under_review", "escalated"])
+            return qs
 
         elif user.role == "form_master":
-            qs = qs.filter(student__enrollments__classroom__form_master=user)
+            return qs.filter(assigned_to=user)
 
         elif user.role == "teacher":
-            qs = qs.filter(subject__teachingassignment__teacher=user)
+            return qs.filter(
+                subject__teachingassignment__teacher=user
+            ).distinct()
 
-        else:
-            return Alert.objects.none()
-
-        # 🔍 Optional filtering
-        student_id = self.request.query_params.get("student")
-        if student_id:
-            qs = qs.filter(student_id=student_id)
-
-        subject_id = self.request.query_params.get("subject")
-        if subject_id:
-            qs = qs.filter(subject_id=subject_id)
-
-        status_param = self.request.query_params.get("status")
-        if status_param:
-            qs = qs.filter(status=status_param)
-
-        risk_level = self.request.query_params.get("risk_level")
-        if risk_level:
-            qs = qs.filter(risk_level=risk_level)
-
-        return qs.distinct()
+        return Alert.objects.none()
 
     def perform_create(self, serializer):
         user = self.request.user
 
-        # 🔐 Only admin or counsellor can manually create alerts
-        if user.role not in ["admin", "counsellor"]:
-            raise PermissionDenied("You are not allowed to create alerts.")
-
-        student = serializer.validated_data.get("student")
-        subject = serializer.validated_data.get("subject")
-        alert_type = serializer.validated_data.get("alert_type")
-        risk_level = serializer.validated_data.get("risk_level")
-
-        # 🚫 Prevent duplicate ACTIVE alerts
-        existing = Alert.objects.filter(
-            student=student,
-            subject=subject,
-            alert_type=alert_type,
-            status="active"
-        )
-
-        if existing.exists():
-            raise PermissionDenied("An active alert already exists for this case.")
+        # Only admin can manually create alerts
+        if user.role != "admin":
+            raise PermissionDenied("Only admin can manually create alerts.")
 
         serializer.save(status="active")
 
 
-# -------------------------------------------------
-# ALERT DETAIL & UPDATE
-# -------------------------------------------------
+# =====================================================
+# ALERT DETAIL & WORKFLOW UPDATE
+# =====================================================
 class AlertDetailView(generics.RetrieveUpdateAPIView):
-    queryset = Alert.objects.all()
     serializer_class = AlertSerializer
     permission_classes = [IsAuthenticated]
 
+    # 🔒 OBJECT-LEVEL SECURITY
+    def get_queryset(self):
+        user = self.request.user
+        qs = Alert.objects.all()
+
+        if user.role == "admin":
+            return qs
+
+        elif user.role == "form_master":
+            return qs.filter(assigned_to=user)
+
+        elif user.role == "teacher":
+            return qs.filter(
+                subject__teachingassignment__teacher=user
+            ).distinct()
+
+        return Alert.objects.none()
+
     def patch(self, request, *args, **kwargs):
+
         alert = self.get_object()
         user = request.user
-
-        # 🔐 Only admin or counsellor can update alerts
-        if user.role not in ["admin", "counsellor"]:
-            return Response(
-                {"error": "You do not have permission to update alerts."},
-                status=status.HTTP_403_FORBIDDEN
-            )
-
         new_status = request.data.get("status")
 
-        valid_statuses = ["active", "under_review", "escalated", "resolved", "dismissed"]
+        valid_statuses = [
+            "active",
+            "under_review",
+            "escalated",
+            "resolved",
+            "dismissed",
+        ]
 
         if new_status not in valid_statuses:
             return Response(
-                {"error": "Invalid status"},
+                {"error": "Invalid status transition."},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        alert.status = new_status
+        # -------------------------------------------------
+        # FORM MASTER WORKFLOW
+        # -------------------------------------------------
+        if user.role == "form_master":
+
+            if alert.assigned_to != user:
+                raise PermissionDenied("This alert is not assigned to you.")
+
+            if alert.status == "resolved":
+                raise PermissionDenied("Resolved alerts cannot be modified.")
+
+            allowed_transitions = [
+                "under_review",
+                "escalated",
+                "resolved",
+            ]
+
+            if new_status not in allowed_transitions:
+                raise PermissionDenied("Invalid action for form master.")
+
+            alert.status = new_status
+
+            if new_status == "escalated":
+                alert.escalated_to_admin = True
+
+        # -------------------------------------------------
+        # ADMIN WORKFLOW
+        # -------------------------------------------------
+        elif user.role == "admin":
+
+            alert.status = new_status
+
+        # -------------------------------------------------
+        # BLOCK EVERYONE ELSE
+        # -------------------------------------------------
+        else:
+            raise PermissionDenied("You do not have permission to update alerts.")
+
         alert.save()
 
         return Response({
-            "message": "Alert status updated successfully",
+            "message": "Alert updated successfully.",
             "alert": AlertSerializer(alert).data
         })

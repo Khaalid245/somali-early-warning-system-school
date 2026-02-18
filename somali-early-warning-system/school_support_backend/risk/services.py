@@ -1,8 +1,9 @@
 from decimal import Decimal
 from django.utils import timezone
-from django.db.models import Q
+from django.db.models import Sum
 
 from attendance.models import AttendanceRecord
+from students.models import StudentEnrollment
 from .models import StudentRiskProfile, SubjectRiskInsight
 from alerts.models import Alert
 
@@ -17,10 +18,12 @@ def update_risk_after_session(session):
     - Subject analytics update
     - Consecutive absence detection
     - Overall risk calculation
-    - Alert management
+    - Alert escalation & assignment
     """
 
-    for record in session.records.select_related("student"):
+    records = session.records.select_related("student")
+
+    for record in records:
         student = record.student
         subject = session.subject
 
@@ -124,7 +127,7 @@ def _calculate_full_day_streak(student):
 
 
 # =====================================================
-# OVERALL RISK ENGINE (HYBRID MODEL)
+# OVERALL RISK ENGINE
 # =====================================================
 def _update_overall_student_risk(student, subject_streak, full_day_streak):
 
@@ -133,9 +136,10 @@ def _update_overall_student_risk(student, subject_streak, full_day_streak):
     avg_absence_rate = Decimal("0.00")
 
     if insights.exists():
-        total_rate = sum(
-            insight.absence_rate for insight in insights
-        )
+        total_rate = insights.aggregate(
+            total=Sum("absence_rate")
+        )["total"] or Decimal("0.00")
+
         avg_absence_rate = (
             total_rate / Decimal(insights.count())
         )
@@ -146,9 +150,7 @@ def _update_overall_student_risk(student, subject_streak, full_day_streak):
 
     risk_score = avg_absence_rate
 
-    # --------------------------------------------
-    # SUBJECT STREAK WEIGHT
-    # --------------------------------------------
+    # Subject streak weight
     if subject_streak >= 7:
         risk_score += Decimal("40")
     elif subject_streak >= 5:
@@ -156,9 +158,7 @@ def _update_overall_student_risk(student, subject_streak, full_day_streak):
     elif subject_streak >= 3:
         risk_score += Decimal("15")
 
-    # --------------------------------------------
-    # FULL DAY STREAK WEIGHT (STRONGER)
-    # --------------------------------------------
+    # Full day streak weight (stronger)
     if full_day_streak >= 5:
         risk_score += Decimal("40")
     elif full_day_streak >= 3:
@@ -168,9 +168,7 @@ def _update_overall_student_risk(student, subject_streak, full_day_streak):
 
     old_level = profile.risk_level
 
-    # --------------------------------------------
-    # RISK LEVEL MAPPING
-    # --------------------------------------------
+    # Risk mapping
     if risk_score >= Decimal("75"):
         new_level = "critical"
     elif risk_score >= Decimal("55"):
@@ -189,14 +187,31 @@ def _update_overall_student_risk(student, subject_streak, full_day_streak):
 
 
 # =====================================================
-# ALERT MANAGEMENT (INDUSTRY ESCALATION ENGINE)
+# ALERT MANAGEMENT ENGINE
 # =====================================================
 def _handle_alerts(student, old_level, new_level):
 
-    active_alert = Alert.objects.filter(
-        student=student,
-        status="active"
-    ).first()
+    enrollment = (
+        StudentEnrollment.objects
+        .filter(student=student, is_active=True)
+        .select_related("classroom")
+        .first()
+    )
+
+    form_master = None
+    if enrollment and enrollment.classroom:
+        form_master = enrollment.classroom.form_master
+
+    active_alert = (
+        Alert.objects
+        .filter(
+            student=student,
+            alert_type="attendance",
+            status__in=["active", "under_review", "escalated"]
+        )
+        .order_by("-alert_date")
+        .first()
+    )
 
     # ------------------------------------------------
     # CREATE OR ESCALATE ALERT
@@ -204,21 +219,23 @@ def _handle_alerts(student, old_level, new_level):
     if new_level in ["high", "critical"]:
 
         if active_alert:
-            # Escalate if needed
+            # Only escalate upward
             if active_alert.risk_level != new_level:
                 active_alert.risk_level = new_level
                 active_alert.updated_at = timezone.now()
                 active_alert.save()
+
         else:
             Alert.objects.create(
                 student=student,
                 alert_type="attendance",
                 risk_level=new_level,
-                status="active"
+                status="active",
+                assigned_to=form_master
             )
 
     # ------------------------------------------------
-    # AUTO RESOLVE IF STUDENT IMPROVES
+    # AUTO RESOLVE
     # ------------------------------------------------
     elif new_level in ["medium", "low"] and active_alert:
         active_alert.status = "resolved"

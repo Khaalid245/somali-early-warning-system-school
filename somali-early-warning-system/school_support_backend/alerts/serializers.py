@@ -14,6 +14,11 @@ class AlertSerializer(serializers.ModelSerializer):
         read_only=True
     )
 
+    assigned_to_name = serializers.CharField(
+        source="assigned_to.name",
+        read_only=True
+    )
+
     class Meta:
         model = Alert
         fields = [
@@ -25,38 +30,43 @@ class AlertSerializer(serializers.ModelSerializer):
             "student_name",
             "subject",
             "subject_name",
-            "alert_date",
-            "updated_at",
-        ]
-        read_only_fields = [
-            "alert_id",
+            "assigned_to",
+            "assigned_to_name",
+            "escalated_to_admin",
             "alert_date",
             "updated_at",
         ]
 
+        read_only_fields = [
+            "alert_id",
+            "alert_date",
+            "updated_at",
+            "escalated_to_admin",
+        ]
+
     def validate(self, data):
         """
-        Industry rule:
+        Industry validation:
         - Prevent duplicate ACTIVE alerts
-        - Only HIGH or CRITICAL can be created automatically
+        - Only HIGH or CRITICAL allowed for automatic system creation
         """
 
         student = data.get("student")
         subject = data.get("subject")
         alert_type = data.get("alert_type")
-        risk_level = data.get("risk_level")
 
-        # Prevent duplicate active alerts
-        existing = Alert.objects.filter(
-            student=student,
-            subject=subject,
-            alert_type=alert_type,
-            status="active"
-        )
+        if self.instance is None:  # Only on create
 
-        if existing.exists():
-            raise serializers.ValidationError(
-                "An active alert already exists for this student and subject."
+            existing = Alert.objects.filter(
+                student=student,
+                subject=subject,
+                alert_type=alert_type,
+                status="active"
             )
+
+            if existing.exists():
+                raise serializers.ValidationError(
+                    "An active alert already exists for this student."
+                )
 
         return data
