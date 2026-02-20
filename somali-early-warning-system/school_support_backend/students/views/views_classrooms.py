@@ -25,7 +25,7 @@ class ClassroomListCreateView(generics.ListCreateAPIView):
         # Teacher → only classrooms they teach
         if user.role == "teacher":
             return queryset.filter(
-                teachingassignment__teacher=user
+                teaching_assignments__teacher=user
             ).distinct()
 
         return Classroom.objects.none()

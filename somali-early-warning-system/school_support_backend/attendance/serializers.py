@@ -93,11 +93,9 @@ class AttendanceSessionSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         records_data = validated_data.pop("records")
         teacher = self.context["request"].user
+        validated_data['teacher'] = teacher
 
-        session = AttendanceSession.objects.create(
-            teacher=teacher,
-            **validated_data
-        )
+        session = AttendanceSession.objects.create(**validated_data)
 
         for record_data in records_data:
             AttendanceRecord.objects.create(

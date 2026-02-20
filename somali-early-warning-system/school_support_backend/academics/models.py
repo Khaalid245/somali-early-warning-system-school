@@ -6,6 +6,7 @@ from users.models import User
 class Subject(models.Model):
     subject_id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=100, unique=True)
+    code = models.CharField(max_length=20, unique=True, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -17,9 +18,8 @@ class Subject(models.Model):
 
 class TeachingAssignment(models.Model):
     """
-    Links a teacher to a subject and a classroom.
-    Example:
-    Mr Ahmed teaches Mathematics to Form 3A
+    Admin assigns: Teacher → Subject → Classroom
+    Teacher takes attendance daily until admin changes it
     """
 
     assignment_id = models.AutoField(primary_key=True)
@@ -42,7 +42,8 @@ class TeachingAssignment(models.Model):
         on_delete=models.CASCADE,
         related_name="teaching_assignments"
     )
-
+    
+    is_active = models.BooleanField(default=True, help_text="Admin can deactivate without deleting")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -50,4 +51,6 @@ class TeachingAssignment(models.Model):
         ordering = ["classroom", "subject"]
 
     def __str__(self):
-        return f"{self.teacher.name} - {self.subject.name} ({self.classroom.name})"
+        teacher_name = self.teacher.name if hasattr(self.teacher, 'name') else str(self.teacher)
+        status = "✓" if self.is_active else "✗"
+        return f"{status} {teacher_name} - {self.subject.name} ({self.classroom.name})"

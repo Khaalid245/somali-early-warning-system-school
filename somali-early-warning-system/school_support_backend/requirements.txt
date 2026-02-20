@@ -4,3 +4,25 @@ djangorestframework-simplejwt
 django-cors-headers
 mysql-connector-python
 PyJWT
+
+# Security & Environment
+python-dotenv
+django-ratelimit
+
+# Caching
+django-redis
+redis
+
+# Monitoring & Logging
+sentry-sdk
+
+# Validation
+django-filter
+
+# Export functionality
+openpyxl
+reportlab
+
+# Production server
+gunicorn
+whitenoise

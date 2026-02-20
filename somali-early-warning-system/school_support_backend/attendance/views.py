@@ -63,7 +63,7 @@ class AttendanceSessionListCreateView(generics.ListCreateAPIView):
             )
 
         # Save session
-        session = serializer.save(teacher=user)
+        session = serializer.save()
 
         # 🔥 Call risk engine (SERVICE LAYER)
         update_risk_after_session(session)

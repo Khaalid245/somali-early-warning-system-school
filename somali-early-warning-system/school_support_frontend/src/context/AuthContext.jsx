@@ -1,5 +1,8 @@
 import { createContext, useState, useEffect } from "react";
 import { jwtDecode } from "jwt-decode";
+import { useNavigate } from "react-router-dom";
+import { showToast } from "../utils/toast";
+import api from "../api/apiClient";
 
 export const AuthContext = createContext();
 
@@ -9,11 +12,15 @@ export function AuthProvider({ children }) {
     if (!token) return null;
 
     try {
-      return jwtDecode(token);
+      const decoded = jwtDecode(token);
+      // Check if token is expired
+      if (decoded.exp * 1000 < Date.now()) {
+        localStorage.clear();
+        return null;
+      }
+      return decoded;
     } catch (err) {
-      console.error("INVALID TOKEN IN STORAGE → Clearing...");
-      localStorage.removeItem("access");
-      localStorage.removeItem("refresh");
+      localStorage.clear();
       return null;
     }
   });
@@ -26,10 +33,22 @@ export function AuthProvider({ children }) {
     setUser(decoded);
   };
 
-  const logout = () => {
-    localStorage.removeItem("access");
-    localStorage.removeItem("refresh");
+  const logout = async () => {
+    const refresh = localStorage.getItem("refresh");
+    
+    // Blacklist refresh token on backend
+    if (refresh) {
+      try {
+        await api.post("/auth/logout/", { refresh });
+      } catch (err) {
+        console.error("Logout error:", err);
+      }
+    }
+    
+    localStorage.clear();
     setUser(null);
+    showToast.success("Logged out successfully");
+    window.location.href = "/login";
   };
 
   return (

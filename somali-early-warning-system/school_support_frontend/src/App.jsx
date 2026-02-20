@@ -1,21 +1,52 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { useContext } from "react";
+import { AuthContext } from "./context/AuthContext";
+import { Toaster } from 'react-hot-toast';
+import ErrorBoundary from './components/ErrorBoundary';
+
 import Login from "./auth/Login";
 import ProtectedRoute from "./auth/ProtectedRoute";
 
 // Teacher pages
-import TeacherDashboard from "./teacher/Dashboard";
-import AttendancePage from "./teacher/AttendancePage";
+import TeacherDashboard from "./teacher/DashboardNew";
+import AttendancePage from "./teacher/AttendancePageNew";
+import ProfilePage from "./teacher/ProfilePage";
+import SettingsPage from "./teacher/SettingsPage";
 import MyClasses from "./teacher/MyClasses";
-import MySubjects from "./teacher/MySubjects"; // ✅ added import
+import MySubjects from "./teacher/MySubjects";
 
 function App() {
+  const { user } = useContext(AuthContext);
+
   return (
-    <BrowserRouter>
-      <Routes>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <Toaster />
+        <Routes>
+        {/* Default route */}
+        <Route
+          path="/"
+          element={
+            user ? (
+              user.role === "teacher" ? (
+                <Navigate to="/teacher" />
+              ) : user.role === "admin" ? (
+                <Navigate to="/admin" />
+              ) : user.role === "counsellor" ? (
+                <Navigate to="/counsellor" />
+              ) : (
+                <Navigate to="/login" />
+              )
+            ) : (
+              <Navigate to="/login" />
+            )
+          }
+        />
+
         {/* PUBLIC ROUTE */}
         <Route path="/login" element={<Login />} />
 
-        {/* TEACHER DASHBOARD */}
+        {/* TEACHER ROUTES */}
         <Route
           path="/teacher"
           element={
@@ -25,7 +56,6 @@ function App() {
           }
         />
 
-        {/* TEACHER ATTENDANCE */}
         <Route
           path="/teacher/attendance"
           element={
@@ -35,7 +65,24 @@ function App() {
           }
         />
 
-        {/* TEACHER CLASSES */}
+        <Route
+          path="/teacher/profile"
+          element={
+            <ProtectedRoute role="teacher">
+              <ProfilePage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/teacher/settings"
+          element={
+            <ProtectedRoute role="teacher">
+              <SettingsPage />
+            </ProtectedRoute>
+          }
+        />
+
         <Route
           path="/teacher/classes"
           element={
@@ -45,7 +92,6 @@ function App() {
           }
         />
 
-        {/* TEACHER SUBJECTS */}
         <Route
           path="/teacher/subjects"
           element={
@@ -75,7 +121,8 @@ function App() {
           }
         />
       </Routes>
-    </BrowserRouter>
+      </BrowserRouter>
+    </ErrorBoundary>
   );
 }
 

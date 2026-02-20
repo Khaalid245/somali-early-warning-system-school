@@ -1,13 +1,16 @@
 import { useEffect, useState, useContext } from "react";
+import { useLocation } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import api from "../api/apiClient";
 
 export default function AttendancePage() {
   const { user } = useContext(AuthContext);
+  const location = useLocation();
 
   const [assignments, setAssignments] = useState([]);
   const [classrooms, setClassrooms] = useState([]);
   const [subjects, setSubjects] = useState([]);
+  const [subjectMap, setSubjectMap] = useState({});
   const [students, setStudents] = useState([]);
 
   const [selectedClassroom, setSelectedClassroom] = useState("");
@@ -20,7 +23,7 @@ export default function AttendancePage() {
   // --------------------------
   const loadAssignments = async () => {
     try {
-      const res = await api.get("/assignments/");
+      const res = await api.get("/academics/assignments/");
       const myAssignments = res.data.filter((a) => a.teacher === user.user_id);
 
       setAssignments(myAssignments);
@@ -29,7 +32,7 @@ export default function AttendancePage() {
       const classIds = [...new Set(myAssignments.map((a) => a.classroom))];
 
       // Fetch all classrooms
-      const classRes = await api.get("/classrooms/");
+      const classRes = await api.get("/students/classrooms/");
 
       // Keep only classrooms assigned to this teacher
       const filteredClasses = classRes.data.filter((cls) =>
@@ -37,6 +40,13 @@ export default function AttendancePage() {
       );
 
       setClassrooms(filteredClasses);
+      
+      const subjectRes = await api.get("/academics/subjects/");
+      const subjectMapping = {};
+      subjectRes.data.forEach(sub => {
+        subjectMapping[sub.subject_id] = sub.name;
+      });
+      setSubjectMap(subjectMapping);
     } catch (err) {
       console.error("Failed to load assignments", err);
     }
@@ -70,6 +80,14 @@ export default function AttendancePage() {
     loadAssignments();
   }, []);
 
+  // PRE-SELECT FROM DASHBOARD
+  useEffect(() => {
+    if (location.state?.classroom && classrooms.length > 0) {
+      const cls = classrooms.find(c => c.name === location.state.classroom);
+      if (cls) setSelectedClassroom(cls.class_id.toString());
+    }
+  }, [location.state, classrooms]);
+
   // WHEN CLASS CHANGES
   useEffect(() => {
     if (selectedClassroom) {
@@ -91,24 +109,48 @@ export default function AttendancePage() {
       return;
     }
 
+    if (Object.keys(statusMap).length !== students.length) {
+      alert(`Please mark attendance for all ${students.length} students. Currently marked: ${Object.keys(statusMap).length}`);
+      return;
+    }
+
     const today = new Date().toISOString().split("T")[0];
 
+    const records = Object.keys(statusMap).map(studentId => ({
+      student: parseInt(studentId),
+      status: statusMap[studentId].toLowerCase(),
+      remarks: ""
+    }));
+
     try {
-      for (const studentId of Object.keys(statusMap)) {
-        await api.post("/attendance/", {
-          student: parseInt(studentId),
-          subject: parseInt(selectedSubject),
-          status: statusMap[studentId].toLowerCase(),
-          attendance_date: today,
-          remarks: "",
-        });
-      }
+      await api.post("/attendance/sessions/", {
+        classroom: parseInt(selectedClassroom),
+        subject: parseInt(selectedSubject),
+        attendance_date: today,
+        records: records
+      });
 
       alert("Attendance saved successfully!");
       setStatusMap({});
     } catch (err) {
       console.error("Submit Error:", err.response?.data || err);
-      alert("Error submitting attendance");
+      console.log("Full error:", JSON.stringify(err.response?.data, null, 2));
+      
+      const errorData = err.response?.data;
+      let errorMsg = "Error submitting attendance";
+      
+      if (errorData?.error && Array.isArray(errorData.error)) {
+        errorMsg = errorData.error[0];
+        if (errorMsg.includes("unique set")) {
+          errorMsg = "Attendance already recorded for this class and subject today. You cannot submit twice.";
+        }
+      } else if (errorData?.non_field_errors) {
+        errorMsg = errorData.non_field_errors[0];
+      } else if (errorData?.detail) {
+        errorMsg = errorData.detail;
+      }
+      
+      alert(errorMsg);
     }
   };
 
@@ -160,7 +202,7 @@ export default function AttendancePage() {
 
             {subjects.map((subjectId) => (
               <option key={subjectId} value={subjectId}>
-                Subject {subjectId}
+                {subjectMap[subjectId] || `Subject ${subjectId}`}
               </option>
             ))}
           </select>

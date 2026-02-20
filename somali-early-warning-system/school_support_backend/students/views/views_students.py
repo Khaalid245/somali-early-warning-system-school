@@ -12,7 +12,12 @@ class StudentListCreateView(generics.ListCreateAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        queryset = Student.objects.select_related("classroom")
+        queryset = Student.objects.all()
+        
+        classroom_id = self.request.query_params.get('classroom')
+        if classroom_id:
+            queryset = queryset.filter(enrollments__classroom_id=classroom_id, enrollments__is_active=True)
+            return queryset
 
         # Admin → all students
         if user.role == "admin":
@@ -21,13 +26,13 @@ class StudentListCreateView(generics.ListCreateAPIView):
         # Form master → students in their classroom
         if user.role == "form_master":
             return queryset.filter(
-                classroom__form_master=user
-            )
+                enrollments__classroom__form_master=user
+            ).distinct()
 
         # Teacher → students in classes they teach
         if user.role == "teacher":
             return queryset.filter(
-                classroom__teachingassignment__teacher=user
+                enrollments__classroom__teaching_assignments__teacher=user
             ).distinct()
 
         return Student.objects.none()

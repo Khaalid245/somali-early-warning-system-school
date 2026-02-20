@@ -49,7 +49,7 @@ class TeachingAssignmentListCreateView(generics.ListCreateAPIView):
         user = self.request.user
 
         if user.role == "teacher":
-            return TeachingAssignment.objects.filter(teacher=user)
+            return TeachingAssignment.objects.filter(teacher=user, is_active=True)
 
         return TeachingAssignment.objects.all()
 
