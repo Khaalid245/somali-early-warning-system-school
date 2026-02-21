@@ -21,8 +21,9 @@ class UserAdmin(BaseUserAdmin):
     form = CustomUserChangeForm
     model = User
 
-    list_display = ("id", "name", "email", "role", "is_active")
+    list_display = ("id", "name", "email", "role", "is_active", "date_joined")
     list_filter = ("role", "is_active")
+    readonly_fields = ("date_joined", "updated_at")
 
     fieldsets = (
         (None, {"fields": ("email", "password")}),
@@ -36,7 +37,7 @@ class UserAdmin(BaseUserAdmin):
                 "user_permissions",
             )
         }),
-        ("Important dates", {"fields": ("last_login", "date_joined")}),
+        ("Important dates", {"fields": ("last_login",)}),
     )
 
     add_fieldsets = (

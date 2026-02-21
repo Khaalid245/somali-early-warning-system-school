@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import ConfirmDialog from "./ConfirmDialog";
 
 export default function Sidebar({ user, onLogout, onTabChange }) {
   const navigate = useNavigate();
@@ -10,7 +9,6 @@ export default function Sidebar({ user, onLogout, onTabChange }) {
     return saved ? JSON.parse(saved) : false;
   });
   const [isMobile, setIsMobile] = useState(false);
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -29,10 +27,27 @@ export default function Sidebar({ user, onLogout, onTabChange }) {
     localStorage.setItem("sidebarCollapsed", JSON.stringify(collapsed));
   }, [collapsed]);
 
-  const menuItems = [
+  const menuItems = user?.role === 'admin' ? [
+    { icon: "🏛️", label: "Dashboard", path: "/admin", badge: null, isRoute: true },
+    { icon: "🔔", label: "Alerts", path: "alerts", badge: null, isRoute: false },
+    { icon: "📋", label: "Cases", path: "cases", badge: null, isRoute: false },
+    { icon: "👥", label: "Students", path: "students", badge: null, isRoute: false },
+    { icon: "⚙️", label: "Governance", path: "governance", badge: null, isRoute: false },
+    { icon: "🛡️", label: "Audit Logs", path: "audit", badge: null, isRoute: false },
+    { icon: "📊", label: "Reports", path: "reports", badge: null, isRoute: false },
+  ] : user?.role === 'form_master' ? [
+    { icon: "📊", label: "Dashboard", path: "/form-master", badge: null, isRoute: true },
+    { icon: "📝", label: "Interventions", path: "/form-master/interventions", badge: null, isRoute: true },
+    { icon: "🔔", label: "Alerts", path: "alerts", badge: null, isRoute: false },
+    { icon: "📋", label: "Cases", path: "cases", badge: null, isRoute: false },
+    { icon: "⚠️", label: "High Risk", path: "students", badge: null, isRoute: false },
+    { icon: "📈", label: "Progression", path: "progression", badge: null, isRoute: false },
+    { icon: "📅", label: "Attendance", path: "attendance", badge: null, isRoute: false },
+    { icon: "📊", label: "Daily Monitor", path: "daily-monitor", badge: null, isRoute: false },
+  ] : [
     { icon: "📊", label: "Dashboard", path: "/teacher", badge: null, isRoute: true },
     { icon: "✓", label: "Take Attendance", path: "/teacher/attendance", badge: null, isRoute: true },
-    { icon: "🔔", label: "Alerts", path: "alerts", badge: 3, isRoute: false },
+    { icon: "🔔", label: "Alerts", path: "alerts", badge: null, isRoute: false },
     { icon: "👥", label: "Students", path: "students", badge: null, isRoute: false },
     { icon: "📚", label: "My Classes", path: "/teacher/classes", badge: null, isRoute: true },
   ];
@@ -40,25 +55,20 @@ export default function Sidebar({ user, onLogout, onTabChange }) {
   const isActive = (path) => location.pathname === path;
 
   const handleLogout = () => {
-    setShowLogoutConfirm(true);
-  };
-
-  const confirmLogout = () => {
-    setShowLogoutConfirm(false);
     onLogout();
   };
 
   const handleMenuClick = (item) => {
+    const basePath = user?.role === 'admin' ? '/admin' : user?.role === 'form_master' ? '/form-master' : '/teacher';
+    
     if (item.isRoute) {
       navigate(item.path);
-    } else {
-      // For dashboard tabs
-      if (location.pathname === "/teacher") {
-        onTabChange?.(item.path);
-      } else {
-        navigate("/teacher");
-        setTimeout(() => onTabChange?.(item.path), 100);
+      if (item.path === basePath) {
+        onTabChange?.('overview');
       }
+    } else {
+      navigate(basePath);
+      setTimeout(() => onTabChange?.(item.path), 50);
     }
     if (isMobile) setCollapsed(true);
   };
@@ -86,7 +96,9 @@ export default function Sidebar({ user, onLogout, onTabChange }) {
           {!collapsed && (
             <div className="min-w-0">
               <h1 className="text-base sm:text-lg font-bold text-gray-800 truncate">EWS Portal</h1>
-              <p className="text-xs text-gray-500">Teacher</p>
+              <p className="text-xs text-gray-500">
+                {user?.role === 'admin' ? 'Administrator' : user?.role === 'form_master' ? 'Form Master' : 'Teacher'}
+              </p>
             </div>
           )}
           <button
@@ -135,17 +147,18 @@ export default function Sidebar({ user, onLogout, onTabChange }) {
             {!collapsed && (
               <div className="flex-1 min-w-0">
                 <p className="text-xs sm:text-sm font-semibold text-gray-800 truncate">{user?.name || "Teacher"}</p>
-                <p className="text-xs text-gray-500">Teacher</p>
+                <p className="text-xs text-gray-500">
+                  {user?.role === 'admin' ? 'Administrator' : user?.role === 'form_master' ? 'Form Master' : 'Teacher'}
+                </p>
               </div>
             )}
           </div>
           <button
             onClick={handleLogout}
-            className={`w-full px-2 sm:px-3 py-1.5 sm:py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition text-xs sm:text-sm font-medium ${
-              collapsed ? "px-1" : ""
-            }`}
+            className={`w-full flex items-center justify-center gap-2 px-2 sm:px-3 py-1.5 sm:py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition text-xs sm:text-sm font-medium`}
           >
-            {collapsed ? "🚪" : "Logout"}
+            <span className="text-base">🚪</span>
+            {!collapsed && <span>Logout</span>}
           </button>
         </div>
       </div>
@@ -159,18 +172,6 @@ export default function Sidebar({ user, onLogout, onTabChange }) {
           <span className="text-2xl">☰</span>
         </button>
       )}
-
-      {/* Logout Confirmation */}
-      <ConfirmDialog
-        isOpen={showLogoutConfirm}
-        title="Confirm Logout"
-        message="Are you sure you want to logout? You will need to sign in again to access your account."
-        onConfirm={confirmLogout}
-        onCancel={() => setShowLogoutConfirm(false)}
-        confirmText="Logout"
-        cancelText="Cancel"
-        type="warning"
-      />
     </>
   );
 }

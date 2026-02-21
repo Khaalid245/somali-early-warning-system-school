@@ -1,0 +1,19 @@
+/* Global Responsive Styles */
+@media (max-width: 768px) {
+  .responsive-table { font-size: 0.75rem; }
+  .responsive-modal { width: 95vw !important; max-width: 95vw !important; }
+  .responsive-grid { grid-template-columns: 1fr !important; }
+  button, a { min-height: 44px; }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .responsive-grid-2 { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (min-width: 1025px) {
+  .responsive-grid-4 { grid-template-columns: repeat(4, 1fr); }
+}
+
+body { overflow-x: hidden; }
+* { box-sizing: border-box; }
+img, iframe, video { max-width: 100%; }

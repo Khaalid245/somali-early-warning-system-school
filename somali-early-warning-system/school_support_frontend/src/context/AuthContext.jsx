@@ -4,22 +4,31 @@ import { useNavigate } from "react-router-dom";
 import { showToast } from "../utils/toast";
 import api from "../api/apiClient";
 
+/**
+ * AuthContext - Manages user authentication state and JWT tokens
+ * Handles login, logout, and token validation
+ */
+
 export const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
     const token = localStorage.getItem("access");
+    console.log("[AuthContext] Token:", token ? "exists" : "null");
     if (!token) return null;
 
     try {
       const decoded = jwtDecode(token);
+      console.log("[AuthContext] Decoded user:", decoded);
       // Check if token is expired
       if (decoded.exp * 1000 < Date.now()) {
+        console.log("[AuthContext] Token expired");
         localStorage.clear();
         return null;
       }
       return decoded;
     } catch (err) {
+      console.log("[AuthContext] Token decode error:", err);
       localStorage.clear();
       return null;
     }
@@ -31,6 +40,10 @@ export function AuthProvider({ children }) {
 
     const decoded = jwtDecode(access);
     setUser(decoded);
+  };
+
+  const updateUser = (userData) => {
+    setUser(prevUser => ({ ...prevUser, ...userData }));
   };
 
   const logout = async () => {
@@ -52,7 +65,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
+    <AuthContext.Provider value={{ user, login, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

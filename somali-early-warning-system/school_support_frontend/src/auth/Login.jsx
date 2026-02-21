@@ -8,6 +8,7 @@ import { showToast } from "../utils/toast";
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [role, setRole] = useState("teacher");
   const { login } = useContext(AuthContext);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -39,7 +40,7 @@ export default function Login() {
       showToast.success(`Welcome back, ${decoded.username || 'User'}!`);
 
       if (decoded.role === "teacher") navigate("/teacher");
-      else if (decoded.role === "counsellor") navigate("/counsellor");
+      else if (decoded.role === "form_master") navigate("/form-master");
       else if (decoded.role === "admin") navigate("/admin");
       else navigate("/");
     } catch (err) {
@@ -77,6 +78,22 @@ export default function Login() {
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-5">
+          {/* Role Selector */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Select Role
+            </label>
+            <select
+              value={role}
+              onChange={(e) => setRole(e.target.value)}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition bg-white"
+            >
+              <option value="teacher">👨‍🏫 Teacher</option>
+              <option value="form_master">👔 Form Master</option>
+              <option value="admin">🔑 Administrator</option>
+            </select>
+          </div>
+
           {/* Email */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">

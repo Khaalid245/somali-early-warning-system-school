@@ -23,6 +23,17 @@ export const showToast = {
     },
   }),
   
+  info: (message) => toast(message, {
+    duration: 3000,
+    position: 'top-right',
+    style: {
+      background: '#3B82F6',
+      color: '#fff',
+      padding: '16px',
+      borderRadius: '8px',
+    },
+  }),
+  
   loading: (message) => toast.loading(message, {
     position: 'top-right',
   }),

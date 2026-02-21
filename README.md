@@ -160,12 +160,30 @@ http://localhost:5173/
 
 ## Usage Guide
 
+### For Teachers
 1. Access the frontend at `http://localhost:5173/`
-2. Log in as a teacher (authentication enabled)
-3. Register and manage students
-4. Record daily attendance
-5. View attendance records linked to students
-6. (Planned) View alerts and risk indicators
+2. Log in with teacher credentials
+3. Record daily attendance
+4. Create alerts for at-risk students
+5. View assigned classes and students
+
+### For Form Masters
+1. Log in with form master credentials
+2. View classroom dashboard with risk indicators
+3. Manage intervention cases
+4. Track student progression
+5. Monitor attendance patterns
+
+### For Administrators
+1. Log in with admin credentials
+2. Access System Control Center
+3. Navigate to **Governance** tab for:
+   - **User Management**: Create and manage users (Admin, Form Master, Teacher)
+   - **Classroom Management**: Create classrooms and assign form masters
+   - **Student Enrollment**: Enroll students in classrooms
+   - **Teacher Assignment**: Assign teachers to classes and subjects
+4. View system-wide analytics and reports
+5. Monitor audit logs for compliance
 
 ---
 
@@ -191,6 +209,68 @@ The system follows a three-tier architecture:
 - Data Layer: MySQL relational database
 
 ![System Architecture](screenshots/system_architecture.png)
+
+---
+
+## Enterprise Governance Features
+
+### Centralized User Provisioning
+
+The system implements **enterprise-grade governance** with centralized user management:
+
+- **No Public Registration**: Only administrators can create user accounts (FERPA compliance)
+- **Role-Based Access Control (RBAC)**: Three-tier role hierarchy
+  - **Admin**: Full system access, user management, system oversight
+  - **Form Master**: Classroom management, intervention cases (one classroom only)
+  - **Teacher**: Attendance recording, alert creation (multiple classes)
+- **Soft Deletion**: Users are disabled, not deleted (preserves historical data)
+- **Audit Logging**: Every governance action is logged for compliance
+
+### Governance Dashboard Features
+
+Access via: **Admin Dashboard → Governance Tab (⚙️)**
+
+1. **User Management**
+   - Create users with roles (Admin, Form Master, Teacher)
+   - Edit user details (name, email, role)
+   - Disable/Enable users (soft delete)
+   - Filter users by role
+   - View assigned classrooms
+
+2. **Classroom Management**
+   - Create classrooms with academic year
+   - Assign form masters (1:1 mapping)
+   - View student counts per classroom
+   - Edit classroom details
+   - Prevent duplicate form master assignments
+
+3. **Student Enrollment**
+   - Enroll students in classrooms
+   - Track academic year progression
+   - Prevent duplicate enrollments
+   - View all active enrollments
+
+4. **Teacher Assignment**
+   - Assign teachers to classes and subjects
+   - Support many-to-many relationships
+   - Prevent duplicate assignments
+   - View all teaching assignments
+
+### Security & Compliance
+
+- **IDOR Protection**: Form Masters can only access their assigned classroom
+- **JWT Authentication**: Stateless, scalable authentication
+- **Audit Logging**: 7-year retention (FERPA requirement)
+- **Data Isolation**: Role-based data access boundaries
+- **FERPA/GDPR Compliance**: Privacy-aware design
+
+### Documentation
+
+Comprehensive governance documentation available:
+- **[GOVERNANCE_QUICK_START.md](GOVERNANCE_QUICK_START.md)** - 5-minute test guide
+- **[GOVERNANCE_ARCHITECTURE.md](GOVERNANCE_ARCHITECTURE.md)** - Architecture deep dive
+- **[GOVERNANCE_PRESENTATION_GUIDE.md](GOVERNANCE_PRESENTATION_GUIDE.md)** - Presentation materials
+- **[GOVERNANCE_DOCUMENTATION_INDEX.md](GOVERNANCE_DOCUMENTATION_INDEX.md)** - Complete index
 
 ---
 
@@ -256,19 +336,37 @@ Screenshots are located in the `screenshots/` directory:
 
 ### Completed
 
-- Backend API architecture
-- Database schema and migrations
-- JWT authentication
-- Attendance recording
-- Frontend-backend integration
+- ✅ Backend API architecture
+- ✅ Database schema and migrations
+- ✅ JWT authentication with RBAC
+- ✅ Attendance recording and monitoring
+- ✅ Frontend-backend integration
+- ✅ **Admin Dashboard with System Control Center**
+- ✅ **Enterprise Governance Layer**
+  - User Management (create, edit, disable/enable users)
+  - Classroom Management (create, assign form masters)
+  - Student Enrollment (enroll students in classrooms)
+  - Teacher Assignment (assign teachers to classes/subjects)
+- ✅ **Form Master Dashboard**
+  - Classroom risk management
+  - Intervention case management
+  - Student progression tracking
+- ✅ **Teacher Dashboard**
+  - Attendance recording
+  - Alert creation
+  - Student monitoring
+- ✅ **Security & Compliance**
+  - Role-based access control (RBAC)
+  - IDOR protection
+  - Audit logging
+  - FERPA/GDPR compliance awareness
 
 ### Planned
 
-- Counselor dashboards
-- Administrator panels
-- Risk and alert visualizations
-- Intervention management
-- UI improvements and testing
+- Advanced analytics and reporting
+- Email notifications
+- Bulk operations (CSV import)
+- Two-factor authentication (2FA)
 - Cloud deployment
 
 ---

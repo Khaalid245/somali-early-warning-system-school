@@ -16,7 +16,7 @@ class AlertListCreateView(generics.ListCreateAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        qs = Alert.objects.all().order_by("-alert_date")
+        qs = Alert.objects.select_related('student', 'subject', 'assigned_to').all().order_by("-alert_date")
 
         # --------------------------------------------
         # ROLE-BASED ACCESS CONTROL
@@ -54,7 +54,7 @@ class AlertDetailView(generics.RetrieveUpdateAPIView):
     # 🔒 OBJECT-LEVEL SECURITY
     def get_queryset(self):
         user = self.request.user
-        qs = Alert.objects.all()
+        qs = Alert.objects.select_related('student', 'subject', 'assigned_to').all()
 
         if user.role == "admin":
             return qs

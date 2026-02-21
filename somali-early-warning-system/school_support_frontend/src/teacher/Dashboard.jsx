@@ -78,8 +78,9 @@ export default function TeacherDashboard() {
             <h1 className="text-3xl font-bold text-gray-800">👋 Welcome, {user?.name || "Teacher"}</h1>
             <p className="text-gray-600 mt-1">Here's your classroom overview for today</p>
           </div>
-          <button onClick={logout} className="px-6 py-3 bg-red-500 text-white text-lg rounded-xl hover:bg-red-600 shadow-lg transition">
-            🚪 Logout
+          <button onClick={logout} className="flex items-center gap-2 px-6 py-3 bg-red-50 text-red-600 text-lg rounded-xl hover:bg-red-100 shadow-lg transition font-semibold">
+            <span>🚪</span>
+            <span>Logout</span>
           </button>
         </div>
       </div>

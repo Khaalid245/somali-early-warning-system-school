@@ -153,20 +153,251 @@ def get_admin_dashboard_data(user, filters):
 
 
 def get_form_master_dashboard_data(user, filters):
-    assigned_alerts = Alert.objects.filter(
+    from django.db.models import Count, Q, Avg
+    from students.models import StudentEnrollment
+    from academics.models import Classroom
+    
+    # Get classrooms assigned to this form master
+    my_classrooms = Classroom.objects.filter(form_master=user)
+    
+    # Assigned alerts
+    assigned_alerts_qs = Alert.objects.filter(
         assigned_to=user,
         status__in=["active", "under_review", "escalated"]
-    ).count()
+    )
+    assigned_alerts = assigned_alerts_qs.count()
 
-    open_cases = InterventionCase.objects.filter(
+    current_alerts, previous_alerts = get_monthly_counts(
+        Alert, "alert_date",
+        {"assigned_to": user, "status__in": ["active", "under_review", "escalated"]}
+    )
+    alert_change_percent = calculate_percentage_change(current_alerts, previous_alerts)
+
+    # Open cases
+    open_cases_qs = InterventionCase.objects.filter(
         assigned_to=user,
         status__in=["open", "in_progress", "awaiting_parent"]
+    )
+    open_cases = open_cases_qs.count()
+
+    current_cases, previous_cases = get_monthly_counts(
+        InterventionCase, "created_at",
+        {"assigned_to": user, "status__in": ["open", "in_progress", "awaiting_parent"]}
+    )
+    case_change_percent = calculate_percentage_change(current_cases, previous_cases)
+
+    # Monthly trends
+    monthly_alert_trend = get_monthly_trend(
+        Alert, "alert_date",
+        {"assigned_to": user, "status__in": ["active", "under_review", "escalated"]}
+    )
+
+    monthly_case_trend = get_monthly_trend(
+        InterventionCase, "created_at",
+        {"assigned_to": user, "status__in": ["open", "in_progress", "awaiting_parent"]}
+    )
+
+    # Urgent alerts (top 5)
+    urgent_alerts = list(
+        Alert.objects
+        .filter(assigned_to=user, status__in=["active", "escalated"])
+        .select_related("student", "subject")
+        .order_by("-risk_level", "-alert_date")
+        .values(
+            "alert_id",
+            "student__full_name",
+            "student__student_id",
+            "subject__name",
+            "alert_type",
+            "risk_level",
+            "status",
+            "alert_date"
+        )[:5]
+    )
+
+    # Cases needing attention
+    pending_cases = list(
+        InterventionCase.objects
+        .filter(assigned_to=user, status__in=["open", "in_progress", "awaiting_parent"])
+        .select_related("student", "alert", "student__risk_profile")
+        .order_by("-created_at")
+        .values(
+            "case_id",
+            "student__full_name",
+            "student__student_id",
+            "student__risk_profile__risk_level",
+            "status",
+            "follow_up_date",
+            "created_at",
+            "meeting_date",
+            "meeting_notes",
+            "progress_status"
+        )[:10]
+    )
+
+    # Case status breakdown
+    case_status_breakdown = list(
+        open_cases_qs
+        .values("status")
+        .annotate(count=Count("case_id"))
+    )
+
+    # Escalated cases count
+    escalated_cases = InterventionCase.objects.filter(
+        assigned_to=user,
+        status="escalated_to_admin"
     ).count()
+
+    # High-risk students with detailed attendance
+    high_risk_students = []
+    for enrollment in StudentEnrollment.objects.filter(
+        classroom__in=my_classrooms,
+        is_active=True
+    ).select_related('student', 'student__risk_profile'):
+        
+        student = enrollment.student
+        
+        if not hasattr(student, 'risk_profile') or student.risk_profile.risk_level not in ['high', 'critical']:
+            continue
+            
+        # Get attendance stats
+        total_records = AttendanceRecord.objects.filter(student=student).count()
+        absent_count = AttendanceRecord.objects.filter(student=student, status='absent').count()
+        late_count = AttendanceRecord.objects.filter(student=student, status='late').count()
+        present_count = AttendanceRecord.objects.filter(student=student, status='present').count()
+        
+        attendance_rate = 0
+        if total_records > 0:
+            attendance_rate = round((present_count / total_records) * 100, 1)
+        
+        # Calculate priority score
+        priority_score = float(student.risk_profile.risk_score)
+        
+        # Check open cases
+        open_cases_count = InterventionCase.objects.filter(
+            student=student,
+            status__in=['open', 'in_progress', 'awaiting_parent']
+        ).count()
+        
+        # Check if no intervention yet
+        has_intervention = InterventionCase.objects.filter(student=student).exists()
+        if not has_intervention:
+            priority_score += 20  # Boost priority if no intervention
+        
+        # Check last follow-up
+        last_case = InterventionCase.objects.filter(student=student).order_by('-created_at').first()
+        days_since_followup = 999
+        if last_case and last_case.follow_up_date:
+            days_since_followup = (timezone.now().date() - last_case.follow_up_date).days
+            if days_since_followup > 7:
+                priority_score += 15  # Boost if overdue
+        
+        # Check active alerts
+        active_alerts_count = Alert.objects.filter(
+            student=student,
+            status__in=['active', 'under_review']
+        ).count()
+        priority_score += (active_alerts_count * 10)
+        
+        high_risk_students.append({
+            'student__student_id': student.student_id,
+            'student__full_name': student.full_name,
+            'risk_level': student.risk_profile.risk_level,
+            'risk_score': float(student.risk_profile.risk_score),
+            'priority_score': round(priority_score, 1),
+            'total_sessions': total_records,
+            'absent_count': absent_count,
+            'late_count': late_count,
+            'attendance_rate': attendance_rate,
+            'classroom': enrollment.classroom.name,
+            'open_cases_count': open_cases_count,
+            'has_intervention': has_intervention,
+            'days_since_followup': days_since_followup if days_since_followup < 999 else None,
+            'active_alerts_count': active_alerts_count
+        })
+    
+    # Sort by priority score (highest first)
+    high_risk_students.sort(key=lambda x: x['priority_score'], reverse=True)
+    high_risk_count = len(high_risk_students)
+
+    # Classroom statistics
+    classroom_stats = []
+    for classroom in my_classrooms:
+        total_students = StudentEnrollment.objects.filter(
+            classroom=classroom,
+            is_active=True
+        ).count()
+        
+        from datetime import timedelta
+        thirty_days_ago = timezone.now().date() - timedelta(days=30)
+        
+        recent_records = AttendanceRecord.objects.filter(
+            session__classroom=classroom,
+            session__attendance_date__gte=thirty_days_ago
+        )
+        
+        total_records = recent_records.count()
+        absent = recent_records.filter(status='absent').count()
+        late = recent_records.filter(status='late').count()
+        present = recent_records.filter(status='present').count()
+        
+        attendance_rate = 0
+        if total_records > 0:
+            attendance_rate = round((present / total_records) * 100, 1)
+        
+        # Calculate classroom risk health
+        avg_risk = StudentRiskProfile.objects.filter(
+            student__enrollments__classroom=classroom,
+            student__enrollments__is_active=True
+        ).aggregate(avg=Avg('risk_score'))['avg'] or 0
+        
+        health_status = 'healthy'
+        if avg_risk >= 60:
+            health_status = 'critical'
+        elif avg_risk >= 30:
+            health_status = 'moderate'
+        
+        classroom_stats.append({
+            'classroom_id': classroom.class_id,
+            'classroom_name': classroom.name,
+            'total_students': total_students,
+            'attendance_rate': attendance_rate,
+            'absent_count': absent,
+            'late_count': late,
+            'present_count': present,
+            'avg_risk_score': round(float(avg_risk), 1),
+            'health_status': health_status
+        })
+
+    # Overdue follow-ups
+    overdue_cases = InterventionCase.objects.filter(
+        assigned_to=user,
+        follow_up_date__lt=timezone.now().date(),
+        status__in=['open', 'in_progress', 'awaiting_parent']
+    ).count()
+    
+    # Students needing immediate attention (top 5)
+    immediate_attention = [s for s in high_risk_students if not s['has_intervention'] or s['days_since_followup'] and s['days_since_followup'] > 7][:5]
 
     return {
         "role": "form_master",
         "assigned_alerts": assigned_alerts,
+        "alert_change_percent": alert_change_percent,
+        "alert_trend_direction": get_trend_direction(alert_change_percent),
         "open_cases": open_cases,
+        "case_change_percent": case_change_percent,
+        "case_trend_direction": get_trend_direction(case_change_percent),
+        "high_risk_count": high_risk_count,
+        "escalated_cases": escalated_cases,
+        "monthly_alert_trend": monthly_alert_trend,
+        "monthly_case_trend": monthly_case_trend,
+        "urgent_alerts": urgent_alerts,
+        "pending_cases": pending_cases,
+        "case_status_breakdown": case_status_breakdown,
+        "high_risk_students": high_risk_students[:20],
+        "classroom_stats": classroom_stats,
+        "overdue_cases": overdue_cases,
+        "immediate_attention": immediate_attention,
     }
 
 

@@ -20,9 +20,14 @@ export default function TeacherDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState(new Date());
 
   useEffect(() => {
     loadDashboard();
+    const interval = setInterval(() => {
+      setLastUpdated(prev => prev);
+    }, 60000);
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -57,11 +62,31 @@ export default function TeacherDashboard() {
     try {
       const res = await api.get("/dashboard/");
       setDashboardData(res.data);
+      setLastUpdated(new Date());
     } catch (err) {
       console.error("Failed to load dashboard", err);
     } finally {
       setLoading(false);
     }
+  };
+
+  const getTimeAgo = (date) => {
+    const seconds = Math.floor((new Date() - date) / 1000);
+    if (seconds < 60) return 'Just now';
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+    const hours = Math.floor(minutes / 60);
+    return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+  };
+
+  const getRiskBadgeColor = (level) => {
+    const colors = {
+      low: 'bg-gray-100 text-gray-700',
+      medium: 'bg-yellow-100 text-yellow-700',
+      high: 'bg-orange-100 text-orange-700',
+      critical: 'bg-red-100 text-red-700'
+    };
+    return colors[level?.toLowerCase()] || colors.medium;
   };
 
   if (loading) {
@@ -134,6 +159,44 @@ export default function TeacherDashboard() {
         <div className="p-8">
           {activeTab === "overview" && (
             <>
+              {/* Quick Actions + Last Updated */}
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => navigate('/teacher/attendance')}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium flex items-center gap-2"
+                  >
+                    <span>📝</span> Record Attendance
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('alerts')}
+                    className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition text-sm font-medium flex items-center gap-2"
+                  >
+                    <span>🔔</span> View Alerts
+                    {dashboardData.active_alerts > 0 && (
+                      <span className="ml-1 px-2 py-0.5 bg-red-500 text-white text-xs rounded-full">
+                        {dashboardData.active_alerts}
+                      </span>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('students')}
+                    className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition text-sm font-medium flex items-center gap-2"
+                  >
+                    <span>⚠️</span> High Risk Students
+                    {dashboardData.high_risk_students?.length > 0 && (
+                      <span className="ml-1 px-2 py-0.5 bg-orange-500 text-white text-xs rounded-full">
+                        {dashboardData.high_risk_students.length}
+                      </span>
+                    )}
+                  </button>
+                </div>
+                <div className="text-sm text-gray-500 flex items-center gap-2">
+                  <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                  Last updated: {getTimeAgo(lastUpdated)}
+                </div>
+              </div>
+
               {/* KPI Cards */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
@@ -179,9 +242,9 @@ export default function TeacherDashboard() {
 
               {/* Charts */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-                {dashboardData.monthly_absence_trend && (
-                  <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                    <h3 className="text-lg font-semibold text-gray-800 mb-4">Absence Trend (Last 6 Months)</h3>
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-4">Absence Trend (Last 6 Months)</h3>
+                  {dashboardData.monthly_absence_trend && dashboardData.monthly_absence_trend.length > 0 ? (
                     <ResponsiveContainer width="100%" height={300}>
                       <AreaChart data={dashboardData.monthly_absence_trend}>
                         <defs>
@@ -208,12 +271,19 @@ export default function TeacherDashboard() {
                         />
                       </AreaChart>
                     </ResponsiveContainer>
-                  </div>
-                )}
+                  ) : (
+                    <div className="h-[300px] flex items-center justify-center text-gray-500">
+                      <div className="text-center">
+                        <p className="text-4xl mb-2">📊</p>
+                        <p>No absence data available</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
 
-                {dashboardData.monthly_alert_trend && (
-                  <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                    <h3 className="text-lg font-semibold text-gray-800 mb-4">Alert Trend (Last 6 Months)</h3>
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-4">Alert Trend (Last 6 Months)</h3>
+                  {dashboardData.monthly_alert_trend && dashboardData.monthly_alert_trend.length > 0 ? (
                     <ResponsiveContainer width="100%" height={300}>
                       <BarChart data={dashboardData.monthly_alert_trend}>
                         <defs>
@@ -237,8 +307,15 @@ export default function TeacherDashboard() {
                         />
                       </BarChart>
                     </ResponsiveContainer>
-                  </div>
-                )}
+                  ) : (
+                    <div className="h-[300px] flex items-center justify-center text-gray-500">
+                      <div className="text-center">
+                        <p className="text-4xl mb-2">📊</p>
+                        <p>No alert data available</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* My Classes */}
@@ -279,10 +356,8 @@ export default function TeacherDashboard() {
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-2">
-                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                              alert.risk_level === "critical" ? "bg-red-100 text-red-700" : "bg-orange-100 text-orange-700"
-                            }`}>
-                              {alert.risk_level.toUpperCase()}
+                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getRiskBadgeColor(alert.risk_level)}`}>
+                              {alert.risk_level?.toUpperCase()}
                             </span>
                             <span className="text-sm text-gray-500">{alert.alert_type}</span>
                           </div>
@@ -320,10 +395,8 @@ export default function TeacherDashboard() {
                       <tr key={idx} className="hover:bg-gray-50 transition">
                         <td className="px-6 py-4 text-gray-800">{student.student__full_name}</td>
                         <td className="px-6 py-4">
-                          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                            student.risk_level === "critical" ? "bg-red-100 text-red-700" : "bg-orange-100 text-orange-700"
-                          }`}>
-                            {student.risk_level.toUpperCase()}
+                          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getRiskBadgeColor(student.risk_level)}`}>
+                            {student.risk_level?.toUpperCase()}
                           </span>
                         </td>
                         <td className="px-6 py-4 font-semibold text-gray-800">{student.risk_score}</td>

@@ -142,13 +142,21 @@ export default function Navbar({ user, dashboardData, searchQuery, onSearchChang
                     <p className="text-xs text-gray-500 truncate">{user?.email || "teacher@school.com"}</p>
                   </div>
                   <button 
-                    onClick={() => window.location.href = '/teacher/profile'}
+                    onClick={() => {
+                      const basePath = user?.role === 'form_master' ? '/form-master' : '/teacher';
+                      navigate(`${basePath}/profile`);
+                      setShowProfile(false);
+                    }}
                     className="w-full text-left px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-700 hover:bg-gray-50"
                   >
                     👤 Profile
                   </button>
                   <button 
-                    onClick={() => window.location.href = '/teacher/settings'}
+                    onClick={() => {
+                      const basePath = user?.role === 'form_master' ? '/form-master' : '/teacher';
+                      navigate(`${basePath}/settings`);
+                      setShowProfile(false);
+                    }}
                     className="w-full text-left px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-700 hover:bg-gray-50"
                   >
                     ⚙️ Settings

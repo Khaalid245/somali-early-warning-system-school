@@ -15,6 +15,14 @@ import SettingsPage from "./teacher/SettingsPage";
 import MyClasses from "./teacher/MyClasses";
 import MySubjects from "./teacher/MySubjects";
 
+// Form Master pages
+import FormMasterDashboard from "./formMaster/DashboardClean";
+import InterventionsPage from "./formMaster/InterventionsPage";
+import StudentAttendanceReport from "./pages/StudentAttendanceReport";
+
+// Admin pages
+import AdminDashboard from "./admin/Dashboard";
+
 function App() {
   const { user } = useContext(AuthContext);
 
@@ -30,10 +38,10 @@ function App() {
             user ? (
               user.role === "teacher" ? (
                 <Navigate to="/teacher" />
+              ) : user.role === "form_master" ? (
+                <Navigate to="/form-master" />
               ) : user.role === "admin" ? (
                 <Navigate to="/admin" />
-              ) : user.role === "counsellor" ? (
-                <Navigate to="/counsellor" />
               ) : (
                 <Navigate to="/login" />
               )
@@ -111,12 +119,55 @@ function App() {
           }
         />
 
+        {/* FORM MASTER */}
+        <Route
+          path="/form-master"
+          element={
+            <ProtectedRoute role="form_master">
+              <FormMasterDashboard />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/form-master/interventions"
+          element={
+            <ProtectedRoute role="form_master">
+              <InterventionsPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/form-master/settings"
+          element={
+            <ProtectedRoute role="form_master">
+              <SettingsPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/form-master/profile"
+          element={
+            <ProtectedRoute role="form_master">
+              <ProfilePage />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* ATTENDANCE REPORT - Public for families */}
+        <Route
+          path="/attendance-report/:studentId"
+          element={<StudentAttendanceReport />}
+        />
+
         {/* ADMIN */}
         <Route
           path="/admin"
           element={
             <ProtectedRoute role="admin">
-              <h1>Admin Dashboard</h1>
+              <AdminDashboard />
             </ProtectedRoute>
           }
         />

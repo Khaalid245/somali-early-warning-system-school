@@ -68,6 +68,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'core.middleware.AuditLogMiddleware',
+    'core.replay_protection.ReplayAttackProtectionMiddleware',
 ]
 
 ROOT_URLCONF = 'school_support_backend.urls'
@@ -105,6 +106,8 @@ DATABASES = {
             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
             'charset': 'utf8mb4',
         },
+        'CONN_MAX_AGE': 600,  # Connection pooling: reuse connections for 10 minutes
+        'CONN_HEALTH_CHECKS': True,  # Verify connection health before reuse
     }
 }
 
@@ -149,11 +152,16 @@ USE_TZ = True
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
+# Media files (User uploads)
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
 AUTH_USER_MODEL = "users.User"
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'core.jwt_cookie_auth.JWTCookieAuthentication',
+        'rest_framework_simplejwt.authentication.JWTAuthentication',  # Fallback
     ),
     'EXCEPTION_HANDLER': 'core.exceptions.custom_exception_handler',
     'NON_FIELD_ERRORS_KEY': 'error',
@@ -175,6 +183,19 @@ if DEBUG:
 else:
     CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', '').split(',')
 CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+    'x-request-nonce',
+    'x-request-timestamp',
+]
 
 # Security Settings
 if not DEBUG:
@@ -192,6 +213,10 @@ SIMPLE_JWT = {
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
+    'AUTH_COOKIE': 'access_token',  # httpOnly cookie name
+    'AUTH_COOKIE_SECURE': not DEBUG,  # HTTPS only in production
+    'AUTH_COOKIE_HTTP_ONLY': True,  # Prevent XSS attacks
+    'AUTH_COOKIE_SAMESITE': 'Lax',  # CSRF protection
 }
 
 # Caching
