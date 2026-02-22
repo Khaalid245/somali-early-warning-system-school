@@ -55,9 +55,20 @@ class InterventionCaseListCreateView(generics.ListCreateAPIView):
 # DETAIL / UPDATE / DELETE
 # =====================================================
 class InterventionCaseDetailView(IDORProtectionMixin, generics.RetrieveUpdateDestroyAPIView):
-    queryset = InterventionCase.objects.all()
     serializer_class = InterventionCaseSerializer
     permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        """IDOR Protection: Filter by assignment"""
+        user = self.request.user
+        
+        if user.role == 'admin':
+            return InterventionCase.objects.all()
+        
+        if user.role == 'form_master':
+            return InterventionCase.objects.filter(assigned_to=user)
+        
+        return InterventionCase.objects.none()
 
     def perform_update(self, serializer):
         user = self.request.user

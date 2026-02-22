@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     'interventions',
     'academics',
     'dashboard',
+    'django_extensions',
 ]
 
 MIDDLEWARE = [

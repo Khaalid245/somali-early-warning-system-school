@@ -37,9 +37,25 @@ class ClassroomListCreateView(generics.ListCreateAPIView):
 
 
 class ClassroomDetailView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = Classroom.objects.all()
     serializer_class = ClassroomSerializer
     permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        """IDOR Protection: Filter by user role"""
+        user = self.request.user
+        
+        if user.role == 'admin':
+            return Classroom.objects.all()
+        
+        if user.role == 'form_master':
+            return Classroom.objects.filter(form_master=user)
+        
+        if user.role == 'teacher':
+            return Classroom.objects.filter(
+                teaching_assignments__teacher=user
+            ).distinct()
+        
+        return Classroom.objects.none()
 
     def perform_update(self, serializer):
         if self.request.user.role != "admin":

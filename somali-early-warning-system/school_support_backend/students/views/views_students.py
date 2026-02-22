@@ -46,10 +46,11 @@ class StudentListCreateView(generics.ListCreateAPIView):
 class StudentDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = StudentSerializer
     permission_classes = [IsAuthenticated]
+    http_method_names = ['get', 'put', 'patch', 'head', 'options']
 
     def get_queryset(self):
         user = self.request.user
-        queryset = Student.objects.select_related("classroom")
+        queryset = Student.objects.all()
 
         # Admin → full access
         if user.role == "admin":
@@ -58,13 +59,13 @@ class StudentDetailView(generics.RetrieveUpdateDestroyAPIView):
         # Form master → only their classroom
         if user.role == "form_master":
             return queryset.filter(
-                classroom__form_master=user
-            )
+                enrollments__classroom__form_master=user
+            ).distinct()
 
         # Teacher → only their classes
         if user.role == "teacher":
             return queryset.filter(
-                classroom__teachingassignment__teacher=user
+                enrollments__classroom__teaching_assignments__teacher=user
             ).distinct()
 
         return Student.objects.none()

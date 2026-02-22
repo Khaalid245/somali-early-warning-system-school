@@ -25,8 +25,9 @@ class StudentHistoryView(APIView):
         student_info = {
             "student_id": student.student_id,
             "full_name": student.full_name,
-            "email": student.email,
-            "phone": student.phone,
+            "admission_number": student.admission_number,
+            "gender": student.gender,
+            "status": student.status,
         }
 
         # Risk profile

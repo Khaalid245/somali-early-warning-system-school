@@ -22,7 +22,7 @@ class StudentAttendanceReportView(APIView):
         enrollment = StudentEnrollment.objects.filter(
             student=student,
             is_active=True
-        ).select_related('classroom').first()
+        ).select_related('student', 'classroom').first()
         
         classroom_name = enrollment.classroom.name if enrollment else 'Not Enrolled'
         

@@ -1,12 +1,14 @@
 """
 Test query performance with and without optimizations
-Usage: python manage.py shell < test_query_performance.py
 """
+import pytest
 import time
 from django.db import connection, reset_queries
+from django.db.models import Count
 from interventions.models import InterventionCase
 from alerts.models import Alert
 
+@pytest.mark.django_db
 def test_query_performance():
     print("\n" + "="*60)
     print("Testing Query Performance")
@@ -57,7 +59,7 @@ def test_query_performance():
     ).select_related('student', 'assigned_to').values(
         'status'
     ).annotate(
-        count=Count('id')
+        count=Count('case_id')
     )
     list(stats)  # Force evaluation
     duration = (time.time() - start) * 1000
@@ -74,7 +76,3 @@ def test_query_performance():
     print("\n" + "="*60)
     print("Performance Test Complete")
     print("="*60 + "\n")
-
-# Run the test
-from django.db.models import Count
-test_query_performance()

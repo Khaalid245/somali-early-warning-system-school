@@ -9,7 +9,7 @@ def get_client_ip(request):
     x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
     if x_forwarded_for:
         return x_forwarded_for.split(',')[0]
-    return request.META.get('REMOTE_ADDR')
+    return request.META.get('REMOTE_ADDR', '')
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -61,7 +61,7 @@ def get_audit_logs(request):
     
     logs_data = [{
         'id': log.id,
-        'user': log.user.username if log.user else 'Unknown',
+        'user': log.user.email if log.user else 'Unknown',
         'action': log.action,
         'details': log.details,
         'timestamp': log.timestamp.isoformat(),
@@ -91,7 +91,7 @@ def export_audit_logs(request):
     for log in logs:
         writer.writerow([
             log.timestamp,
-            log.user.username if log.user else 'Unknown',
+            log.user.email if log.user else 'Unknown',
             log.action,
             str(log.details),
             log.ip_address

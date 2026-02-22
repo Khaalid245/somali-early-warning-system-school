@@ -5,6 +5,7 @@ Run with: python test_interventions.py
 
 import os
 import django
+import pytest
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'school_support_backend.settings')
 django.setup()
@@ -15,6 +16,7 @@ from users.models import User
 from django.utils import timezone
 from datetime import timedelta
 
+@pytest.mark.django_db
 def test_intervention_system():
     print("=" * 60)
     print("Testing Student Intervention & Progress Tracking System")

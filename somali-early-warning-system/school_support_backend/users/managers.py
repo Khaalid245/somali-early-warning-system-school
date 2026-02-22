@@ -3,6 +3,11 @@ from django.contrib.auth.models import BaseUserManager
 
 class UserManager(BaseUserManager):
 
+    def normalize_email(self, email):
+        """Normalize email: lowercase and strip whitespace"""
+        email = super().normalize_email(email)
+        return email.lower().strip()
+
     def create_user(self, email, name, role, password=None, **extra_fields):
         if not email:
             raise ValueError("Users must have an email address")

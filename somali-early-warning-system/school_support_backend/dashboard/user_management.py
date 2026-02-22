@@ -62,7 +62,19 @@ def create_user(request):
         if role not in ['admin', 'form_master', 'teacher']:
             return Response({'error': 'Invalid role'}, status=status.HTTP_400_BAD_REQUEST)
         
-        if User.objects.filter(email=email).exists():
+        # Validate email format
+        from django.core.validators import validate_email as django_validate_email
+        from django.core.exceptions import ValidationError
+        try:
+            django_validate_email(email)
+        except ValidationError:
+            return Response({'error': 'Invalid email format'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Normalize email to lowercase
+        email = email.lower().strip()
+        
+        # Check for duplicate email (case-insensitive)
+        if User.objects.filter(email__iexact=email).exists():
             return Response({'error': 'Email already exists'}, status=status.HTTP_400_BAD_REQUEST)
         
         user = User.objects.create(

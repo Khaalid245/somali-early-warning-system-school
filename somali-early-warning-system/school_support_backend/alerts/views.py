@@ -3,6 +3,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.exceptions import PermissionDenied
 
+from core.idor_protection import IDORProtectionMixin
 from .models import Alert
 from .serializers import AlertSerializer
 
@@ -47,27 +48,11 @@ class AlertListCreateView(generics.ListCreateAPIView):
 # =====================================================
 # ALERT DETAIL & WORKFLOW UPDATE
 # =====================================================
-class AlertDetailView(generics.RetrieveUpdateAPIView):
+class AlertDetailView(IDORProtectionMixin, generics.RetrieveUpdateAPIView):
     serializer_class = AlertSerializer
     permission_classes = [IsAuthenticated]
-
-    # 🔒 OBJECT-LEVEL SECURITY
-    def get_queryset(self):
-        user = self.request.user
-        qs = Alert.objects.select_related('student', 'subject', 'assigned_to').all()
-
-        if user.role == "admin":
-            return qs
-
-        elif user.role == "form_master":
-            return qs.filter(assigned_to=user)
-
-        elif user.role == "teacher":
-            return qs.filter(
-                subject__teachingassignment__teacher=user
-            ).distinct()
-
-        return Alert.objects.none()
+    queryset = Alert.objects.select_related('student', 'subject', 'assigned_to').all()
+    lookup_field = 'pk'
 
     def patch(self, request, *args, **kwargs):
 

@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from rest_framework.exceptions import PermissionDenied
 from .models import AttendanceSession, AttendanceRecord
 from academics.models import TeachingAssignment
 from students.models import StudentEnrollment
@@ -45,7 +46,7 @@ class AttendanceSessionSerializer(serializers.ModelSerializer):
         user = request.user
 
         if user.role != "teacher":
-            raise serializers.ValidationError(
+            raise PermissionDenied(
                 "Only teachers can record attendance."
             )
 
@@ -59,7 +60,7 @@ class AttendanceSessionSerializer(serializers.ModelSerializer):
             subject=subject,
             classroom=classroom
         ).exists():
-            raise serializers.ValidationError(
+            raise PermissionDenied(
                 "You are not assigned to this class and subject."
             )
 

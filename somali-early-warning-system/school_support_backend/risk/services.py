@@ -181,7 +181,7 @@ def _handle_alerts_and_interventions(student, old_level, new_level):
     enrollment = (
         StudentEnrollment.objects
         .filter(student=student, is_active=True)
-        .select_related("classroom")
+        .select_related("student", "classroom")
         .first()
     )
 
