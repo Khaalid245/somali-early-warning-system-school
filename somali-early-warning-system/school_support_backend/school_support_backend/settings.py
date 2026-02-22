@@ -20,6 +20,9 @@ load_dotenv()
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Environment (must be defined early)
+ENVIRONMENT = os.getenv('ENVIRONMENT', 'development')
+
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
@@ -56,8 +59,11 @@ INSTALLED_APPS = [
     'interventions',
     'academics',
     'dashboard',
-    'django_extensions',
 ]
+
+# Development-only apps
+if ENVIRONMENT == "development":
+    INSTALLED_APPS.append("django_extensions")
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
@@ -250,7 +256,6 @@ EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'noreply@schoolsupport.com')
 
 # Logging Configuration - Environment Aware
-ENVIRONMENT = os.getenv('ENVIRONMENT', 'development')
 
 # Base logging configuration
 LOGGING = {
