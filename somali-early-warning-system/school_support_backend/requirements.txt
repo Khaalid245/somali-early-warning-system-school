@@ -2,6 +2,7 @@ Django==5.1.4
 djangorestframework
 djangorestframework-simplejwt
 django-cors-headers
+mysqlclient
 mysql-connector-python
 PyJWT
 
