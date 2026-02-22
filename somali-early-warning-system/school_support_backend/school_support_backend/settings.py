@@ -249,7 +249,10 @@ EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'noreply@schoolsupport.com')
 
-# Logging
+# Logging Configuration - Environment Aware
+ENVIRONMENT = os.getenv('ENVIRONMENT', 'development')
+
+# Base logging configuration
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -272,12 +275,16 @@ LOGGING = {
     },
 }
 
-# Add file logging only if not disabled (for CI)
-if not os.getenv('DISABLE_FILE_LOGGING'):
+# Add file logging for development and production (not CI)
+if ENVIRONMENT in ['development', 'production']:
+    # Ensure logs directory exists
+    log_dir = BASE_DIR / 'logs'
+    log_dir.mkdir(exist_ok=True)
+    
     LOGGING['handlers']['file'] = {
         'level': 'INFO',
         'class': 'logging.FileHandler',
-        'filename': BASE_DIR / 'logs' / 'django.log',
+        'filename': log_dir / 'django.log',
         'formatter': 'verbose',
     }
     LOGGING['root']['handlers'].append('file')
