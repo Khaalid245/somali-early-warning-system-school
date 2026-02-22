@@ -1,5 +1,8 @@
 # School Early Warning Support System
 
+[![CI Pipeline](https://github.com/Khaalid245/somali-early-warning-system-school/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/Khaalid245/somali-early-warning-system-school/actions/workflows/ci-cd.yml)
+[![codecov](https://codecov.io/gh/Khaalid245/somali-early-warning-system-school/branch/main/graph/badge.svg)](https://codecov.io/gh/Khaalid245/somali-early-warning-system-school)
+
 ##watch the demo here:
 https://youtu.be/PFkA5nrmrZM
 

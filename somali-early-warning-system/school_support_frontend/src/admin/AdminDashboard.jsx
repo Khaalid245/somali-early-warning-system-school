@@ -15,7 +15,12 @@ import PerformanceMetrics from "./components/PerformanceMetrics";
 import AlertManagement from "./components/AlertManagement";
 import ActivityFeed from "./components/ActivityFeed";
 import SystemHealth from "./components/SystemHealth";
-import GovernanceHardcoded from "./components/GovernanceHardcoded";
+import UserManagement from "./components/UserManagement";
+import ClassroomManagement from "./components/ClassroomManagement";
+import StudentManagement from "./components/StudentManagement";
+import SubjectManagement from "./components/SubjectManagement";
+import EnrollmentManagement from "./components/EnrollmentManagement";
+import TeacherAssignment from "./components/TeacherAssignment";
 import StudentsView from "./components/StudentsView";
 import AuditLogViewer from "./components/AuditLogViewer";
 import ReportsView from "./components/ReportsView";
@@ -133,7 +138,61 @@ function AdminDashboardContent() {
           )}
 
           {activeTab === "governance" && (
-            <GovernanceHardcoded />
+            <div>
+              <div className="bg-white p-4 mb-4 rounded shadow">
+                <h2 className="text-2xl font-bold mb-4">System Governance</h2>
+                <div className="flex flex-wrap gap-2">
+                  <button onClick={() => setActiveTab('gov-users')} className="px-4 py-2 bg-blue-600 text-white rounded">User Management</button>
+                  <button onClick={() => setActiveTab('gov-classrooms')} className="px-4 py-2 bg-blue-600 text-white rounded">Classroom Management</button>
+                  <button onClick={() => setActiveTab('gov-students')} className="px-4 py-2 bg-blue-600 text-white rounded">Student Management</button>
+                  <button onClick={() => setActiveTab('gov-subjects')} className="px-4 py-2 bg-blue-600 text-white rounded">Subject Management</button>
+                  <button onClick={() => setActiveTab('gov-enrollments')} className="px-4 py-2 bg-blue-600 text-white rounded">Student Enrollment</button>
+                  <button onClick={() => setActiveTab('gov-assignments')} className="px-4 py-2 bg-blue-600 text-white rounded">Teacher Assignment</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "gov-users" && (
+            <div>
+              <button onClick={() => setActiveTab('governance')} className="mb-4 px-4 py-2 bg-gray-200 rounded">← Back to Governance</button>
+              <UserManagement />
+            </div>
+          )}
+
+          {activeTab === "gov-classrooms" && (
+            <div>
+              <button onClick={() => setActiveTab('governance')} className="mb-4 px-4 py-2 bg-gray-200 rounded">← Back to Governance</button>
+              <ClassroomManagement />
+            </div>
+          )}
+
+          {activeTab === "gov-students" && (
+            <div>
+              <button onClick={() => setActiveTab('governance')} className="mb-4 px-4 py-2 bg-gray-200 rounded">← Back to Governance</button>
+              <StudentManagement />
+            </div>
+          )}
+
+          {activeTab === "gov-subjects" && (
+            <div>
+              <button onClick={() => setActiveTab('governance')} className="mb-4 px-4 py-2 bg-gray-200 rounded">← Back to Governance</button>
+              <SubjectManagement />
+            </div>
+          )}
+
+          {activeTab === "gov-enrollments" && (
+            <div>
+              <button onClick={() => setActiveTab('governance')} className="mb-4 px-4 py-2 bg-gray-200 rounded">← Back to Governance</button>
+              <EnrollmentManagement />
+            </div>
+          )}
+
+          {activeTab === "gov-assignments" && (
+            <div>
+              <button onClick={() => setActiveTab('governance')} className="mb-4 px-4 py-2 bg-gray-200 rounded">← Back to Governance</button>
+              <TeacherAssignment />
+            </div>
           )}
 
           {activeTab === "audit" && (
