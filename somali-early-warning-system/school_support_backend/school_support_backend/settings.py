@@ -74,7 +74,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'core.middleware.AuditLogMiddleware',
-    'core.replay_protection.ReplayAttackProtectionMiddleware',
+    # 'core.replay_protection.ReplayAttackProtectionMiddleware',  # Temporarily disabled
 ]
 
 ROOT_URLCONF = 'school_support_backend.urls'

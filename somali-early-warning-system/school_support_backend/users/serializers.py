@@ -10,7 +10,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['id', 'name', 'email', 'role', 'phone', 'profile_image', 'password']
+        fields = ['id', 'name', 'email', 'role', 'phone', 'profile_image', 'biography', 'password']
         read_only_fields = ['id']
 
     def validate_email(self, value):
@@ -39,7 +39,7 @@ class UserSerializer(serializers.ModelSerializer):
 class UserUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'name', 'email', 'phone', 'profile_image']
+        fields = ['id', 'name', 'email', 'phone', 'profile_image', 'biography']
         read_only_fields = ['id', 'email']
 
 
