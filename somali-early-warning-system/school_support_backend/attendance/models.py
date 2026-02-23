@@ -58,6 +58,7 @@ class AttendanceRecord(models.Model):
         ("present", "Present"),
         ("absent", "Absent"),
         ("late", "Late"),
+        ("excused", "Excused"),
     ]
 
     record_id = models.AutoField(primary_key=True)

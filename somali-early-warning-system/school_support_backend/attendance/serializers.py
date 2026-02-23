@@ -50,6 +50,10 @@ class AttendanceSessionSerializer(serializers.ModelSerializer):
                 "Only teachers can record attendance."
             )
 
+        # Skip validation for updates
+        if self.instance:
+            return data
+
         classroom = data.get("classroom")
         subject = data.get("subject")
         records = data.get("records")
@@ -107,3 +111,21 @@ class AttendanceSessionSerializer(serializers.ModelSerializer):
             )
 
         return session
+
+    def update(self, instance, validated_data):
+        records_data = validated_data.pop("records", None)
+
+        if records_data:
+            # Delete old records
+            instance.records.all().delete()
+
+            # Create new records
+            for record_data in records_data:
+                AttendanceRecord.objects.create(
+                    session=instance,
+                    student=record_data["student"],
+                    status=record_data["status"],
+                    remarks=record_data.get("remarks", "")
+                )
+
+        return instance

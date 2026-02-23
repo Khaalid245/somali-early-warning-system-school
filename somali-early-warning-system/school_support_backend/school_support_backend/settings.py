@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 
 from pathlib import Path
 import os
+import sys
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -20,8 +21,8 @@ load_dotenv()
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Environment (must be defined early)
-ENVIRONMENT = os.getenv('ENVIRONMENT', 'production')
+# Environment for development
+ENVIRONMENT = os.getenv('ENVIRONMENT', 'development')
 
 
 # Quick-start development settings - unsuitable for production
@@ -61,9 +62,7 @@ INSTALLED_APPS = [
     'dashboard',
 ]
 
-# Development-only apps
-if ENVIRONMENT == "development":
-    INSTALLED_APPS.append("django_extensions")
+
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
@@ -98,23 +97,31 @@ TEMPLATES = [
 WSGI_APPLICATION = 'school_support_backend.wsgi.application'
 
 
-# Database
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': os.getenv('DB_NAME', 'school_support_db'),
-        'USER': os.getenv('DB_USER', 'django_user'),
-        'PASSWORD': os.getenv('DB_PASSWORD', 'SchoolSupport123'),
-        'HOST': os.getenv('DB_HOST', 'localhost'),
-        'PORT': os.getenv('DB_PORT', '3306'),
-        'OPTIONS': {
-            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
-            'charset': 'utf8mb4',
-        },
-        'CONN_MAX_AGE': 600,
-        'CONN_HEALTH_CHECKS': True,
+# Database - Use SQLite for tests, MySQL for development
+if 'test' in sys.argv or 'pytest' in sys.modules:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': ':memory:',
+        }
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.mysql',
+            'NAME': os.getenv('DB_NAME', 'school_support_db'),
+            'USER': os.getenv('DB_USER', 'django_user'),
+            'PASSWORD': os.getenv('DB_PASSWORD', 'SchoolSupport123'),
+            'HOST': os.getenv('DB_HOST', 'localhost'),
+            'PORT': os.getenv('DB_PORT', '3306'),
+            'OPTIONS': {
+                'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+                'charset': 'utf8mb4',
+            },
+            'CONN_MAX_AGE': 600,
+            'CONN_HEALTH_CHECKS': True,
+        }
+    }
 
 
 
@@ -253,9 +260,7 @@ EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'noreply@schoolsupport.com')
 
-# Logging Configuration - Environment Aware
-
-# Base logging configuration
+# Logging
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -266,6 +271,12 @@ LOGGING = {
         },
     },
     'handlers': {
+        'file': {
+            'level': 'INFO',
+            'class': 'logging.FileHandler',
+            'filename': BASE_DIR / 'logs' / 'django.log',
+            'formatter': 'verbose',
+        },
         'console': {
             'level': 'INFO',
             'class': 'logging.StreamHandler',
@@ -273,24 +284,14 @@ LOGGING = {
         },
     },
     'root': {
-        'handlers': ['console'],
+        'handlers': ['console', 'file'],
         'level': 'INFO',
     },
 }
 
-# Add file logging for development and production (not CI)
-if ENVIRONMENT in ['development', 'production']:
-    # Ensure logs directory exists
-    log_dir = BASE_DIR / 'logs'
-    log_dir.mkdir(exist_ok=True)
-    
-    LOGGING['handlers']['file'] = {
-        'level': 'INFO',
-        'class': 'logging.FileHandler',
-        'filename': log_dir / 'django.log',
-        'formatter': 'verbose',
-    }
-    LOGGING['root']['handlers'].append('file')
+# Ensure logs directory exists
+log_dir = BASE_DIR / 'logs'
+log_dir.mkdir(exist_ok=True)
 
 # Sentry (Error Tracking)
 if os.getenv('SENTRY_DSN'):

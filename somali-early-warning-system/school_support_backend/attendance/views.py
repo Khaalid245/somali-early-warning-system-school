@@ -72,7 +72,17 @@ class AttendanceSessionListCreateView(generics.ListCreateAPIView):
 # -----------------------------------
 # Attendance Session Detail
 # -----------------------------------
-class AttendanceSessionDetailView(generics.RetrieveAPIView):
+class AttendanceSessionDetailView(generics.RetrieveUpdateAPIView):
     queryset = AttendanceSession.objects.all()
     serializer_class = AttendanceSessionSerializer
     permission_classes = [IsAuthenticated]
+
+    def perform_update(self, serializer):
+        user = self.request.user
+        session = self.get_object()
+
+        if user.role != "teacher" or session.teacher != user:
+            raise PermissionDenied("You can only edit your own attendance sessions.")
+
+        serializer.save()
+        update_risk_after_session(session)
