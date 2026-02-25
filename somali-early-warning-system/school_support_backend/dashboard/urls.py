@@ -11,7 +11,9 @@ from .admin_actions import (
     audit_logs,
     export_cases_report,
     export_risk_summary,
-    export_performance_metrics
+    export_performance_metrics,
+    export_report_pdf,
+    export_report_docx
 )
 from .user_management import (
     list_users,
@@ -26,6 +28,13 @@ from .user_management import (
     list_enrollments,
     assign_teacher,
     list_assignments
+)
+from .settings_api import (
+    user_profile,
+    change_password,
+    school_settings,
+    system_configuration,
+    security_settings
 )
 
 urlpatterns = [
@@ -47,6 +56,8 @@ urlpatterns = [
     path("admin/export/cases/", export_cases_report, name="export_cases"),
     path("admin/export/risk-summary/", export_risk_summary, name="export_risk_summary"),
     path("admin/export/performance/", export_performance_metrics, name="export_performance"),
+    path("admin/export/<str:report_type>/pdf/", export_report_pdf, name="export_report_pdf"),
+    path("admin/export/<str:report_type>/docx/", export_report_docx, name="export_report_docx"),
     
     # User Management
     path("admin/users/", list_users, name="list_users"),
@@ -67,4 +78,11 @@ urlpatterns = [
     # Teacher Assignment
     path("admin/assignments/", list_assignments, name="list_assignments"),
     path("admin/assignments/create/", assign_teacher, name="assign_teacher"),
+    
+    # Settings API
+    path("settings/profile/", user_profile, name="user_profile"),
+    path("settings/change-password/", change_password, name="change_password"),
+    path("settings/school/", school_settings, name="school_settings"),
+    path("settings/system/", system_configuration, name="system_configuration"),
+    path("settings/security/", security_settings, name="security_settings"),
 ]

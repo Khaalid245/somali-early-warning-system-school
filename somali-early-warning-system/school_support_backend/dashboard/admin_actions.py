@@ -13,6 +13,7 @@ from alerts.models import Alert
 from attendance.models import AttendanceRecord
 from students.models import Student, Classroom, StudentEnrollment
 from users.models import User
+from .report_service import ReportGenerator
 
 
 # =====================================================
@@ -529,5 +530,63 @@ def export_performance_metrics(request):
             f'{avg_risk:.2f}',
             rating
         ])
+    
+    return response
+
+
+# =====================================================
+# PDF & DOCX EXPORT ENDPOINTS
+# =====================================================
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def export_report_pdf(request, report_type):
+    """Export report as PDF"""
+    
+    if request.user.role != 'admin':
+        return Response(
+            {'error': 'Admin access required'},
+            status=status.HTTP_403_FORBIDDEN
+        )
+    
+    if report_type not in ['cases', 'risk', 'performance']:
+        return Response(
+            {'error': 'Invalid report type'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    generator = ReportGenerator()
+    pdf_buffer = generator.generate_pdf_report(report_type)
+    
+    response = HttpResponse(pdf_buffer, content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="{report_type}_report_{timezone.now().strftime("%Y-%m-%d")}.pdf"'
+    
+    return response
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def export_report_docx(request, report_type):
+    """Export report as DOCX"""
+    
+    if request.user.role != 'admin':
+        return Response(
+            {'error': 'Admin access required'},
+            status=status.HTTP_403_FORBIDDEN
+        )
+    
+    if report_type not in ['cases', 'risk', 'performance']:
+        return Response(
+            {'error': 'Invalid report type'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    generator = ReportGenerator()
+    docx_buffer = generator.generate_docx_report(report_type)
+    
+    response = HttpResponse(
+        docx_buffer,
+        content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    )
+    response['Content-Disposition'] = f'attachment; filename="{report_type}_report_{timezone.now().strftime("%Y-%m-%d")}.docx"'
     
     return response

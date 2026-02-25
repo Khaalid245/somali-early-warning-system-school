@@ -91,7 +91,11 @@ def get_monthly_counts(model, date_field, base_filter):
 
 
 def get_admin_dashboard_data(user, filters):
-    total_students = Student.objects.filter(is_active=True).count()
+    # Count only students with active enrollments
+    total_students = Student.objects.filter(
+        is_active=True,
+        enrollments__is_active=True
+    ).distinct().count()
 
     active_alerts_qs = Alert.objects.filter(
         status__in=["active", "under_review", "escalated"]

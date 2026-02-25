@@ -5,6 +5,7 @@ django-cors-headers
 mysqlclient
 mysql-connector-python
 PyJWT
+Pillow
 
 # Security & Environment
 python-dotenv
@@ -23,6 +24,7 @@ django-filter
 # Export functionality
 openpyxl
 reportlab
+python-docx
 
 # Production server
 gunicorn

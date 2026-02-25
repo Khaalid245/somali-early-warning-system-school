@@ -20,8 +20,15 @@ class FormMasterDashboardView(APIView):
     def get(self, request):
         user = request.user
         
+        print(f"Dashboard access attempt - User: {user.email}, Role: {user.role}")
+        
         if user.role != 'form_master':
-            return Response({'error': 'Access denied'}, status=403)
+            print(f"Access denied - Expected 'form_master', got '{user.role}'")
+            return Response({
+                'error': 'Access denied. Only Form Masters can access this dashboard.',
+                'user_role': user.role,
+                'required_role': 'form_master'
+            }, status=403)
         
         try:
             # Optimized queries with select_related/prefetch_related
