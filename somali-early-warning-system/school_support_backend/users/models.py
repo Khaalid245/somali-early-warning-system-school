@@ -1,6 +1,8 @@
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from .managers import UserManager
+import pyotp
+import base64
 
 
 class User(AbstractBaseUser, PermissionsMixin):
@@ -25,6 +27,10 @@ class User(AbstractBaseUser, PermissionsMixin):
     date_joined = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    # 2FA Fields
+    two_factor_enabled = models.BooleanField(default=False)
+    two_factor_secret = models.CharField(max_length=32, blank=True, null=True)
+
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["name", "role"]
 
@@ -32,3 +38,23 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return f"{self.name} ({self.role})"
+
+    def generate_2fa_secret(self):
+        """Generate a new 2FA secret"""
+        self.two_factor_secret = pyotp.random_base32()
+        self.save()
+        return self.two_factor_secret
+
+    def get_2fa_uri(self):
+        """Get provisioning URI for QR code"""
+        if not self.two_factor_secret:
+            self.generate_2fa_secret()
+        totp = pyotp.TOTP(self.two_factor_secret)
+        return totp.provisioning_uri(name=self.email, issuer_name='School Support System')
+
+    def verify_2fa_code(self, code):
+        """Verify 2FA code"""
+        if not self.two_factor_secret:
+            return False
+        totp = pyotp.TOTP(self.two_factor_secret)
+        return totp.verify(code, valid_window=1)

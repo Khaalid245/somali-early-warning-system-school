@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from users.permissions import IsAdminUserRole
+from core.throttling import SensitiveEndpointThrottle, FileUploadThrottle
 
 from ..models import User
 from ..serializers import UserSerializer, UserUpdateSerializer, ChangePasswordSerializer
@@ -12,6 +13,7 @@ from ..serializers import UserSerializer, UserUpdateSerializer, ChangePasswordSe
 class UserListCreateView(generics.ListCreateAPIView):
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated, IsAdminUserRole]
+    throttle_classes = [SensitiveEndpointThrottle]  # Rate limit user creation
 
     def get_queryset(self):
         return User.objects.all()
@@ -20,6 +22,7 @@ class UserListCreateView(generics.ListCreateAPIView):
 class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [IsAuthenticated]
     parser_classes = [JSONParser, MultiPartParser, FormParser]
+    throttle_classes = [FileUploadThrottle]  # Rate limit profile updates
 
     def get_queryset(self):
         return User.objects.all()
@@ -41,6 +44,7 @@ class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 class ChangePasswordView(APIView):
     permission_classes = [IsAuthenticated]
+    throttle_classes = [SensitiveEndpointThrottle]  # Rate limit password changes
 
     def post(self, request):
         serializer = ChangePasswordSerializer(data=request.data)

@@ -2,6 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
 from django.core.validators import EmailValidator
 from .models import User
+from core.xss_sanitizer import sanitize_html
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -12,6 +13,16 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = ['id', 'name', 'email', 'role', 'phone', 'profile_image', 'biography', 'password']
         read_only_fields = ['id']
+
+    def validate_name(self, value):
+        """Sanitize name to prevent XSS"""
+        return sanitize_html(value)
+    
+    def validate_phone(self, value):
+        """Sanitize phone to prevent XSS"""
+        if value:
+            return sanitize_html(value)
+        return value
 
     def validate_email(self, value):
         """Normalize email and check uniqueness (case-insensitive)"""
@@ -41,6 +52,22 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         model = User
         fields = ['id', 'name', 'email', 'phone', 'profile_image', 'biography']
         read_only_fields = ['id', 'email']
+    
+    def validate_name(self, value):
+        """Sanitize name to prevent XSS"""
+        return sanitize_html(value)
+    
+    def validate_phone(self, value):
+        """Sanitize phone to prevent XSS"""
+        if value:
+            return sanitize_html(value)
+        return value
+    
+    def validate_biography(self, value):
+        """Sanitize biography to prevent XSS"""
+        if value:
+            return sanitize_html(value)
+        return value
 
 
 class ChangePasswordSerializer(serializers.Serializer):
