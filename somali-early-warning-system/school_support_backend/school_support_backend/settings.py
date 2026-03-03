@@ -56,6 +56,7 @@ INSTALLED_APPS = [
 
     'rest_framework',
     'rest_framework_simplejwt.token_blacklist',
+    'drf_spectacular',  # API documentation
     'core',
     'users',
     'students',
@@ -82,6 +83,7 @@ MIDDLEWARE = [
     'core.sql_injection_middleware_v2.SQLInjectionProtectionMiddleware',  # SQL injection protection (improved)
     'core.middleware.AuditLogMiddleware',
     'core.rate_limit.LoginRateLimitMiddleware',  # Rate limiting
+    'core.replay_protection.ReplayAttackProtectionMiddleware',  # Replay attack protection
 ]
 
 ROOT_URLCONF = 'school_support_backend.urls'
@@ -186,11 +188,18 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 AUTH_USER_MODEL = "users.User"
 
+# Authentication Backends
+AUTHENTICATION_BACKENDS = [
+    'users.backends.EmailBackend',  # Custom email-based authentication
+    'django.contrib.auth.backends.ModelBackend',  # Fallback
+]
+
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'core.jwt_cookie_auth.JWTCookieAuthentication',
         'rest_framework_simplejwt.authentication.JWTAuthentication',  # Fallback
     ),
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',  # API documentation
     'EXCEPTION_HANDLER': 'core.exceptions.custom_exception_handler',
     'NON_FIELD_ERRORS_KEY': 'error',
     'DEFAULT_THROTTLE_CLASSES': [
@@ -199,7 +208,12 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_THROTTLE_RATES': {
         'anon': '100/hour',
-        'user': '1000/hour'
+        'user': '1000/hour',
+        'login': '10/hour',
+        'sensitive': '10/hour',
+        'file_upload': '10/hour',
+        'bulk': '5/hour',
+        'dashboard': '100/hour',
     },
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 50,
@@ -295,6 +309,9 @@ EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'noreply@schoolsupport.com')
 
+# Frontend URL for email links
+FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:5173')
+
 # Logging
 LOGGING = {
     'version': 1,
@@ -340,3 +357,30 @@ if os.getenv('SENTRY_DSN'):
         send_default_pii=False,
         environment=os.getenv('ENVIRONMENT', 'development'),
     )
+
+# API Documentation (drf-spectacular)
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'School Early Warning Support System API',
+    'DESCRIPTION': 'REST API for school attendance monitoring, risk assessment, and intervention management',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+    'CONTACT': {
+        'name': 'School Support Team',
+        'email': 'support@schoolsupport.com',
+    },
+    'LICENSE': {
+        'name': 'Academic Use',
+    },
+    'TAGS': [
+        {'name': 'Authentication', 'description': 'User authentication and authorization'},
+        {'name': 'Users', 'description': 'User management (Admin only)'},
+        {'name': 'Students', 'description': 'Student and classroom management'},
+        {'name': 'Attendance', 'description': 'Attendance recording and tracking'},
+        {'name': 'Alerts', 'description': 'Risk alerts and notifications'},
+        {'name': 'Interventions', 'description': 'Intervention case management'},
+        {'name': 'Dashboard', 'description': 'Role-based dashboard data'},
+        {'name': 'Risk', 'description': 'Risk assessment and analytics'},
+    ],
+    'COMPONENT_SPLIT_REQUEST': True,
+    'SCHEMA_PATH_PREFIX': r'/api/',
+}

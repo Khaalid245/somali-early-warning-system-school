@@ -143,8 +143,13 @@ export default function Navbar({ user, dashboardData, searchQuery, onSearchChang
                   </div>
                   <button 
                     onClick={() => {
-                      const basePath = user?.role === 'form_master' ? '/form-master' : '/teacher';
-                      navigate(`${basePath}/profile`);
+                      if (user?.role === 'admin') {
+                        navigate('/admin');
+                        window.dispatchEvent(new CustomEvent('adminTabChange', { detail: 'profile' }));
+                      } else {
+                        const basePath = user?.role === 'form_master' ? '/form-master' : '/teacher';
+                        navigate(`${basePath}/profile`);
+                      }
                       setShowProfile(false);
                     }}
                     className="w-full text-left px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-700 hover:bg-gray-50"
@@ -153,8 +158,13 @@ export default function Navbar({ user, dashboardData, searchQuery, onSearchChang
                   </button>
                   <button 
                     onClick={() => {
-                      const basePath = user?.role === 'form_master' ? '/form-master' : '/teacher';
-                      navigate(`${basePath}/settings`);
+                      if (user?.role === 'admin') {
+                        navigate('/admin');
+                        window.dispatchEvent(new CustomEvent('adminTabChange', { detail: 'settings' }));
+                      } else {
+                        const basePath = user?.role === 'form_master' ? '/form-master' : '/teacher';
+                        navigate(`${basePath}/settings`);
+                      }
                       setShowProfile(false);
                     }}
                     className="w-full text-left px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-700 hover:bg-gray-50"

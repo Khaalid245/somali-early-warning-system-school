@@ -4,10 +4,12 @@ from django.conf import settings
 from django.urls import path
 from ..tokens import MyTokenObtainPairSerializer
 from rest_framework import status
+from core.throttling import LoginRateThrottle
 
 
 class MyTokenObtainPairView(TokenObtainPairView):
     serializer_class = MyTokenObtainPairSerializer
+    throttle_classes = [LoginRateThrottle]
     
     def post(self, request, *args, **kwargs):
         response = super().post(request, *args, **kwargs)

@@ -22,8 +22,8 @@ const processQueue = (error, token = null) => {
 
 // Request interceptor
 api.interceptors.request.use((config) => {
-  // Add Authorization header from localStorage (backward compatibility)
-  const token = localStorage.getItem("access");
+  // Add Authorization header from sessionStorage
+  const token = sessionStorage.getItem("access");
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }

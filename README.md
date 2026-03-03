@@ -16,11 +16,13 @@ The system enables data-driven educational decision-making by combining a secure
 
 ## Technology Stack
 
-- Frontend: React (Vite) with Tailwind CSS
-- Backend: Django REST Framework
-- Database: MySQL
-- Authentication: JWT-based authentication
-- Architecture: Three-tier full-stack architecture
+- **Frontend**: React (Vite) with Tailwind CSS
+- **Backend**: Django REST Framework
+- **Database**: MySQL 8.0
+- **Authentication**: JWT with httpOnly cookies + 2FA (TOTP)
+- **Caching**: Redis (optional)
+- **Security**: Rate limiting, CSRF, XSS protection, security headers
+- **Architecture**: Three-tier full-stack architecture
 
 ---
 
@@ -262,18 +264,31 @@ Access via: **Admin Dashboard → Governance Tab (⚙️)**
 ### Security & Compliance
 
 - **IDOR Protection**: Form Masters can only access their assigned classroom
-- **JWT Authentication**: Stateless, scalable authentication
+- **JWT Authentication**: Stateless, scalable authentication with httpOnly cookies
+- **Two-Factor Authentication (2FA)**: TOTP-based with QR codes
+- **Rate Limiting**: 10 login attempts, 15min lockout; 10/hour on sensitive endpoints
+- **Password Security**: Strong validation (8+ chars, uppercase, lowercase, digit, special)
+- **Session Management**: 1-hour timeout with 5-minute warning
+- **CSRF Protection**: Tokens with SameSite cookies
+- **Security Headers**: HSTS, X-Frame-Options, CSP, X-XSS-Protection
+- **XSS Protection**: Input sanitization on all user-generated content
+- **SQL Injection Protection**: Middleware + Django ORM
 - **Audit Logging**: 7-year retention (FERPA requirement)
 - **Data Isolation**: Role-based data access boundaries
 - **FERPA/GDPR Compliance**: Privacy-aware design
+- **File Upload Security**: 5MB limit, type validation
 
 ### Documentation
 
-Comprehensive governance documentation available:
+Comprehensive documentation available:
 - **[GOVERNANCE_QUICK_START.md](GOVERNANCE_QUICK_START.md)** - 5-minute test guide
 - **[GOVERNANCE_ARCHITECTURE.md](GOVERNANCE_ARCHITECTURE.md)** - Architecture deep dive
 - **[GOVERNANCE_PRESENTATION_GUIDE.md](GOVERNANCE_PRESENTATION_GUIDE.md)** - Presentation materials
 - **[GOVERNANCE_DOCUMENTATION_INDEX.md](GOVERNANCE_DOCUMENTATION_INDEX.md)** - Complete index
+- **[SECURITY_IMPROVEMENTS.md](SECURITY_IMPROVEMENTS.md)** - Security implementation guide
+- **[FINAL_SECURITY_AUDIT.md](FINAL_SECURITY_AUDIT.md)** - Security audit report (9.5/10)
+- **[MYSQL_ENCRYPTION_GUIDE.md](MYSQL_ENCRYPTION_GUIDE.md)** - Database encryption for production
+- **[.env.example](.env.example)** - Environment variables template
 
 ---
 
@@ -363,14 +378,35 @@ Screenshots are located in the `screenshots/` directory:
   - IDOR protection
   - Audit logging
   - FERPA/GDPR compliance awareness
+- ✅ **Two-Factor Authentication (2FA)**
+  - TOTP-based 2FA with QR codes
+  - Google Authenticator/Microsoft Authenticator support
+  - 2FA setup in all dashboards (Admin, Teacher, Form Master)
+  - Force reset with password for lost authenticator access
+- ✅ **Advanced Security Features**
+  - Rate limiting (10 attempts, 15min lockout on login)
+  - Password strength validation (8+ chars, uppercase, lowercase, digit, special)
+  - Session timeout (1 hour with 5min warning modal)
+  - CSRF protection with httpOnly cookies
+  - Security headers (HSTS, X-Frame-Options, CSP, etc.)
+  - XSS sanitization on user inputs
+  - SQL injection protection middleware
+  - File upload limits (5MB max)
+- ✅ **UI/UX Improvements**
+  - Clean, professional login page (blue/white/gray only)
+  - Simplified landing page (removed color overdose)
+  - User guide with accordion layout
+  - Help & support page with contact cards
+  - Responsive design for mobile devices
+  - Profile and Settings navigation in all dashboards
 
 ### Planned
 
 - Advanced analytics and reporting
 - Email notifications
 - Bulk operations (CSV import)
-- Two-factor authentication (2FA)
 - Cloud deployment
+- Database encryption at rest (production)
 
 ---
 

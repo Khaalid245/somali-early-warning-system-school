@@ -1,13 +1,14 @@
 import { useState } from 'react';
-import { FileText, Download, TrendingUp, Users, AlertCircle, BarChart3 } from 'lucide-react';
+import { FileText, Download, TrendingUp, AlertCircle, BarChart3, FileSpreadsheet, FileType } from 'lucide-react';
 import api from '../../api/apiClient';
 import { showToast } from '../../utils/toast';
 
 export default function ReportsView() {
   const [loading, setLoading] = useState({});
 
-  const handleExport = async (reportType, endpoint, filename) => {
-    setLoading(prev => ({ ...prev, [reportType]: true }));
+  const handleExport = async (reportType, format, endpoint, filename) => {
+    const key = `${reportType}_${format}`;
+    setLoading(prev => ({ ...prev, [key]: true }));
     
     try {
       const response = await api.get(endpoint, {
@@ -23,143 +24,214 @@ export default function ReportsView() {
       link.remove();
       window.URL.revokeObjectURL(url);
       
-      showToast.success(`${reportType} exported successfully`);
+      showToast.success(`Report downloaded as ${format.toUpperCase()}`);
     } catch (err) {
-      console.error(`Failed to export ${reportType}:`, err);
-      showToast.error(`Failed to export ${reportType}`);
+      console.error(`Failed to export:`, err);
+      showToast.error(`Failed to download report`);
     } finally {
-      setLoading(prev => ({ ...prev, [reportType]: false }));
+      setLoading(prev => ({ ...prev, [key]: false }));
     }
   };
 
   const reports = [
     {
       id: 'cases',
-      title: 'Intervention Cases Report',
-      description: 'Complete list of all intervention cases with status, progress, and resolution details',
+      title: 'Student Cases',
+      subtitle: 'Intervention & Support Cases',
+      description: 'View all student intervention cases, their status, and progress',
       icon: FileText,
       color: 'blue',
-      endpoint: '/dashboard/admin/export/cases/',
-      filename: `cases_report_${new Date().toISOString().split('T')[0]}.csv`
+      gradient: 'from-blue-500 to-blue-600',
+      emoji: '📋'
     },
     {
       id: 'risk',
-      title: 'Risk Summary by Classroom',
-      description: 'Risk distribution, alert counts, and case statistics grouped by classroom',
+      title: 'Risk Analysis',
+      subtitle: 'Classroom Risk Summary',
+      description: 'See which classrooms need attention and support',
       icon: AlertCircle,
       color: 'red',
-      endpoint: '/dashboard/admin/export/risk-summary/',
-      filename: `risk_summary_${new Date().toISOString().split('T')[0]}.csv`
+      gradient: 'from-red-500 to-red-600',
+      emoji: '⚠️'
     },
     {
       id: 'performance',
-      title: 'Form Master Performance Metrics',
-      description: 'Evaluation of form master effectiveness including resolution times and ratings',
+      title: 'Teacher Performance',
+      subtitle: 'Form Master Metrics',
+      description: 'Track how well teachers are helping students',
       icon: TrendingUp,
       color: 'green',
-      endpoint: '/dashboard/admin/export/performance/',
-      filename: `performance_metrics_${new Date().toISOString().split('T')[0]}.csv`
+      gradient: 'from-green-500 to-green-600',
+      emoji: '📊'
     }
   ];
 
-  const getColorClasses = (color) => {
-    const colors = {
-      blue: {
-        bg: 'bg-blue-50',
-        border: 'border-blue-200',
-        icon: 'text-blue-600',
-        button: 'bg-blue-600 hover:bg-blue-700'
-      },
-      red: {
-        bg: 'bg-red-50',
-        border: 'border-red-200',
-        icon: 'text-red-600',
-        button: 'bg-red-600 hover:bg-red-700'
-      },
-      green: {
-        bg: 'bg-green-50',
-        border: 'border-green-200',
-        icon: 'text-green-600',
-        button: 'bg-green-600 hover:bg-green-700'
-      },
-      purple: {
-        bg: 'bg-purple-50',
-        border: 'border-purple-200',
-        icon: 'text-purple-600',
-        button: 'bg-purple-600 hover:bg-purple-700'
-      }
-    };
-    return colors[color] || colors.blue;
-  };
-
   return (
-    <div className="space-y-6">
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <div className="flex items-center gap-3 mb-6">
-          <BarChart3 className="w-6 h-6 text-purple-600" />
-          <h2 className="text-xl font-bold text-gray-900">Reports & Export</h2>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {reports.map((report) => {
-            const Icon = report.icon;
-            const colors = getColorClasses(report.color);
-            
-            return (
-              <div
-                key={report.id}
-                className={`${colors.bg} border-2 ${colors.border} rounded-lg p-6 hover:shadow-lg transition`}
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <Icon className={`w-8 h-8 ${colors.icon}`} />
-                  <span className="px-2 py-1 text-xs font-semibold text-gray-600 bg-white rounded-full border border-gray-300">
-                    CSV
-                  </span>
-                </div>
-
-                <h3 className="text-lg font-bold text-gray-900 mb-2">
-                  {report.title}
-                </h3>
-
-                <p className="text-sm text-gray-600 mb-4 min-h-[3rem]">
-                  {report.description}
-                </p>
-
-                <button
-                  onClick={() => handleExport(report.title, report.endpoint, report.filename)}
-                  disabled={loading[report.title]}
-                  className={`w-full flex items-center justify-center gap-2 px-4 py-2 ${colors.button} text-white rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed`}
-                >
-                  <Download className="w-4 h-4" />
-                  {loading[report.title] ? 'Exporting...' : 'Export Report'}
-                </button>
-              </div>
-            );
-          })}
+    <div className="min-h-screen bg-gray-50 p-2 sm:p-4 md:p-6">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg shadow-lg p-4 sm:p-6 mb-4 sm:mb-6">
+        <div className="flex items-center gap-2 sm:gap-3 mb-2">
+          <BarChart3 className="w-6 h-6 sm:w-8 sm:h-8 text-white flex-shrink-0" />
+          <div className="min-w-0">
+            <h1 className="text-lg sm:text-2xl md:text-3xl font-bold text-white truncate">Download Reports</h1>
+            <p className="text-blue-100 text-xs sm:text-sm hidden sm:block">Somali Early Warning System</p>
+          </div>
         </div>
       </div>
 
-      {/* Export Guidelines */}
-      <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-6">
-        <h3 className="text-lg font-bold text-blue-900 mb-3">Export Guidelines</h3>
-        <ul className="space-y-2 text-sm text-blue-800">
+      {/* Simple Instructions */}
+      <div className="bg-white rounded-lg shadow-md p-3 sm:p-4 mb-4 sm:mb-6">
+        <h2 className="text-base sm:text-lg font-bold text-gray-900 mb-2">📥 How to Download</h2>
+        <ol className="space-y-1 text-xs sm:text-sm text-gray-700">
           <li className="flex items-start gap-2">
-            <span className="font-semibold mt-0.5">•</span>
-            <span>All reports are exported in CSV format for easy analysis in Excel or Google Sheets</span>
+            <span className="font-bold text-blue-600 flex-shrink-0">1.</span>
+            <span>Choose a report type below</span>
           </li>
           <li className="flex items-start gap-2">
-            <span className="font-semibold mt-0.5">•</span>
-            <span>Reports include data up to the current date and time</span>
+            <span className="font-bold text-blue-600 flex-shrink-0">2.</span>
+            <span>Click the button for the format you want</span>
           </li>
           <li className="flex items-start gap-2">
-            <span className="font-semibold mt-0.5">•</span>
-            <span>Sensitive student information is included - handle reports securely and in compliance with data protection policies</span>
+            <span className="font-bold text-blue-600 flex-shrink-0">3.</span>
+            <span>The file will download to your computer</span>
           </li>
-          <li className="flex items-start gap-2">
-            <span className="font-semibold mt-0.5">•</span>
-            <span>All export actions are logged in the audit trail for accountability</span>
-          </li>
-        </ul>
+        </ol>
+      </div>
+
+      {/* Reports Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 mb-4 sm:mb-6">
+        {reports.map((report) => {
+          const Icon = report.icon;
+          
+          return (
+            <div
+              key={report.id}
+              className="bg-white rounded-lg shadow-md hover:shadow-xl transition-all overflow-hidden"
+            >
+              {/* Card Header */}
+              <div className={`bg-gradient-to-r ${report.gradient} p-4 sm:p-5`}>
+                <div className="flex items-center gap-3 mb-2">
+                  <span className="text-3xl sm:text-4xl">{report.emoji}</span>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-base sm:text-lg font-bold text-white truncate">
+                      {report.title}
+                    </h3>
+                    <p className="text-xs sm:text-sm text-white/90 truncate">{report.subtitle}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Card Body */}
+              <div className="p-3 sm:p-4">
+                <p className="text-xs sm:text-sm text-gray-700 mb-4 leading-relaxed">
+                  {report.description}
+                </p>
+
+                {/* Format Selection */}
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-gray-600 mb-2">Choose Format:</p>
+                  
+                  {/* PDF Button */}
+                  <button
+                    onClick={() => handleExport(
+                      report.id,
+                      'pdf',
+                      `/dashboard/admin/export/${report.id}/pdf/`,
+                      `${report.id}_report_${new Date().toISOString().split('T')[0]}.pdf`
+                    )}
+                    disabled={loading[`${report.id}_pdf`]}
+                    className="w-full flex items-center justify-between gap-2 px-3 sm:px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg transition font-medium disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
+                  >
+                    <div className="flex items-center gap-2">
+                      <FileType className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+                      <span className="font-semibold">PDF Document</span>
+                    </div>
+                    <span className="text-xs bg-red-700 px-2 py-1 rounded">Best for Print</span>
+                  </button>
+
+                  {/* DOCX Button */}
+                  <button
+                    onClick={() => handleExport(
+                      report.id,
+                      'docx',
+                      `/dashboard/admin/export/${report.id}/docx/`,
+                      `${report.id}_report_${new Date().toISOString().split('T')[0]}.docx`
+                    )}
+                    disabled={loading[`${report.id}_docx`]}
+                    className="w-full flex items-center justify-between gap-2 px-3 sm:px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition font-medium disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
+                  >
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+                      <span className="font-semibold">Word Document</span>
+                    </div>
+                    <span className="text-xs bg-blue-700 px-2 py-1 rounded">Can Edit</span>
+                  </button>
+
+                  {/* CSV Button */}
+                  <button
+                    onClick={() => handleExport(
+                      report.id,
+                      'csv',
+                      report.id === 'cases' ? '/dashboard/admin/export/cases/' :
+                      report.id === 'risk' ? '/dashboard/admin/export/risk-summary/' :
+                      '/dashboard/admin/export/performance/',
+                      `${report.id}_report_${new Date().toISOString().split('T')[0]}.csv`
+                    )}
+                    disabled={loading[`${report.id}_csv`]}
+                    className="w-full flex items-center justify-between gap-2 px-3 sm:px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg transition font-medium disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
+                  >
+                    <div className="flex items-center gap-2">
+                      <FileSpreadsheet className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+                      <span className="font-semibold">Excel File</span>
+                    </div>
+                    <span className="text-xs bg-green-700 px-2 py-1 rounded">For Data</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Simple Help Section */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6">
+        <div className="bg-red-50 border-2 border-red-200 rounded-lg p-3 sm:p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <FileType className="w-5 h-5 text-red-600 flex-shrink-0" />
+            <h3 className="font-bold text-red-900 text-sm sm:text-base">PDF Files</h3>
+          </div>
+          <p className="text-xs sm:text-sm text-red-800">Professional documents ready to print or share. Cannot be edited.</p>
+        </div>
+
+        <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-3 sm:p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <FileText className="w-5 h-5 text-blue-600 flex-shrink-0" />
+            <h3 className="font-bold text-blue-900 text-sm sm:text-base">Word Files</h3>
+          </div>
+          <p className="text-xs sm:text-sm text-blue-800">Open in Microsoft Word or Google Docs. You can edit and customize.</p>
+        </div>
+
+        <div className="bg-green-50 border-2 border-green-200 rounded-lg p-3 sm:p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <FileSpreadsheet className="w-5 h-5 text-green-600 flex-shrink-0" />
+            <h3 className="font-bold text-green-900 text-sm sm:text-base">Excel Files</h3>
+          </div>
+          <p className="text-xs sm:text-sm text-green-800">Raw data for Excel or Google Sheets. Make your own charts.</p>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-3 sm:p-4 text-center">
+        <p className="text-xs sm:text-sm text-gray-600">
+          🔒 All reports contain private student information. Keep them secure.
+        </p>
+        <p className="text-xs text-gray-500 mt-1">
+          Generated on {new Date().toLocaleDateString('en-US', { 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
+          })}
+        </p>
       </div>
     </div>
   );

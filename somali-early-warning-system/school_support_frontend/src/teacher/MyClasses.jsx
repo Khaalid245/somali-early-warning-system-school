@@ -4,8 +4,6 @@ import { AuthContext } from "../context/AuthContext";
 import api from "../api/apiClient";
 import Sidebar from "../components/Sidebar";
 import Navbar from "../components/Navbar";
-import { CardSkeleton } from "../components/LoadingSkeleton";
-import EmptyState from "../components/EmptyState";
 
 export default function MyClasses() {
   const { user, logout } = useContext(AuthContext);
@@ -16,6 +14,7 @@ export default function MyClasses() {
   const [subjects, setSubjects] = useState([]);
   const [studentsMap, setStudentsMap] = useState({});
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("overview");
 
   useEffect(() => {
     loadData();
@@ -29,13 +28,11 @@ export default function MyClasses() {
         api.get("/academics/subjects/")
       ]);
 
-      // Backend returns paginated data with 'results' array
       const assignments = assignmentsRes.data.results || assignmentsRes.data || [];
       setAssignments(assignments);
       setClassrooms(classroomsRes.data.results || classroomsRes.data || []);
       setSubjects(subjectsRes.data.results || subjectsRes.data || []);
 
-      // Load student counts
       if (assignments.length > 0) {
         const classIds = [...new Set(assignments.map((a) => a.classroom))];
         const map = {};
@@ -56,122 +53,121 @@ export default function MyClasses() {
   const getClassName = (id) => classrooms.find((c) => c.class_id == id)?.name || `Class ${id}`;
   const getSubjectName = (id) => subjects.find((s) => s.subject_id == id)?.name || `Subject ${id}`;
 
+  if (loading) {
+    return (
+      <div className="flex h-screen bg-gray-50">
+        <Sidebar user={user} onLogout={logout} onTabChange={setActiveTab} />
+        <div className="flex-1 overflow-auto">
+          <Navbar user={user} dashboardData={{}} searchQuery="" onSearchChange={() => {}} />
+          <div className="p-4 sm:p-8 flex items-center justify-center">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mx-auto mb-4"></div>
+              <p className="text-xl text-gray-700">Loading your classes...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-screen bg-gray-50">
-      <Sidebar user={user} onLogout={logout} />
+      <Sidebar user={user} onLogout={logout} onTabChange={setActiveTab} />
 
       <div className="flex-1 overflow-auto">
-        <Navbar user={user} dashboardData={{}} />
+        <Navbar user={user} dashboardData={{}} searchQuery="" onSearchChange={() => {}} />
 
-        <div className="p-8">
+        <div className="p-4 sm:p-6 lg:p-8">
           {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-800 mb-2">My Classes</h1>
-            <p className="text-gray-600">Manage your assigned classrooms and subjects</p>
+          <div className="mb-6 sm:mb-8">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2 flex items-center gap-2">
+              <span>📚</span> My Classes
+            </h1>
+            <p className="text-sm sm:text-base text-gray-600">All the classes you teach</p>
           </div>
 
-          {/* Stats Cards */}
-          {!loading && assignments.length > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="w-12 h-12 rounded-lg bg-blue-50 flex items-center justify-center">
-                    <span className="text-2xl">📚</span>
-                  </div>
-                  <div>
-                    <p className="text-gray-600 text-sm">Total Classes</p>
-                    <p className="text-3xl font-bold text-gray-900">{[...new Set(assignments.map(a => a.classroom))].length}</p>
-                  </div>
+          {/* Summary Cards */}
+          {assignments.length > 0 && (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6 sm:mb-8">
+              <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-xl p-4 sm:p-6 shadow-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-3xl sm:text-4xl">📘</span>
+                  <p className="text-3xl sm:text-4xl font-bold">{[...new Set(assignments.map(a => a.classroom))].length}</p>
                 </div>
+                <p className="text-sm sm:text-base font-semibold">Total Classes</p>
+                <p className="text-xs text-blue-100 mt-1">Different classrooms</p>
               </div>
 
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="w-12 h-12 rounded-lg bg-green-50 flex items-center justify-center">
-                    <span className="text-2xl">📖</span>
-                  </div>
-                  <div>
-                    <p className="text-gray-600 text-sm">Total Subjects</p>
-                    <p className="text-3xl font-bold text-gray-900">{[...new Set(assignments.map(a => a.subject))].length}</p>
-                  </div>
+              <div className="bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-xl p-4 sm:p-6 shadow-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-3xl sm:text-4xl">📖</span>
+                  <p className="text-3xl sm:text-4xl font-bold">{[...new Set(assignments.map(a => a.subject))].length}</p>
                 </div>
+                <p className="text-sm sm:text-base font-semibold">Total Subjects</p>
+                <p className="text-xs text-purple-100 mt-1">Different subjects</p>
               </div>
 
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="w-12 h-12 rounded-lg bg-purple-50 flex items-center justify-center">
-                    <span className="text-2xl">👥</span>
-                  </div>
-                  <div>
-                    <p className="text-gray-600 text-sm">Total Students</p>
-                    <p className="text-3xl font-bold text-gray-900">{Object.values(studentsMap).reduce((a, b) => a + b, 0)}</p>
-                  </div>
+              <div className="bg-gradient-to-br from-green-500 to-green-600 text-white rounded-xl p-4 sm:p-6 shadow-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-3xl sm:text-4xl">👥</span>
+                  <p className="text-3xl sm:text-4xl font-bold">{Object.values(studentsMap).reduce((a, b) => a + b, 0)}</p>
                 </div>
+                <p className="text-sm sm:text-base font-semibold">Total Students</p>
+                <p className="text-xs text-green-100 mt-1">Across all classes</p>
               </div>
-            </div>
-          )}
-
-          {/* Loading State */}
-          {loading && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <CardSkeleton />
-              <CardSkeleton />
-              <CardSkeleton />
             </div>
           )}
 
           {/* Empty State */}
-          {!loading && assignments.length === 0 && (
-            <EmptyState
-              icon="📚"
-              title="No Classes Assigned"
-              message="You don't have any classes assigned yet. Contact your administrator to get started."
-            />
+          {assignments.length === 0 && (
+            <div className="bg-white rounded-xl p-8 sm:p-12 text-center border-2 border-gray-200">
+              <p className="text-5xl sm:text-6xl mb-4">📚</p>
+              <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">No Classes Yet</h3>
+              <p className="text-sm sm:text-base text-gray-600">Contact your administrator to get classes assigned</p>
+            </div>
           )}
 
           {/* Class Cards */}
-          {!loading && assignments.length > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {assignments.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {assignments.map((a) => (
                 <div
                   key={a.assignment_id}
-                  className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-lg transition-all duration-200 overflow-hidden"
+                  className="bg-white rounded-xl shadow-sm border-2 border-gray-200 hover:border-blue-400 hover:shadow-lg transition overflow-hidden"
                 >
                   {/* Header */}
-                  <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-6 text-white">
+                  <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-4 sm:p-6 text-white">
                     <div className="flex items-center gap-3 mb-2">
-                      <div className="w-12 h-12 rounded-lg bg-white bg-opacity-20 flex items-center justify-center">
-                        <span className="text-2xl">📘</span>
-                      </div>
-                      <div className="flex-1">
-                        <h3 className="text-xl font-bold">{getClassName(a.classroom)}</h3>
-                        <p className="text-blue-100 text-sm">{studentsMap[a.classroom] || 0} students</p>
+                      <span className="text-3xl sm:text-4xl">📘</span>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-lg sm:text-xl font-bold truncate">{getClassName(a.classroom)}</h3>
+                        <p className="text-xs sm:text-sm text-blue-100">{studentsMap[a.classroom] || 0} students</p>
                       </div>
                     </div>
                   </div>
 
                   {/* Body */}
-                  <div className="p-6">
+                  <div className="p-4 sm:p-6">
                     {/* Subject */}
                     <div className="mb-4">
-                      <p className="text-xs text-gray-500 mb-1">Subject</p>
-                      <span className="inline-block px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm font-semibold">
+                      <p className="text-xs text-gray-500 mb-2">Subject</p>
+                      <span className="inline-block px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-semibold">
                         {getSubjectName(a.subject)}
                       </span>
                     </div>
 
                     {/* Status */}
                     <div className="mb-4">
-                      <p className="text-xs text-gray-500 mb-1">Status</p>
+                      <p className="text-xs text-gray-500 mb-2">Status</p>
                       <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${
                         a.is_active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700"
                       }`}>
-                        {a.is_active ? "Active" : "Inactive"}
+                        {a.is_active ? "✓ Active" : "✗ Inactive"}
                       </span>
                     </div>
 
                     {/* Actions */}
-                    <div className="flex gap-2">
+                    <div className="space-y-2">
                       <button
                         onClick={() => navigate('/teacher/attendance', { 
                           state: { 
@@ -179,15 +175,15 @@ export default function MyClasses() {
                             subject: getSubjectName(a.subject)
                           } 
                         })}
-                        className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium"
+                        className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-semibold flex items-center justify-center gap-2"
                       >
-                        ✓ Take Attendance
+                        <span>📝</span> Take Attendance
                       </button>
                       <button
-                        onClick={() => navigate('/teacher', { state: { tab: 'students' } })}
-                        className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition text-sm font-medium"
+                        onClick={() => navigate('/teacher/attendance-tracking')}
+                        className="w-full px-4 py-3 bg-white border-2 border-gray-300 text-gray-700 rounded-lg hover:border-blue-400 hover:bg-blue-50 transition text-sm font-semibold flex items-center justify-center gap-2"
                       >
-                        👥
+                        <span>📊</span> View Records
                       </button>
                     </div>
                   </div>

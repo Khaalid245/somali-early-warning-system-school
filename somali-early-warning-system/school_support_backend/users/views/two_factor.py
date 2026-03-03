@@ -88,18 +88,35 @@ class Verify2FAView(APIView):
     def post(self, request):
         from django.contrib.auth import get_user_model
         from ..tokens import MyTokenObtainPairSerializer
+        import logging
+        
+        logger = logging.getLogger(__name__)
         User = get_user_model()
         
         email = request.data.get('email')
         code = request.data.get('code')
         
+        logger.info(f"2FA verify attempt - email: {email}, code provided: {bool(code)}")
+        
         if not email or not code:
-            return Response({'error': 'Email and code are required'}, status=status.HTTP_400_BAD_REQUEST)
+            logger.warning(f"Missing data - email: {bool(email)}, code: {bool(code)}")
+            return Response({
+                'error': 'Email and code are required',
+                'valid': False
+            }, status=status.HTTP_400_BAD_REQUEST)
         
         try:
             user = User.objects.get(email=email)
+            
+            if not user.two_factor_enabled:
+                logger.warning(f"2FA not enabled for user: {email}")
+                return Response({
+                    'error': '2FA not enabled for this account',
+                    'valid': False
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
             if user.verify_2fa_code(code):
-                # Generate JWT tokens with custom claims
+                logger.info(f"2FA verified successfully for: {email}")
                 token = MyTokenObtainPairSerializer.get_token(user)
                 return Response({
                     'valid': True,
@@ -111,9 +128,17 @@ class Verify2FAView(APIView):
                     'email': user.email
                 })
             else:
-                return Response({'valid': False, 'error': 'Invalid code'}, status=status.HTTP_400_BAD_REQUEST)
+                logger.warning(f"Invalid 2FA code for: {email}")
+                return Response({
+                    'valid': False,
+                    'error': 'Invalid code'
+                }, status=status.HTTP_400_BAD_REQUEST)
         except User.DoesNotExist:
-            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+            logger.error(f"User not found: {email}")
+            return Response({
+                'error': 'User not found',
+                'valid': False
+            }, status=status.HTTP_404_NOT_FOUND)
 
 
 class ForceReset2FAView(APIView):

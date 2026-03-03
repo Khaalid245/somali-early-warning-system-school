@@ -2,11 +2,32 @@ from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
 from .models import AttendanceSession, AttendanceRecord
 from academics.models import TeachingAssignment
-from students.models import StudentEnrollment
+from students.models import StudentEnrollment, Student
 
 
 # -----------------------------------
-# Attendance Record Serializer
+# Attendance Record Serializer for Reading
+# -----------------------------------
+class AttendanceRecordReadSerializer(serializers.ModelSerializer):
+    student_name = serializers.CharField(source='student.full_name', read_only=True)
+    student_id_number = serializers.CharField(source='student.student_id', read_only=True)
+    student_admission = serializers.CharField(source='student.admission_number', read_only=True)
+
+    class Meta:
+        model = AttendanceRecord
+        fields = [
+            "record_id",
+            "student",
+            "student_name",
+            "student_id_number", 
+            "student_admission",
+            "status",
+            "remarks",
+        ]
+
+
+# -----------------------------------
+# Attendance Record Serializer for Writing
 # -----------------------------------
 class AttendanceRecordSerializer(serializers.ModelSerializer):
 
@@ -25,21 +46,39 @@ class AttendanceRecordSerializer(serializers.ModelSerializer):
 # Attendance Session Serializer
 # -----------------------------------
 class AttendanceSessionSerializer(serializers.ModelSerializer):
-
-    records = AttendanceRecordSerializer(many=True)
+    records = AttendanceRecordSerializer(many=True, required=False)
+    classroom_name = serializers.CharField(source='classroom.name', read_only=True)
+    subject_name = serializers.CharField(source='subject.name', read_only=True)
+    teacher_name = serializers.CharField(source='teacher.name', read_only=True)
+    total_students = serializers.SerializerMethodField()
 
     class Meta:
         model = AttendanceSession
         fields = [
             "session_id",
             "classroom",
+            "classroom_name",
             "subject",
+            "subject_name",
             "teacher",
+            "teacher_name",
             "attendance_date",
             "created_at",
             "records",
+            "total_students",
         ]
-        read_only_fields = ["session_id", "teacher", "created_at"]
+        read_only_fields = ["session_id", "teacher", "created_at", "classroom_name", "subject_name", "teacher_name", "total_students"]
+
+    def get_total_students(self, obj):
+        return obj.records.count()
+
+    def to_representation(self, instance):
+        """Override to ensure records are included for reading"""
+        data = super().to_representation(instance)
+        # Force include records with full student data for reading
+        records = AttendanceRecordReadSerializer(instance.records.all(), many=True).data
+        data['records'] = records
+        return data
 
     def validate(self, data):
         request = self.context["request"]
@@ -127,5 +166,12 @@ class AttendanceSessionSerializer(serializers.ModelSerializer):
                     status=record_data["status"],
                     remarks=record_data.get("remarks", "")
                 )
+
+        # Force update of risk calculations after attendance change
+        from risk.services import update_risk_after_session
+        try:
+            update_risk_after_session(instance)
+        except Exception as e:
+            print(f"Risk update failed: {e}")
 
         return instance

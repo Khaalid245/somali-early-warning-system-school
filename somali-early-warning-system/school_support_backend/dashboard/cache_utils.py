@@ -29,8 +29,22 @@ def get_cached_dashboard_data(cache_key):
 
 def invalidate_teacher_cache(teacher_id):
     """Invalidate teacher dashboard cache when data changes"""
-    # This would be called when attendance is recorded or alerts are created
-    cache_pattern = f"dashboard_teacher_*{teacher_id}*"
-    # Note: Django's default cache doesn't support pattern deletion
-    # In production, consider using Redis with pattern deletion
-    pass
+    # Generate all possible cache keys for this teacher
+    from datetime import date
+    today = date.today().isoformat()
+    
+    # Try common filter combinations
+    filter_combinations = [
+        {},
+        {'time_range': 'current_month'},
+        {'time_range': 'current_week'},
+        {'time_range': 'current_semester'},
+    ]
+    
+    for filters in filter_combinations:
+        cache_key = get_cache_key('teacher', teacher_id, filters)
+        cache.delete(cache_key)
+    
+    # Also delete the base key without filters
+    base_key = f"dashboard_teacher_{teacher_id}_{today}"
+    cache.delete(base_key)

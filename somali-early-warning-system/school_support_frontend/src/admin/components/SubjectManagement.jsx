@@ -15,11 +15,26 @@ export default function SubjectManagement() {
 
   const fetchSubjects = async () => {
     try {
+      console.log('Fetching subjects...');
       const response = await api.get('/academics/subjects/');
-      setSubjects(response.data.subjects || []);
+      console.log('Subjects response:', response.data);
+      
+      // Handle different response formats
+      let subjectsList = [];
+      if (Array.isArray(response.data)) {
+        subjectsList = response.data;
+      } else if (response.data.subjects && Array.isArray(response.data.subjects)) {
+        subjectsList = response.data.subjects;
+      } else if (response.data.results && Array.isArray(response.data.results)) {
+        subjectsList = response.data.results;
+      }
+      
+      console.log('Setting subjects:', subjectsList);
+      setSubjects(subjectsList);
     } catch (err) {
       console.error('Failed to fetch subjects:', err);
       showToast.error('Failed to load subjects');
+      setSubjects([]);
     } finally {
       setLoading(false);
     }
@@ -28,13 +43,25 @@ export default function SubjectManagement() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await api.post('/academics/subjects/', formData);
-      showToast.success('Subject created successfully');
+      console.log('Sending subject data:', formData);
+      const response = await api.post('/academics/subjects/', formData);
+      console.log('Subject created:', response.data);
+      showToast.success(`Subject "${formData.name}" created successfully!`);
       setShowModal(false);
       setFormData({ name: '' });
       fetchSubjects();
     } catch (err) {
-      showToast.error(err.response?.data?.error || 'Failed to create subject');
+      console.error('Full error object:', err);
+      console.error('Error response:', err.response);
+      console.error('Error data:', err.response?.data);
+      
+      // Handle duplicate subject error
+      if (err.response?.data?.name) {
+        showToast.error(`Subject already exists: ${err.response.data.name[0]}`);
+      } else {
+        const errorMsg = err.response?.data?.detail || err.response?.data?.error || 'Failed to create subject';
+        showToast.error(errorMsg);
+      }
     }
   };
 
@@ -77,26 +104,39 @@ export default function SubjectManagement() {
       )}
 
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-bold text-gray-900 mb-4">Add Subject</h3>
-            <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
+          <div className="absolute inset-0" onClick={() => setShowModal(false)}></div>
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 transform transition-all relative z-10">
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4 rounded-t-xl">
+              <h3 className="text-xl font-bold text-white">Add Subject</h3>
+              <p className="text-blue-100 text-sm mt-1">Create a new subject for the curriculum</p>
+            </div>
+            
+            <form onSubmit={handleSubmit} className="p-6 space-y-5">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Subject Name</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Subject Name</label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
                   placeholder="e.g., Mathematics"
                   required
                 />
               </div>
-              <div className="flex gap-3 pt-4">
-                <button type="submit" className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
-                  Create
+              
+              <div className="flex gap-3 pt-4 border-t border-gray-100">
+                <button 
+                  type="submit" 
+                  className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-lg hover:from-blue-700 hover:to-blue-800 transition shadow-lg hover:shadow-xl"
+                >
+                  ✓ Create Subject
                 </button>
-                <button type="button" onClick={() => setShowModal(false)} className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition">
+                <button 
+                  type="button" 
+                  onClick={() => setShowModal(false)} 
+                  className="flex-1 px-6 py-3 bg-gray-100 text-gray-700 font-semibold rounded-lg hover:bg-gray-200 transition"
+                >
                   Cancel
                 </button>
               </div>

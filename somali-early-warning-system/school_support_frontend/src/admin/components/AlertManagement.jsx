@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
-import { AlertCircle, Filter, Download, Search } from 'lucide-react';
+import { AlertCircle, Filter, Download, Search, User, Eye, XCircle } from 'lucide-react';
 import api from '../../api/apiClient';
 import { showToast } from '../../utils/toast';
 
 export default function AlertManagement({ data, onRefresh }) {
   const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [selectedAlert, setSelectedAlert] = useState(null);
+  const [detailsModal, setDetailsModal] = useState(false);
   const [filters, setFilters] = useState({
     risk_level: '',
     status: '',
@@ -84,16 +86,21 @@ export default function AlertManagement({ data, onRefresh }) {
     return badges[status] || badges.active;
   };
 
+  const openDetailsModal = (alert) => {
+    setSelectedAlert(alert);
+    setDetailsModal(true);
+  };
+
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
-      <div className="flex items-center justify-between mb-6">
+    <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div className="flex items-center gap-3">
-          <AlertCircle className="w-6 h-6 text-orange-600" />
-          <h2 className="text-xl font-bold text-gray-900">Alert Management</h2>
+          <AlertCircle className="w-6 h-6 text-orange-600 flex-shrink-0" />
+          <h2 className="text-lg sm:text-xl font-bold text-gray-900">Alert Management</h2>
         </div>
         <button
           onClick={handleExport}
-          className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+          className="flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm"
         >
           <Download className="w-4 h-4" />
           Export CSV
@@ -101,7 +108,7 @@ export default function AlertManagement({ data, onRefresh }) {
       </div>
 
       {/* Filters */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">Search</label>
           <div className="relative">
@@ -111,7 +118,7 @@ export default function AlertManagement({ data, onRefresh }) {
               value={filters.search}
               onChange={(e) => setFilters({ ...filters, search: e.target.value })}
               placeholder="Student name or ID..."
-              className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
             />
           </div>
         </div>
@@ -121,7 +128,7 @@ export default function AlertManagement({ data, onRefresh }) {
           <select
             value={filters.risk_level}
             onChange={(e) => setFilters({ ...filters, risk_level: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
           >
             <option value="">All Levels</option>
             <option value="low">Low</option>
@@ -136,7 +143,7 @@ export default function AlertManagement({ data, onRefresh }) {
           <select
             value={filters.status}
             onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
           >
             <option value="">All Statuses</option>
             <option value="active">Active</option>
@@ -150,14 +157,14 @@ export default function AlertManagement({ data, onRefresh }) {
         <div className="flex items-end">
           <button
             onClick={() => setFilters({ risk_level: '', status: '', search: '' })}
-            className="w-full px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition"
+            className="w-full px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition text-sm"
           >
             Clear Filters
           </button>
         </div>
       </div>
 
-      {/* Alerts Table */}
+      {/* Alerts List */}
       {loading ? (
         <div className="text-center py-12">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
@@ -170,55 +177,166 @@ export default function AlertManagement({ data, onRefresh }) {
           <p className="text-sm">Try adjusting your filters</p>
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b-2 border-gray-200">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Alert ID</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Student</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Type</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Risk Level</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Status</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Date</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Assigned To</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {filteredAlerts.map((alert) => (
-                <tr key={alert.alert_id} className="hover:bg-gray-50 transition">
-                  <td className="px-4 py-3">
-                    <span className="font-mono text-sm font-semibold text-blue-600">#{alert.alert_id}</span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="font-medium text-gray-900">
-                      {alert.student?.full_name || alert.student?.name || `Student ID: ${alert.student || 'N/A'}`}
+        <div className="space-y-3">
+          {filteredAlerts.map((alert) => (
+            <div key={alert.alert_id} className="border-2 border-gray-200 rounded-lg p-4 hover:shadow-md transition">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+                <div className="flex items-center gap-3">
+                  <span className="font-mono text-sm font-bold text-blue-600">#{alert.alert_id}</span>
+                  <span className={`px-2 py-1 text-xs font-semibold rounded-full border ${getRiskBadge(alert.risk_level)}`}>
+                    {alert.risk_level?.toUpperCase()}
+                  </span>
+                  <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusBadge(alert.status)}`}>
+                    {alert.status?.replace('_', ' ').toUpperCase()}
+                  </span>
+                </div>
+                <button
+                  onClick={() => openDetailsModal(alert)}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm"
+                >
+                  <Eye className="w-4 h-4" />
+                  View Details
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <span className="text-xs font-semibold text-gray-500 uppercase">Student</span>
+                  <p className="text-sm font-medium text-gray-900">
+                    {alert.student?.full_name || alert.student?.name || `Student ID: ${alert.student || 'N/A'}`}
+                  </p>
+                </div>
+                <div>
+                  <span className="text-xs font-semibold text-gray-500 uppercase">Alert Type</span>
+                  <p className="text-sm text-gray-700 capitalize">{alert.alert_type}</p>
+                </div>
+                <div>
+                  <span className="text-xs font-semibold text-gray-500 uppercase">Date</span>
+                  <p className="text-sm text-gray-700">{new Date(alert.alert_date).toLocaleDateString()}</p>
+                </div>
+                <div>
+                  <span className="text-xs font-semibold text-gray-500 uppercase">Assigned To</span>
+                  <p className="text-sm text-gray-700">{alert.assigned_to?.name || 'Unassigned'}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Details Modal */}
+      {detailsModal && selectedAlert && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-orange-600 to-orange-700 p-4 sm:p-6 rounded-t-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-xl font-bold text-white">Alert #{selectedAlert.alert_id}</h3>
+                  <p className="text-orange-100 text-sm">Complete Alert & Student Details</p>
+                </div>
+                <button
+                  onClick={() => setDetailsModal(false)}
+                  className="text-white hover:bg-orange-800 rounded-lg p-2 transition"
+                >
+                  <XCircle className="w-6 h-6" />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-4 sm:p-6 space-y-6">
+              {/* Student Information */}
+              <div>
+                <h4 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
+                  <User className="w-5 h-5 text-blue-600" />
+                  Student Information
+                </h4>
+                <div className="bg-blue-50 rounded-lg p-4 space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <span className="text-xs font-semibold text-gray-500 uppercase">Full Name</span>
+                      <p className="text-sm font-medium text-gray-900">
+                        {selectedAlert.student?.full_name || selectedAlert.student?.name || 'N/A'}
+                      </p>
                     </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="text-sm text-gray-700 capitalize">{alert.alert_type}</span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`px-2 py-1 text-xs font-semibold rounded-full border ${getRiskBadge(alert.risk_level)}`}>
-                      {alert.risk_level?.toUpperCase()}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusBadge(alert.status)}`}>
-                      {alert.status?.replace('_', ' ').toUpperCase()}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="text-sm text-gray-600">
-                      {new Date(alert.alert_date).toLocaleDateString()}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="text-sm text-gray-700">{alert.assigned_to?.name || 'Unassigned'}</span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    <div>
+                      <span className="text-xs font-semibold text-gray-500 uppercase">Student ID</span>
+                      <p className="text-sm font-medium text-gray-900">
+                        {selectedAlert.student?.admission_number || selectedAlert.student?.student_id || 'N/A'}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-xs font-semibold text-gray-500 uppercase">Gender</span>
+                      <p className="text-sm text-gray-900 capitalize">{selectedAlert.student?.gender || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <span className="text-xs font-semibold text-gray-500 uppercase">Date of Birth</span>
+                      <p className="text-sm text-gray-900">
+                        {selectedAlert.student?.date_of_birth ? new Date(selectedAlert.student.date_of_birth).toLocaleDateString() : 'N/A'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Alert Information */}
+              <div>
+                <h4 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
+                  <AlertCircle className="w-5 h-5 text-orange-600" />
+                  Alert Details
+                </h4>
+                <div className="bg-orange-50 rounded-lg p-4 space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <span className="text-xs font-semibold text-gray-500 uppercase">Alert Type</span>
+                      <p className="text-sm font-medium text-gray-900 capitalize">{selectedAlert.alert_type}</p>
+                    </div>
+                    <div>
+                      <span className="text-xs font-semibold text-gray-500 uppercase">Risk Level</span>
+                      <span className={`inline-block px-2 py-1 text-xs font-semibold rounded-full border ${getRiskBadge(selectedAlert.risk_level)}`}>
+                        {selectedAlert.risk_level?.toUpperCase()}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-xs font-semibold text-gray-500 uppercase">Status</span>
+                      <span className={`inline-block px-2 py-1 text-xs font-semibold rounded-full ${getStatusBadge(selectedAlert.status)}`}>
+                        {selectedAlert.status?.replace('_', ' ').toUpperCase()}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-xs font-semibold text-gray-500 uppercase">Alert Date</span>
+                      <p className="text-sm text-gray-900">{new Date(selectedAlert.alert_date).toLocaleDateString()}</p>
+                    </div>
+                    <div>
+                      <span className="text-xs font-semibold text-gray-500 uppercase">Assigned To</span>
+                      <p className="text-sm text-gray-900">{selectedAlert.assigned_to?.name || 'Unassigned'}</p>
+                    </div>
+                    <div>
+                      <span className="text-xs font-semibold text-gray-500 uppercase">Created By</span>
+                      <p className="text-sm text-gray-900">{selectedAlert.created_by?.name || 'System'}</p>
+                    </div>
+                  </div>
+                  {selectedAlert.description && (
+                    <div className="pt-2 border-t border-orange-200">
+                      <span className="text-xs font-semibold text-gray-500 uppercase">Description</span>
+                      <p className="text-sm text-gray-900 mt-1 leading-relaxed">{selectedAlert.description}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="bg-gray-50 p-4 sm:p-6 rounded-b-lg">
+              <button
+                onClick={() => setDetailsModal(false)}
+                className="w-full px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition font-medium"
+              >
+                Close
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

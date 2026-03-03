@@ -12,6 +12,7 @@ python-dotenv
 django-ratelimit
 pyotp
 qrcode[pil]
+cryptography
 
 # Caching
 django-redis
@@ -22,6 +23,9 @@ sentry-sdk
 
 # Validation
 django-filter
+
+# API Documentation
+drf-spectacular
 
 # Export functionality
 openpyxl

@@ -75,20 +75,29 @@ export default function ClassroomManagement() {
           academic_year: formData.academic_year,
           form_master_id: formData.form_master_id || null
         });
-        showToast.success('Classroom created successfully');
+        showToast.success(`Classroom "${formData.name}" created successfully!`);
       } else {
         await api.patch(`/dashboard/admin/classrooms/${formData.class_id}/`, {
           name: formData.name,
           form_master_id: formData.form_master_id || null
         });
-        showToast.success('Classroom updated successfully');
+        showToast.success(`Classroom "${formData.name}" updated successfully!`);
       }
       
       setShowModal(false);
       fetchData();
     } catch (err) {
-      console.error('Failed to save classroom:', err);
-      showToast.error(err.response?.data?.error || 'Failed to save classroom');
+      console.error('Failed to save classroom:', err.response?.data);
+      
+      // Handle duplicate classroom error
+      if (err.response?.data?.name) {
+        showToast.error(`Classroom already exists: ${err.response.data.name[0]}`);
+      } else if (err.response?.data?.form_master_id) {
+        showToast.error(`Form master error: ${err.response.data.form_master_id[0]}`);
+      } else {
+        const errorMsg = err.response?.data?.error || err.response?.data?.detail || 'Failed to save classroom';
+        showToast.error(errorMsg);
+      }
     }
   };
 
@@ -202,20 +211,22 @@ export default function ClassroomManagement() {
 
       {/* Create/Edit Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-bold text-gray-900 mb-4">
-              {modalMode === 'create' ? 'Create Classroom' : 'Edit Classroom'}
-            </h3>
+        <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
+          <div className="absolute inset-0" onClick={() => setShowModal(false)}></div>
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 transform transition-all relative z-50">
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4 rounded-t-xl">
+              <h3 className="text-xl font-bold text-white">Create Classroom</h3>
+              <p className="text-blue-100 text-sm mt-1">Add a new classroom to the system</p>
+            </div>
             
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="p-6 space-y-5">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Classroom Name</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Classroom Name</label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
                   placeholder="e.g., Grade 10A"
                   required
                 />
@@ -223,12 +234,12 @@ export default function ClassroomManagement() {
 
               {modalMode === 'create' && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Academic Year</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Academic Year</label>
                   <input
                     type="text"
                     value={formData.academic_year}
                     onChange={(e) => setFormData({ ...formData, academic_year: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
                     placeholder="e.g., 2026"
                     required
                   />
@@ -236,11 +247,11 @@ export default function ClassroomManagement() {
               )}
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Form Master</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Form Master</label>
                 <select
                   value={formData.form_master_id}
                   onChange={(e) => setFormData({ ...formData, form_master_id: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
                 >
                   <option value="">Unassigned</option>
                   {formMasters.map((fm) => (
@@ -249,22 +260,23 @@ export default function ClassroomManagement() {
                     </option>
                   ))}
                 </select>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-gray-500 mt-2 flex items-center gap-1">
+                  <span>ℹ️</span>
                   Each form master can only be assigned to one classroom
                 </p>
               </div>
 
-              <div className="flex gap-3 pt-4">
+              <div className="flex gap-3 pt-4 border-t border-gray-100">
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                  className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-lg hover:from-blue-700 hover:to-blue-800 transition shadow-lg hover:shadow-xl"
                 >
-                  {modalMode === 'create' ? 'Create' : 'Update'}
+                  {modalMode === 'create' ? '✓ Create Classroom' : '✓ Update Classroom'}
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition"
+                  className="flex-1 px-6 py-3 bg-gray-100 text-gray-700 font-semibold rounded-lg hover:bg-gray-200 transition"
                 >
                   Cancel
                 </button>

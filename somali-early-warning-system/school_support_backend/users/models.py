@@ -14,10 +14,10 @@ class User(AbstractBaseUser, PermissionsMixin):
     ]
 
     id = models.AutoField(primary_key=True)
-    name = models.CharField(max_length=120)
+    name = models.CharField(max_length=255)
     email = models.EmailField(unique=True)
     role = models.CharField(max_length=20, choices=ROLE_CHOICES)
-    phone = models.CharField(max_length=20, blank=True, null=True)
+    phone = models.CharField(max_length=50, blank=True, null=True)
     profile_image = models.ImageField(upload_to='profile_images/', blank=True, null=True)
     biography = models.TextField(blank=True, null=True, max_length=500)
 

@@ -22,7 +22,9 @@ export default function ProfilePage() {
         api.get("/dashboard/")
       ]);
 
-      const myAssignments = assignmentsRes.data.filter(a => a.teacher === user.user_id);
+      const myAssignments = Array.isArray(assignmentsRes.data) 
+        ? assignmentsRes.data.filter(a => a.teacher === user.user_id)
+        : [];
       
       setProfileData({
         assignments: myAssignments,
@@ -30,6 +32,7 @@ export default function ProfilePage() {
       });
     } catch (err) {
       console.error("Failed to load profile", err);
+      setProfileData({ assignments: [], stats: {} });
     } finally {
       setLoading(false);
     }

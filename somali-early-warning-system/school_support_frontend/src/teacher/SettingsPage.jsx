@@ -1,10 +1,11 @@
-import { useState, useContext, useRef } from "react";
+import { useState, useContext, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import api from "../api/apiClient";
 import { showToast } from "../utils/toast";
 import Sidebar from "../components/Sidebar";
 import Navbar from "../components/Navbar";
+import TwoFactorSetup from "../components/TwoFactorSetup";
 
 export default function SettingsPage() {
   const { user, logout, updateUser } = useContext(AuthContext);
@@ -15,14 +16,45 @@ export default function SettingsPage() {
     name: user?.name || "",
     email: user?.email || "",
     phone: user?.phone || "",
+    biography: user?.biography || "",
     currentPassword: "",
     newPassword: "",
     confirmPassword: ""
   });
   
   const [profileImage, setProfileImage] = useState(null);
-  const [imagePreview, setImagePreview] = useState(user?.profile_image || null);
+  const [imagePreview, setImagePreview] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [show2FA, setShow2FA] = useState(false);
+
+  useEffect(() => {
+    loadUserProfile();
+  }, []);
+
+  const loadUserProfile = async () => {
+    try {
+      const res = await api.get('/dashboard/settings/profile/');
+      console.log('Profile loaded:', res.data);
+      console.log('Profile photo URL:', res.data.profile_photo);
+      
+      setFormData({
+        ...formData,
+        name: res.data.name || '',
+        email: res.data.email || '',
+        phone: res.data.phone || '',
+        biography: res.data.bio || ''
+      });
+      
+      if (res.data.profile_photo) {
+        console.log('Setting image preview to:', res.data.profile_photo);
+        setImagePreview(res.data.profile_photo);
+      } else {
+        console.log('No profile photo in response');
+      }
+    } catch (err) {
+      console.error('Failed to load profile:', err);
+    }
+  };
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -45,27 +77,60 @@ export default function SettingsPage() {
     setLoading(true);
 
     try {
-      const formDataToSend = new FormData();
-      formDataToSend.append('name', formData.name);
-      formDataToSend.append('email', formData.email);
-      if (formData.phone) formDataToSend.append('phone', formData.phone);
-      if (profileImage) formDataToSend.append('profile_image', profileImage);
-
-      const response = await api.patch(`/users/${user.user_id}/`, formDataToSend, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
+      let response;
+      
+      if (profileImage) {
+        // Use FormData when uploading image
+        const formDataToSend = new FormData();
+        formDataToSend.append('name', formData.name);
+        if (formData.phone) formDataToSend.append('phone', formData.phone);
+        if (formData.biography) formDataToSend.append('bio', formData.biography);
+        formDataToSend.append('profile_photo', profileImage);
+        
+        response = await api.put('/dashboard/settings/profile/', formDataToSend, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+      } else {
+        // Use JSON for text-only updates
+        const jsonData = {
+          name: formData.name,
+          phone: formData.phone || '',
+          bio: formData.biography || ''
+        };
+        
+        response = await api.put('/dashboard/settings/profile/', jsonData);
+      }
       
       // Update user context with new data
       updateUser({
         name: response.data.name,
         email: response.data.email,
         phone: response.data.phone,
-        profile_image: response.data.profile_image
+        biography: response.data.bio,
+        profile_image: response.data.profile_photo
       });
       
+      console.log('Profile updated, photo URL:', response.data.profile_photo);
+      
+      // Update image preview
+      if (response.data.profile_photo) {
+        console.log('Setting new image preview:', response.data.profile_photo);
+        setImagePreview(response.data.profile_photo);
+      }
+      
+      // Reset profile image state after successful upload
+      setProfileImage(null);
+      
       showToast.success('Profile updated successfully!');
+      
+      // Reload profile to ensure we have latest data
+      await loadUserProfile();
     } catch (err) {
-      showToast.error(err.response?.data?.detail || 'Failed to update profile');
+      console.error('Update error:', err.response?.data);
+      const errorMsg = err.response?.data?.error 
+        || Object.values(err.response?.data || {}).flat().join(', ')
+        || 'Failed to update profile';
+      showToast.error(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -107,16 +172,20 @@ export default function SettingsPage() {
       <div className="flex-1 overflow-auto">
         <Navbar user={user} dashboardData={{}} />
 
-        <div className="p-4 sm:p-8">
-          <div className="mb-6">
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">Settings</h1>
-            <p className="text-sm sm:text-base text-gray-600">Manage your account settings and preferences</p>
+        <div className="p-4 sm:p-6 lg:p-8">
+          <div className="mb-6 sm:mb-8">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2 flex items-center gap-2">
+              <span>⚙️</span> Settings
+            </h1>
+            <p className="text-sm sm:text-base text-gray-600">Manage your account and preferences</p>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Profile Image */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">Profile Picture</h3>
+              <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                <span>📸</span> Profile Picture
+              </h3>
               <div className="flex flex-col items-center space-y-4">
                 <div className="relative">
                   <div className="w-32 h-32 rounded-full overflow-hidden bg-gray-200 border-4 border-gray-300">
@@ -155,7 +224,9 @@ export default function SettingsPage() {
 
             {/* Profile Information */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">Profile Information</h3>
+              <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                <span>👤</span> Profile Information
+              </h3>
               <form onSubmit={handleUpdateProfile} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
@@ -175,10 +246,10 @@ export default function SettingsPage() {
                     type="email"
                     name="email"
                     value={formData.email}
-                    onChange={handleChange}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
+                    disabled
+                    className="w-full p-3 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed"
                   />
+                  <p className="text-xs text-gray-500 mt-1">Email cannot be changed</p>
                 </div>
 
                 <div>
@@ -193,6 +264,20 @@ export default function SettingsPage() {
                   />
                 </div>
 
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Biography</label>
+                  <textarea
+                    name="biography"
+                    value={formData.biography}
+                    onChange={handleChange}
+                    placeholder="Tell us about yourself..."
+                    rows={4}
+                    maxLength={500}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">{formData.biography?.length || 0}/500 characters</p>
+                </div>
+
                 <button
                   type="submit"
                   disabled={loading}
@@ -205,7 +290,9 @@ export default function SettingsPage() {
 
             {/* Change Password */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">Change Password</h3>
+              <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                <span>🔒</span> Change Password
+              </h3>
               <form onSubmit={handleChangePassword} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Current Password</label>
@@ -246,16 +333,19 @@ export default function SettingsPage() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 font-medium"
+                  className="w-full px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50 font-medium"
                 >
                   {loading ? "Changing..." : "Change Password"}
                 </button>
+                <p className="text-xs text-gray-500 mt-2 text-center">Password must be at least 8 characters</p>
               </form>
             </div>
 
             {/* Preferences */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">Preferences</h3>
+              <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                <span>🔔</span> Notification Preferences
+              </h3>
               <div className="space-y-4">
                 <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
                   <div>
@@ -281,9 +371,47 @@ export default function SettingsPage() {
               </div>
             </div>
 
+            {/* Account Info */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                <span>ℹ️</span> Account Information
+              </h3>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                  <span className="text-sm text-gray-600">Role</span>
+                  <span className="text-sm font-semibold text-gray-800 capitalize">{user?.role?.replace('_', ' ')}</span>
+                </div>
+                <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                  <span className="text-sm text-gray-600">Account Status</span>
+                  <span className="text-sm font-semibold text-green-600">Active</span>
+                </div>
+                <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                  <span className="text-sm text-gray-600">Member Since</span>
+                  <span className="text-sm font-semibold text-gray-800">{new Date(user?.date_joined).toLocaleDateString()}</span>
+                </div>
+              </div>
+            </div>
+
             {/* Account Actions */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">Account Actions</h3>
+              <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                <span>🔐</span> Security
+              </h3>
+              <div className="space-y-3">
+                <button
+                  onClick={() => setShow2FA(true)}
+                  className="w-full px-4 py-3 border-2 border-blue-300 text-blue-700 rounded-lg hover:bg-blue-50 transition font-medium flex items-center justify-center gap-2"
+                >
+                  {user?.two_factor_enabled ? '✓ 2FA Enabled' : 'Setup 2FA'}
+                </button>
+              </div>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                <span>⚡</span> Quick Actions
+              </h3>
               <div className="space-y-3">
                 <button
                   onClick={() => navigate("/teacher")}
@@ -302,6 +430,18 @@ export default function SettingsPage() {
           </div>
         </div>
       </div>
+
+      {show2FA && (
+        <TwoFactorSetup
+          user={user}
+          onClose={(updated) => {
+            setShow2FA(false);
+            if (updated) {
+              loadUserProfile();
+            }
+          }}
+        />
+      )}
     </div>
   );
 }

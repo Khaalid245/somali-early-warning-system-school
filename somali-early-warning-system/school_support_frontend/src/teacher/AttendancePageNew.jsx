@@ -21,6 +21,7 @@ export default function AttendancePage() {
   const [selectedClassroom, setSelectedClassroom] = useState("");
   const [selectedSubject, setSelectedSubject] = useState("");
   const [statusMap, setStatusMap] = useState({});
+  const [remarksMap, setRemarksMap] = useState({});
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [showConfirm, setShowConfirm] = useState(false);
@@ -87,6 +88,7 @@ export default function AttendancePage() {
         initialStatus[stu.student_id] = "present";
       });
       setStatusMap(initialStatus);
+      setRemarksMap({});
     } catch (err) {
       console.error("Failed to load students", err);
     }
@@ -120,7 +122,7 @@ export default function AttendancePage() {
     const records = Object.keys(statusMap).map(studentId => ({
       student: parseInt(studentId),
       status: statusMap[studentId].toLowerCase(),
-      remarks: ""
+      remarks: remarksMap[studentId] || ""
     }));
 
     try {
@@ -133,6 +135,7 @@ export default function AttendancePage() {
 
       showToast.success("Attendance saved successfully!");
       setStatusMap({});
+      setRemarksMap({});
       navigate("/teacher");
     } catch (err) {
       const errorData = err.response?.data;
@@ -152,6 +155,9 @@ export default function AttendancePage() {
 
   const setStatus = (studentId, status) => {
     setStatusMap((prev) => ({ ...prev, [studentId]: status }));
+    if (status === 'excused' && !remarksMap[studentId]) {
+      setRemarksMap((prev) => ({ ...prev, [studentId]: '' }));
+    }
   };
 
   const markAll = (status) => {
@@ -330,7 +336,28 @@ export default function AttendancePage() {
                               >
                                 ✗ Absent
                               </button>
+                              <button
+                                onClick={() => setStatus(stu.student_id, "excused")}
+                                className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg transition text-xs sm:text-sm font-medium ${
+                                  statusMap[stu.student_id] === "excused"
+                                    ? "bg-blue-600 text-white shadow-md"
+                                    : "bg-blue-50 text-blue-700 hover:bg-blue-100"
+                                }`}
+                              >
+                                📝 Excused
+                              </button>
                             </div>
+                            {statusMap[stu.student_id] === "excused" && (
+                              <div className="mt-2">
+                                <input
+                                  type="text"
+                                  placeholder="Reason for excuse..."
+                                  value={remarksMap[stu.student_id] || ''}
+                                  onChange={(e) => setRemarksMap(prev => ({ ...prev, [stu.student_id]: e.target.value }))}
+                                  className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                              </div>
+                            )}
                           </td>
                         </tr>
                       ))}

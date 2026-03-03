@@ -221,10 +221,10 @@ def get_form_master_dashboard_data(user, filters):
         )[:5]
     )
 
-    # Cases needing attention
+    # Cases needing attention (including escalated ones)
     pending_cases = list(
         InterventionCase.objects
-        .filter(assigned_to=user, status__in=["open", "in_progress", "awaiting_parent"])
+        .filter(assigned_to=user, status__in=["open", "in_progress", "awaiting_parent", "escalated_to_admin"])
         .select_related("student", "alert", "student__risk_profile")
         .order_by("-created_at")
         .values(
@@ -536,6 +536,7 @@ def get_teacher_dashboard_data(user, filters):
     )
 
     # Optimized high-risk students query with visual indicators
+    # SECURITY: Only show students from teacher's assigned subjects
     high_risk_students_raw = StudentRiskProfile.objects.filter(
         risk_level__in=["high", "critical"],
         student__attendance_records__session__subject_id__in=teacher_subjects
@@ -579,7 +580,15 @@ def get_teacher_dashboard_data(user, filters):
         for alert in urgent_alerts_raw
     ]
 
-    # Use the already fetched teaching assignments
+    # Prefetch student counts to avoid N+1
+    from django.db.models import Count as CountAgg
+    classroom_ids = [a.classroom.class_id for a in teaching_assignments]
+    student_counts = dict(
+        StudentEnrollment.objects.filter(
+            classroom_id__in=classroom_ids, is_active=True
+        ).values('classroom_id').annotate(count=CountAgg('enrollment_id')).values_list('classroom_id', 'count')
+    )
+    
     my_classes = [
         {
             "assignment_id": assignment.assignment_id,
@@ -587,9 +596,7 @@ def get_teacher_dashboard_data(user, filters):
             "classroom__class_id": assignment.classroom.class_id,
             "subject__name": assignment.subject.name,
             "subject__subject_id": assignment.subject.subject_id,
-            "student_count": StudentEnrollment.objects.filter(
-                classroom=assignment.classroom, is_active=True
-            ).count(),
+            "student_count": student_counts.get(assignment.classroom.class_id, 0),
             "recent_attendance_rate": _get_class_attendance_rate(assignment, today)
         }
         for assignment in teaching_assignments
@@ -876,12 +883,16 @@ def _get_student_context(student_id, teacher_subjects):
             total=Count('record_id'),
             present=Count('record_id', filter=Q(status='present'))
         )
-        total = recent_attendance['total'] or 1
+        total = recent_attendance['total'] or 0
+        if total == 0:
+            return {'recent_attendance_rate': 0, 'has_recent_data': False}
         return {
             'recent_attendance_rate': round((recent_attendance['present'] or 0) / total * 100, 1),
-            'has_recent_data': total > 0
+            'has_recent_data': True
         }
-    except:
+    except Exception as e:
+        import logging
+        logging.error(f"Error getting student context for {student_id}: {e}")
         return {'recent_attendance_rate': 0, 'has_recent_data': False}
 
 
@@ -934,30 +945,32 @@ def _get_semester_comparison(teacher_subjects, today):
     """Compare current semester with previous semester"""
     current_semester = _get_date_range('current_semester', today)
     
-    # Calculate previous semester dates
-    if current_semester['start_date'].month >= 9:  # Fall semester
+    # Calculate previous semester dates dynamically
+    current_start_month = current_semester['start_date'].month
+    if current_start_month >= 9:  # Fall semester
         prev_start = date(current_semester['start_date'].year, 2, 1)
         prev_end = date(current_semester['start_date'].year, 6, 30)
-    else:  # Spring semester
+    elif current_start_month >= 2:  # Spring semester
         prev_start = date(current_semester['start_date'].year - 1, 9, 1)
-        prev_end = date(current_semester['start_date'].year, 1, 31)
+        prev_end = date(current_semester['start_date'].year - 1, 12, 31)
+    else:  # Winter - previous fall
+        prev_start = date(current_semester['start_date'].year - 1, 9, 1)
+        prev_end = date(current_semester['start_date'].year - 1, 12, 31)
     
-    # Current semester stats
+    # Current semester stats with optimized query
     current_stats = AttendanceRecord.objects.filter(
         session__subject_id__in=teacher_subjects,
-        session__attendance_date__gte=current_semester['start_date'],
-        session__attendance_date__lte=current_semester['end_date']
+        session__attendance_date__range=(current_semester['start_date'], current_semester['end_date'])
     ).aggregate(
         total=Count('record_id'),
         present=Count('record_id', filter=Q(status='present')),
         absent=Count('record_id', filter=Q(status='absent'))
     )
     
-    # Previous semester stats
+    # Previous semester stats with optimized query
     prev_stats = AttendanceRecord.objects.filter(
         session__subject_id__in=teacher_subjects,
-        session__attendance_date__gte=prev_start,
-        session__attendance_date__lte=prev_end
+        session__attendance_date__range=(prev_start, prev_end)
     ).aggregate(
         total=Count('record_id'),
         present=Count('record_id', filter=Q(status='present')),

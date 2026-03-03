@@ -1,7 +1,8 @@
-from django.urls import path
+from django.urls import path, include
 from .views import (
     AttendanceSessionListCreateView,
     AttendanceSessionDetailView,
+    StudentAbsenceDetailsView,
 )
 from .daily_monitor_view import DailyAttendanceMonitorView
 from .student_report_view import StudentAttendanceReportView
@@ -46,5 +47,10 @@ urlpatterns = [
         "tracking/student/<int:student_id>/history/",
         StudentAttendanceHistoryView.as_view(),
         name="attendance-tracking-history"
+    ),
+    path(
+        "absence-details/",
+        StudentAbsenceDetailsView.as_view(),
+        name="student-absence-details"
     ),
 ]

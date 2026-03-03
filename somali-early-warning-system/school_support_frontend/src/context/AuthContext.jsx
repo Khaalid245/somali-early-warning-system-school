@@ -13,7 +13,7 @@ export const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
-    const token = localStorage.getItem("access");
+    const token = sessionStorage.getItem("access");
     console.log("[AuthContext] Token:", token ? "exists" : "null");
     if (!token) return null;
 
@@ -23,20 +23,20 @@ export function AuthProvider({ children }) {
       // Check if token is expired
       if (decoded.exp * 1000 < Date.now()) {
         console.log("[AuthContext] Token expired");
-        localStorage.clear();
+        sessionStorage.clear();
         return null;
       }
       return decoded;
     } catch (err) {
       console.log("[AuthContext] Token decode error:", err);
-      localStorage.clear();
+      sessionStorage.clear();
       return null;
     }
   });
 
   const login = (access, refresh) => {
-    localStorage.setItem("access", access);
-    localStorage.setItem("refresh", refresh);
+    sessionStorage.setItem("access", access);
+    sessionStorage.setItem("refresh", refresh);
 
     const decoded = jwtDecode(access);
     setUser(decoded);
@@ -47,7 +47,7 @@ export function AuthProvider({ children }) {
   };
 
   const logout = async () => {
-    const refresh = localStorage.getItem("refresh");
+    const refresh = sessionStorage.getItem("refresh");
     
     // Blacklist refresh token on backend
     if (refresh) {
@@ -58,7 +58,7 @@ export function AuthProvider({ children }) {
       }
     }
     
-    localStorage.clear();
+    sessionStorage.clear();
     setUser(null);
     showToast.success("Logged out successfully");
     window.location.href = "/login";

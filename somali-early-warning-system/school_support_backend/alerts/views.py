@@ -6,6 +6,7 @@ from rest_framework.exceptions import PermissionDenied
 from core.idor_protection import IDORProtectionMixin
 from .models import Alert
 from .serializers import AlertSerializer
+from notifications.email_service import send_alert_notification
 
 
 # =====================================================
@@ -42,7 +43,11 @@ class AlertListCreateView(generics.ListCreateAPIView):
         if user.role != "admin":
             raise PermissionDenied("Only admin can manually create alerts.")
 
-        serializer.save(status="active")
+        alert = serializer.save(status="active")
+        
+        # Send automatic email notification for high-risk alerts
+        if alert.risk_level in ['high', 'critical']:
+            send_alert_notification(alert)
 
 
 # =====================================================

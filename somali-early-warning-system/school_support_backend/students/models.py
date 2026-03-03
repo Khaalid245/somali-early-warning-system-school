@@ -54,12 +54,17 @@ class Student(models.Model):
 
     admission_number = models.CharField(max_length=50, unique=True)
 
-    full_name = models.CharField(max_length=120)
+    full_name = models.CharField(max_length=255)
 
     gender = models.CharField(
         max_length=10,
         choices=GENDER_CHOICES
     )
+    
+    # Parent/Guardian Contact Information
+    parent_email = models.EmailField(blank=True, null=True)
+    parent_phone = models.CharField(max_length=20, blank=True, null=True)
+    parent_name = models.CharField(max_length=255, blank=True, null=True)
 
     status = models.CharField(
         max_length=20,

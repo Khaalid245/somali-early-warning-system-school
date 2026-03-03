@@ -1,14 +1,23 @@
 from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import PermissionDenied, Throttled
 from rest_framework.response import Response
+from rest_framework.throttling import UserRateThrottle
 from django.utils import timezone
 from django.core.exceptions import ValidationError
+import logging
 
 from .models import InterventionCase
 from .serializers import InterventionCaseSerializer
 from alerts.models import Alert
 from core.idor_protection import IDORProtectionMixin
+from notifications.email_service import send_case_escalation_notification, send_case_resolved_notification
+
+logger = logging.getLogger(__name__)
+
+
+class CaseUpdateThrottle(UserRateThrottle):
+    rate = '10/hour'
 
 
 # =====================================================
@@ -57,6 +66,7 @@ class InterventionCaseListCreateView(generics.ListCreateAPIView):
 class InterventionCaseDetailView(IDORProtectionMixin, generics.RetrieveUpdateDestroyAPIView):
     serializer_class = InterventionCaseSerializer
     permission_classes = [IsAuthenticated]
+    throttle_classes = [CaseUpdateThrottle]
 
     def get_queryset(self):
         """IDOR Protection: Filter by assignment"""
@@ -80,6 +90,13 @@ class InterventionCaseDetailView(IDORProtectionMixin, generics.RetrieveUpdateDes
 
         if user.role not in ["admin", "form_master"]:
             raise PermissionDenied("Permission denied.")
+        
+        # Input validation: meeting_notes max length
+        meeting_notes = self.request.data.get('meeting_notes', '')
+        if len(meeting_notes) > 2000:
+            return Response({
+                'error': 'Meeting notes cannot exceed 2000 characters.'
+            }, status=status.HTTP_400_BAD_REQUEST)
         
         # Workflow validation: Cannot close case without resolution notes
         new_status = self.request.data.get('status')
@@ -107,9 +124,31 @@ class InterventionCaseDetailView(IDORProtectionMixin, generics.RetrieveUpdateDes
             except (ValueError, TypeError):
                 pass
 
+        # Audit log before update
+        logger.info(
+            f"Case Update: case_id={case.case_id}, user={user.username}, "
+            f"old_status={case.status}, new_status={new_status or case.status}, "
+            f"progress_status={self.request.data.get('progress_status')}"
+        )
+
         try:
             updated_case = serializer.save()
+            
+            # Send email if case escalated to admin
+            if updated_case.status == 'escalated_to_admin' and case.status != 'escalated_to_admin':
+                send_case_escalation_notification(updated_case)
+            
+            # Send email if case resolved
+            if updated_case.status == 'closed' and case.status != 'closed':
+                send_case_resolved_notification(updated_case)
+            
+            # Audit log after successful update
+            logger.info(
+                f"Case Updated Successfully: case_id={updated_case.case_id}, "
+                f"user={user.username}, status={updated_case.status}"
+            )
         except ValidationError as e:
+            logger.error(f"Case Update Failed: case_id={case.case_id}, user={user.username}, error={str(e)}")
             return Response({
                 'error': str(e),
                 'current_version': case.version

@@ -17,8 +17,8 @@ import StudentsView from "./components/StudentsView";
 import AttendanceDrillDown from "./components/AttendanceDrillDown";
 import AuditLogViewer from "./components/AuditLogViewer";
 import ReportsView from "./components/ReportsView";
-import UserManagement from "./components/UserManagement";
-import ClassroomManagement from "./components/ClassroomManagement";
+import GovernanceView from "./components/GovernanceView";
+import SettingsView from "./components/SettingsView";
 
 function AdminDashboardContent() {
   const { user, logout } = useContext(AuthContext);
@@ -54,6 +54,15 @@ function AdminDashboardContent() {
 
   useEffect(() => {
     loadDashboard();
+  }, []);
+
+  useEffect(() => {
+    // Listen for tab change events from navbar
+    const handleTabChange = (event) => {
+      setActiveTab(event.detail);
+    };
+    window.addEventListener('adminTabChange', handleTabChange);
+    return () => window.removeEventListener('adminTabChange', handleTabChange);
   }, []);
 
   if (loading) {
@@ -154,15 +163,14 @@ function AdminDashboardContent() {
             <AuditLogViewer />
           )}
 
-          {activeTab === "governance" && (
-            <div className="space-y-6">
-              <UserManagement />
-              <ClassroomManagement />
-            </div>
-          )}
+          {activeTab === "governance" && <GovernanceView />}
 
           {activeTab === "reports" && (
             <ReportsView />
+          )}
+
+          {(activeTab === "settings" || activeTab === "profile") && (
+            <SettingsView initialTab={activeTab === "profile" ? "profile" : "profile"} />
           )}
         </div>
       </div>

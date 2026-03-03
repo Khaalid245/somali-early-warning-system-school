@@ -2,67 +2,24 @@ import { useEffect, useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import api from "../api/apiClient";
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area } from "recharts";
-import AlertDetailModal from "./AlertDetailModal";
 import Sidebar from "../components/Sidebar";
 import Navbar from "../components/Navbar";
-import { CardSkeleton, ChartSkeleton } from "../components/LoadingSkeleton";
-
-const COLORS = ['#3b82f6', '#ef4444', '#f59e0b', '#10b981', '#8b5cf6'];
 
 export default function TeacherDashboard() {
   const { user, logout } = useContext(AuthContext);
   const navigate = useNavigate();
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [selectedAlert, setSelectedAlert] = useState(null);
   const [activeTab, setActiveTab] = useState("overview");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState([]);
-  const [showSearchResults, setShowSearchResults] = useState(false);
-  const [lastUpdated, setLastUpdated] = useState(new Date());
 
   useEffect(() => {
     loadDashboard();
-    const interval = setInterval(() => {
-      setLastUpdated(prev => prev);
-    }, 60000);
-    return () => clearInterval(interval);
   }, []);
-
-  useEffect(() => {
-    if (searchQuery.length > 2) {
-      handleSearch();
-    } else {
-      setSearchResults([]);
-      setShowSearchResults(false);
-    }
-  }, [searchQuery]);
-
-  const handleSearch = async () => {
-    try {
-      const [studentsRes, classesRes] = await Promise.all([
-        api.get(`/students/?search=${searchQuery}`),
-        api.get(`/students/classrooms/?search=${searchQuery}`)
-      ]);
-      
-      const results = [
-        ...studentsRes.data.slice(0, 5).map(s => ({ type: 'student', ...s })),
-        ...classesRes.data.slice(0, 3).map(c => ({ type: 'class', ...c }))
-      ];
-      
-      setSearchResults(results);
-      setShowSearchResults(true);
-    } catch (err) {
-      console.error('Search failed:', err);
-    }
-  };
 
   const loadDashboard = async () => {
     try {
       const res = await api.get("/dashboard/");
       setDashboardData(res.data);
-      setLastUpdated(new Date());
     } catch (err) {
       console.error("Failed to load dashboard", err);
     } finally {
@@ -70,40 +27,16 @@ export default function TeacherDashboard() {
     }
   };
 
-  const getTimeAgo = (date) => {
-    const seconds = Math.floor((new Date() - date) / 1000);
-    if (seconds < 60) return 'Just now';
-    const minutes = Math.floor(seconds / 60);
-    if (minutes < 60) return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
-    const hours = Math.floor(minutes / 60);
-    return `${hours} hour${hours > 1 ? 's' : ''} ago`;
-  };
-
-  const getRiskBadgeColor = (level) => {
-    const colors = {
-      low: 'bg-gray-100 text-gray-700',
-      medium: 'bg-yellow-100 text-yellow-700',
-      high: 'bg-orange-100 text-orange-700',
-      critical: 'bg-red-100 text-red-700'
-    };
-    return colors[level?.toLowerCase()] || colors.medium;
-  };
-
   if (loading) {
     return (
       <div className="flex h-screen bg-gray-50">
         <Sidebar user={user} onLogout={logout} onTabChange={setActiveTab} />
         <div className="flex-1 overflow-auto">
-          <Navbar user={user} dashboardData={{}} searchQuery={searchQuery} onSearchChange={setSearchQuery} />
-          <div className="p-8">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-              <CardSkeleton />
-              <CardSkeleton />
-              <CardSkeleton />
-            </div>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <ChartSkeleton />
-              <ChartSkeleton />
+          <Navbar user={user} dashboardData={{}} searchQuery="" onSearchChange={() => {}} />
+          <div className="p-4 sm:p-8 flex items-center justify-center">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mx-auto mb-4"></div>
+              <p className="text-xl text-gray-700">Loading...</p>
             </div>
           </div>
         </div>
@@ -124,217 +57,193 @@ export default function TeacherDashboard() {
     );
   }
 
-  const getTrendIcon = (trend) => {
-    if (trend === "up") return "↑";
-    if (trend === "down") return "↓";
-    return "→";
-  };
-
-  const getTrendColor = (trend, inverse = false) => {
-    if (inverse) {
-      if (trend === "up") return "text-red-600";
-      if (trend === "down") return "text-green-600";
-    } else {
-      if (trend === "up") return "text-green-600";
-      if (trend === "down") return "text-red-600";
-    }
-    return "text-gray-600";
-  };
-
   return (
     <div className="flex h-screen bg-gray-50">
       <Sidebar user={user} onLogout={logout} onTabChange={setActiveTab} />
 
       <div className="flex-1 overflow-auto">
-        <Navbar 
-          user={user} 
-          dashboardData={dashboardData} 
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          searchResults={searchResults}
-          showSearchResults={showSearchResults}
-          onCloseSearch={() => setShowSearchResults(false)}
-        />
+        <Navbar user={user} dashboardData={dashboardData} searchQuery="" onSearchChange={() => {}} />
 
-        <div className="p-8">
+        <div className="p-4 sm:p-6 lg:p-8">
           {activeTab === "overview" && (
             <>
-              {/* Quick Actions + Last Updated */}
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => navigate('/teacher/attendance')}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium flex items-center gap-2"
-                  >
-                    <span>📝</span> Record Attendance
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('alerts')}
-                    className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition text-sm font-medium flex items-center gap-2"
-                  >
-                    <span>🔔</span> View Alerts
-                    {dashboardData.active_alerts > 0 && (
-                      <span className="ml-1 px-2 py-0.5 bg-red-500 text-white text-xs rounded-full">
-                        {dashboardData.active_alerts}
-                      </span>
-                    )}
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('students')}
-                    className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition text-sm font-medium flex items-center gap-2"
-                  >
-                    <span>⚠️</span> High Risk Students
-                    {dashboardData.high_risk_students?.length > 0 && (
-                      <span className="ml-1 px-2 py-0.5 bg-orange-500 text-white text-xs rounded-full">
-                        {dashboardData.high_risk_students.length}
-                      </span>
-                    )}
-                  </button>
-                </div>
-                <div className="text-sm text-gray-500 flex items-center gap-2">
-                  <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                  Last updated: {getTimeAgo(lastUpdated)}
-                </div>
+              {/* Welcome Section */}
+              <div className="mb-6 sm:mb-8">
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
+                  👋 Welcome back, {user?.name}!
+                </h1>
+                <p className="text-sm sm:text-base text-gray-600">Here's what's happening with your students today</p>
               </div>
 
-              {/* KPI Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="w-12 h-12 rounded-lg bg-red-50 flex items-center justify-center">
-                      <span className="text-2xl">📅</span>
-                    </div>
-                    {dashboardData.absent_change_percent !== undefined && (
-                      <span className={`text-sm font-semibold ${getTrendColor(dashboardData.absent_trend_direction, true)}`}>
-                        {getTrendIcon(dashboardData.absent_trend_direction)} {Math.abs(dashboardData.absent_change_percent)}%
-                      </span>
-                    )}
+              {/* Quick Actions */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-6 sm:mb-8">
+                <button
+                  onClick={() => navigate('/teacher/attendance')}
+                  className="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-xl p-4 sm:p-6 shadow-lg hover:shadow-xl transition text-left"
+                >
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="text-3xl sm:text-4xl">📝</span>
+                    <h3 className="text-lg sm:text-xl font-bold">Record Attendance</h3>
                   </div>
-                  <p className="text-gray-600 text-sm mb-1">Today's Absences</p>
-                  <p className="text-3xl font-bold text-gray-900">{dashboardData.today_absent_count || 0}</p>
-                </div>
+                  <p className="text-xs sm:text-sm text-blue-100">Mark who came to class today</p>
+                </button>
 
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="w-12 h-12 rounded-lg bg-orange-50 flex items-center justify-center">
-                      <span className="text-2xl">🔔</span>
-                    </div>
-                    {dashboardData.alert_change_percent !== undefined && (
-                      <span className={`text-sm font-semibold ${getTrendColor(dashboardData.alert_trend_direction, true)}`}>
-                        {getTrendIcon(dashboardData.alert_trend_direction)} {Math.abs(dashboardData.alert_change_percent)}%
-                      </span>
-                    )}
+                <button
+                  onClick={() => navigate('/teacher/attendance-tracking')}
+                  className="bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-xl p-4 sm:p-6 shadow-lg hover:shadow-xl transition text-left"
+                >
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="text-3xl sm:text-4xl">📊</span>
+                    <h3 className="text-lg sm:text-xl font-bold">View Tracking</h3>
                   </div>
-                  <p className="text-gray-600 text-sm mb-1">Active Alerts</p>
-                  <p className="text-3xl font-bold text-gray-900">{dashboardData.active_alerts || 0}</p>
-                </div>
-
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="w-12 h-12 rounded-lg bg-purple-50 flex items-center justify-center">
-                      <span className="text-2xl">⚠️</span>
-                    </div>
-                  </div>
-                  <p className="text-gray-600 text-sm mb-1">High Risk Students</p>
-                  <p className="text-3xl font-bold text-gray-900">{dashboardData.high_risk_students?.length || 0}</p>
-                </div>
+                  <p className="text-xs sm:text-sm text-purple-100">See student attendance records</p>
+                </button>
               </div>
 
-              {/* Charts */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                  <h3 className="text-lg font-semibold text-gray-800 mb-4">Absence Trend (Last 6 Months)</h3>
-                  {dashboardData.monthly_absence_trend && dashboardData.monthly_absence_trend.length > 0 ? (
-                    <ResponsiveContainer width="100%" height={300}>
-                      <AreaChart data={dashboardData.monthly_absence_trend}>
-                        <defs>
-                          <linearGradient id="colorAbsence" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3}/>
-                            <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                        <XAxis dataKey="month" tick={{ fontSize: 12 }} stroke="#9ca3af" />
-                        <YAxis tick={{ fontSize: 12 }} stroke="#9ca3af" />
-                        <Tooltip 
-                          contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
-                          labelStyle={{ fontWeight: 'bold', color: '#374151' }}
-                        />
-                        <Area 
-                          type="monotone" 
-                          dataKey="count" 
-                          stroke="#ef4444" 
-                          strokeWidth={3}
-                          fill="url(#colorAbsence)"
-                          dot={{ fill: '#ef4444', r: 5 }}
-                          activeDot={{ r: 7 }}
-                        />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <div className="h-[300px] flex items-center justify-center text-gray-500">
-                      <div className="text-center">
-                        <p className="text-4xl mb-2">📊</p>
-                        <p>No absence data available</p>
+              {/* Today's Summary Cards */}
+              <div className="mb-6 sm:mb-8">
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                  <span>📅</span> Today's Summary
+                </h2>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {/* Absences */}
+                  <div className="bg-white rounded-xl p-4 sm:p-6 border-2 border-gray-200 shadow-sm">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-3xl sm:text-4xl">😔</span>
+                      <div className="text-right">
+                        <p className="text-2xl sm:text-3xl font-bold text-red-600">{dashboardData.today_absent_count || 0}</p>
                       </div>
                     </div>
-                  )}
-                </div>
+                    <p className="text-sm sm:text-base font-semibold text-gray-900">Students Absent</p>
+                    <p className="text-xs text-gray-500 mt-1">Missing class today</p>
+                  </div>
 
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                  <h3 className="text-lg font-semibold text-gray-800 mb-4">Alert Trend (Last 6 Months)</h3>
-                  {dashboardData.monthly_alert_trend && dashboardData.monthly_alert_trend.length > 0 ? (
-                    <ResponsiveContainer width="100%" height={300}>
-                      <BarChart data={dashboardData.monthly_alert_trend}>
-                        <defs>
-                          <linearGradient id="colorBar" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#f59e0b" stopOpacity={1}/>
-                            <stop offset="100%" stopColor="#fbbf24" stopOpacity={0.8}/>
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                        <XAxis dataKey="month" tick={{ fontSize: 12 }} stroke="#9ca3af" />
-                        <YAxis tick={{ fontSize: 12 }} stroke="#9ca3af" />
-                        <Tooltip 
-                          contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
-                          labelStyle={{ fontWeight: 'bold', color: '#374151' }}
-                        />
-                        <Bar 
-                          dataKey="count" 
-                          fill="url(#colorBar)" 
-                          radius={[8, 8, 0, 0]}
-                          maxBarSize={60}
-                        />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <div className="h-[300px] flex items-center justify-center text-gray-500">
-                      <div className="text-center">
-                        <p className="text-4xl mb-2">📊</p>
-                        <p>No alert data available</p>
+                  {/* Active Alerts */}
+                  <div className="bg-white rounded-xl p-4 sm:p-6 border-2 border-gray-200 shadow-sm">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-3xl sm:text-4xl">🔔</span>
+                      <div className="text-right">
+                        <p className="text-2xl sm:text-3xl font-bold text-orange-600">{dashboardData.active_alerts || 0}</p>
                       </div>
                     </div>
-                  )}
+                    <p className="text-sm sm:text-base font-semibold text-gray-900">Active Alerts</p>
+                    <p className="text-xs text-gray-500 mt-1">Students need attention</p>
+                  </div>
+
+                  {/* High Risk */}
+                  <div className="bg-white rounded-xl p-4 sm:p-6 border-2 border-gray-200 shadow-sm">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-3xl sm:text-4xl">⚠️</span>
+                      <div className="text-right">
+                        <p className="text-2xl sm:text-3xl font-bold text-red-600">{dashboardData.high_risk_students?.length || 0}</p>
+                      </div>
+                    </div>
+                    <p className="text-sm sm:text-base font-semibold text-gray-900">High Risk Students</p>
+                    <p className="text-xs text-gray-500 mt-1">Need urgent help</p>
+                  </div>
                 </div>
               </div>
 
               {/* My Classes */}
               {dashboardData.my_classes?.length > 0 && (
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
-                  <h3 className="text-lg font-semibold text-gray-800 mb-4">My Classes</h3>
+                <div className="mb-6 sm:mb-8">
+                  <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <span>📚</span> My Classes
+                  </h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {dashboardData.my_classes.map((cls) => (
-                      <div key={cls.assignment_id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition">
-                        <div>
-                          <p className="font-semibold text-gray-800">{cls.classroom__name}</p>
-                          <p className="text-sm text-gray-600">{cls.subject__name}</p>
+                      <div key={cls.assignment_id} className="bg-white rounded-xl p-4 sm:p-6 border-2 border-gray-200 shadow-sm hover:border-blue-400 transition">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-base sm:text-lg font-bold text-gray-900 mb-1 truncate">{cls.classroom__name}</p>
+                            <p className="text-sm text-gray-600 truncate">{cls.subject__name}</p>
+                          </div>
+                          <button
+                            onClick={() => navigate('/teacher/attendance', { state: { classroom: cls.classroom__name, subject: cls.subject__name } })}
+                            className="px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-xs sm:text-sm font-medium whitespace-nowrap"
+                          >
+                            Take Attendance
+                          </button>
                         </div>
-                        <button
-                          onClick={() => navigate('/teacher/attendance', { state: { classroom: cls.classroom__name, subject: cls.subject__name } })}
-                          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium"
-                        >
-                          Take Attendance
-                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Recent Alerts */}
+              {dashboardData.urgent_alerts?.length > 0 && (
+                <div className="mb-6 sm:mb-8">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-lg sm:text-xl font-bold text-gray-900 flex items-center gap-2">
+                      <span>🔔</span> Recent Alerts
+                    </h2>
+                    <button
+                      onClick={() => setActiveTab('alerts')}
+                      className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                    >
+                      View All →
+                    </button>
+                  </div>
+                  <div className="space-y-3">
+                    {dashboardData.urgent_alerts.slice(0, 5).map((alert) => (
+                      <div key={alert.alert_id} className="bg-white rounded-xl p-4 border-2 border-gray-200 shadow-sm hover:border-orange-400 transition">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-2 flex-wrap">
+                              <span className={`px-2 py-1 rounded-full text-xs font-bold ${
+                                alert.risk_level?.toLowerCase() === 'critical' ? 'bg-red-100 text-red-700' :
+                                alert.risk_level?.toLowerCase() === 'high' ? 'bg-orange-100 text-orange-700' :
+                                alert.risk_level?.toLowerCase() === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                                'bg-gray-100 text-gray-700'
+                              }`}>
+                                {alert.risk_level?.toUpperCase()}
+                              </span>
+                              <span className="text-xs text-gray-500">{alert.alert_type}</span>
+                            </div>
+                            <p className="font-semibold text-gray-900 mb-1 truncate">{alert.student__full_name}</p>
+                            <p className="text-sm text-gray-600 truncate">{alert.subject__name}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* High Risk Students */}
+              {dashboardData.high_risk_students?.length > 0 && (
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-lg sm:text-xl font-bold text-gray-900 flex items-center gap-2">
+                      <span>⚠️</span> Students Need Help
+                    </h2>
+                    <button
+                      onClick={() => setActiveTab('students')}
+                      className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                    >
+                      View All →
+                    </button>
+                  </div>
+                  <div className="space-y-3">
+                    {dashboardData.high_risk_students.slice(0, 5).map((student, idx) => (
+                      <div key={idx} className="bg-white rounded-xl p-4 border-2 border-gray-200 shadow-sm hover:border-red-400 transition">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-2 flex-wrap">
+                              <span className={`px-2 py-1 rounded-full text-xs font-bold ${
+                                student.risk_level?.toLowerCase() === 'critical' ? 'bg-red-100 text-red-700' :
+                                student.risk_level?.toLowerCase() === 'high' ? 'bg-orange-100 text-orange-700' :
+                                'bg-yellow-100 text-yellow-700'
+                              }`}>
+                                {student.risk_level?.toUpperCase()}
+                              </span>
+                              <span className="text-xs text-gray-500">Risk Score: {student.risk_score}</span>
+                            </div>
+                            <p className="font-semibold text-gray-900 mb-1 truncate">{student.student__full_name}</p>
+                            <p className="text-sm text-gray-600">ID: {student.student__student_id}</p>
+                          </div>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -344,35 +253,31 @@ export default function TeacherDashboard() {
           )}
 
           {activeTab === "alerts" && (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-6">🔔 All Alerts</h1>
               {dashboardData.urgent_alerts?.length > 0 ? (
-                <div className="divide-y divide-gray-200">
+                <div className="space-y-3">
                   {dashboardData.urgent_alerts.map((alert) => (
-                    <div
-                      key={alert.alert_id}
-                      className="p-6 hover:bg-gray-50 cursor-pointer transition"
-                      onClick={() => setSelectedAlert(alert)}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getRiskBadgeColor(alert.risk_level)}`}>
-                              {alert.risk_level?.toUpperCase()}
-                            </span>
-                            <span className="text-sm text-gray-500">{alert.alert_type}</span>
-                          </div>
-                          <p className="font-semibold text-gray-800">{alert.student__full_name}</p>
-                          <p className="text-sm text-gray-600">{alert.subject__name}</p>
-                        </div>
-                        <button className="px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition text-sm font-medium">
-                          View Details
-                        </button>
+                    <div key={alert.alert_id} className="bg-white rounded-xl p-4 sm:p-6 border-2 border-gray-200 shadow-sm">
+                      <div className="flex items-center gap-2 mb-3 flex-wrap">
+                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                          alert.risk_level?.toLowerCase() === 'critical' ? 'bg-red-100 text-red-700' :
+                          alert.risk_level?.toLowerCase() === 'high' ? 'bg-orange-100 text-orange-700' :
+                          alert.risk_level?.toLowerCase() === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                          'bg-gray-100 text-gray-700'
+                        }`}>
+                          {alert.risk_level?.toUpperCase()}
+                        </span>
+                        <span className="text-sm text-gray-500">{alert.alert_type}</span>
                       </div>
+                      <p className="text-lg font-bold text-gray-900 mb-1">{alert.student__full_name}</p>
+                      <p className="text-sm text-gray-600">{alert.subject__name}</p>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="p-12 text-center">
+                <div className="bg-white rounded-xl p-12 text-center border-2 border-gray-200">
+                  <p className="text-4xl mb-4">✅</p>
                   <p className="text-gray-500">No active alerts</p>
                 </div>
               )}
@@ -380,32 +285,30 @@ export default function TeacherDashboard() {
           )}
 
           {activeTab === "students" && (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-6">⚠️ High Risk Students</h1>
               {dashboardData.high_risk_students?.length > 0 ? (
-                <table className="w-full">
-                  <thead className="bg-gray-50 border-b border-gray-200">
-                    <tr>
-                      <th className="text-left px-6 py-4 text-sm font-semibold text-gray-700">Student Name</th>
-                      <th className="text-left px-6 py-4 text-sm font-semibold text-gray-700">Risk Level</th>
-                      <th className="text-left px-6 py-4 text-sm font-semibold text-gray-700">Risk Score</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {dashboardData.high_risk_students.map((student, idx) => (
-                      <tr key={idx} className="hover:bg-gray-50 transition">
-                        <td className="px-6 py-4 text-gray-800">{student.student__full_name}</td>
-                        <td className="px-6 py-4">
-                          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getRiskBadgeColor(student.risk_level)}`}>
-                            {student.risk_level?.toUpperCase()}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 font-semibold text-gray-800">{student.risk_score}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <div className="space-y-3">
+                  {dashboardData.high_risk_students.map((student, idx) => (
+                    <div key={idx} className="bg-white rounded-xl p-4 sm:p-6 border-2 border-gray-200 shadow-sm">
+                      <div className="flex items-center gap-2 mb-3 flex-wrap">
+                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                          student.risk_level?.toLowerCase() === 'critical' ? 'bg-red-100 text-red-700' :
+                          student.risk_level?.toLowerCase() === 'high' ? 'bg-orange-100 text-orange-700' :
+                          'bg-yellow-100 text-yellow-700'
+                        }`}>
+                          {student.risk_level?.toUpperCase()}
+                        </span>
+                        <span className="text-sm text-gray-500">Risk Score: {student.risk_score}</span>
+                      </div>
+                      <p className="text-lg font-bold text-gray-900 mb-1">{student.student__full_name}</p>
+                      <p className="text-sm text-gray-600">ID: {student.student__student_id} | Admission: {student.student__admission_number}</p>
+                    </div>
+                  ))}
+                </div>
               ) : (
-                <div className="p-12 text-center">
+                <div className="bg-white rounded-xl p-12 text-center border-2 border-gray-200">
+                  <p className="text-4xl mb-4">✅</p>
                   <p className="text-gray-500">No high-risk students</p>
                 </div>
               )}
@@ -413,14 +316,6 @@ export default function TeacherDashboard() {
           )}
         </div>
       </div>
-
-      {selectedAlert && (
-        <AlertDetailModal
-          alert={selectedAlert}
-          onClose={() => setSelectedAlert(null)}
-          onAcknowledge={loadDashboard}
-        />
-      )}
     </div>
   );
 }

@@ -3,17 +3,22 @@ import { useContext } from "react";
 import { AuthContext } from "./context/AuthContext";
 import { Toaster } from 'react-hot-toast';
 import ErrorBoundary from './components/ErrorBoundary';
+import SessionTimeout from './components/SessionTimeout';
 
 import Login from "./auth/Login";
 import ProtectedRoute from "./auth/ProtectedRoute";
 
 // Teacher pages
 import TeacherDashboard from "./teacher/DashboardNew";
+import DebugDashboard from "./teacher/DebugDashboard";
 import AttendancePage from "./teacher/AttendancePageNew";
+import EditAttendance from "./teacher/EditAttendance";
+import AttendanceTracking from "./teacher/AttendanceTracking";
+import AttendanceHistory from "./teacher/AttendanceHistory";
 import ProfilePage from "./teacher/ProfilePage";
 import SettingsPage from "./teacher/SettingsPage";
 import MyClasses from "./teacher/MyClasses";
-import MySubjects from "./teacher/MySubjects";
+import MySubjects from "./teacher/Mysubjects";
 
 // Form Master pages
 import FormMasterDashboard from "./formMaster/DashboardClean";
@@ -23,6 +28,14 @@ import StudentAttendanceReport from "./pages/StudentAttendanceReport";
 // Admin pages
 import AdminDashboard from "./admin/Dashboard";
 
+// Landing pages
+import Home from "./landing/Home";
+import About from "./landing/About";
+import Contact from "./landing/Contact";
+import HelpSupport from "./landing/HelpSupport";
+import UserGuide from "./landing/UserGuide";
+import PrivacyPolicy from "./landing/PrivacyPolicy";
+
 function App() {
   const { user } = useContext(AuthContext);
 
@@ -30,10 +43,22 @@ function App() {
     <ErrorBoundary>
       <BrowserRouter>
         <Toaster />
+        {user && <SessionTimeout />}
         <Routes>
-        {/* Default route */}
+        {/* LANDING PAGES - Public */}
+        <Route path="/" element={<Home />} />
+        <Route path="/about" element={<About />} />
+        <Route path="/contact" element={<Contact />} />
+        <Route path="/help-support" element={<HelpSupport />} />
+        <Route path="/user-guide" element={<UserGuide />} />
+        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+
+        {/* LOGIN */}
+        <Route path="/login" element={<Login />} />
+
+        {/* DASHBOARD REDIRECT */}
         <Route
-          path="/"
+          path="/dashboard"
           element={
             user ? (
               user.role === "teacher" ? (
@@ -50,9 +75,6 @@ function App() {
             )
           }
         />
-
-        {/* PUBLIC ROUTE */}
-        <Route path="/login" element={<Login />} />
 
         {/* TEACHER ROUTES */}
         <Route
@@ -74,10 +96,46 @@ function App() {
         />
 
         <Route
+          path="/teacher/edit-attendance"
+          element={
+            <ProtectedRoute role="teacher">
+              <EditAttendance />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/teacher/debug"
+          element={
+            <ProtectedRoute role="teacher">
+              <DebugDashboard />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
           path="/teacher/profile"
           element={
             <ProtectedRoute role="teacher">
               <ProfilePage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/teacher/attendance-tracking"
+          element={
+            <ProtectedRoute role="teacher">
+              <AttendanceTracking />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/teacher/attendance-history/:studentId"
+          element={
+            <ProtectedRoute role="teacher">
+              <AttendanceHistory />
             </ProtectedRoute>
           }
         />
@@ -168,6 +226,24 @@ function App() {
           element={
             <ProtectedRoute role="admin">
               <AdminDashboard />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/settings"
+          element={
+            <ProtectedRoute role="admin">
+              <SettingsPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/profile"
+          element={
+            <ProtectedRoute role="admin">
+              <ProfilePage />
             </ProtectedRoute>
           }
         />

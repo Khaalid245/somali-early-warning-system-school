@@ -27,9 +27,41 @@ export default function EnrollmentManagement() {
         api.get('/dashboard/admin/classrooms/')
       ]);
       
-      setEnrollments(enrollmentsRes.data.enrollments);
-      setStudents(studentsRes.data.students || []);
-      setClassrooms(classroomsRes.data.classrooms);
+      console.log('Enrollments response:', enrollmentsRes.data);
+      console.log('Students response:', studentsRes.data);
+      console.log('Classrooms response:', classroomsRes.data);
+      
+      // Handle enrollments
+      let enrollmentsList = [];
+      if (Array.isArray(enrollmentsRes.data)) {
+        enrollmentsList = enrollmentsRes.data;
+      } else if (enrollmentsRes.data.enrollments) {
+        enrollmentsList = enrollmentsRes.data.enrollments;
+      }
+      
+      // Handle students
+      let studentsList = [];
+      if (Array.isArray(studentsRes.data)) {
+        studentsList = studentsRes.data;
+      } else if (studentsRes.data.results && Array.isArray(studentsRes.data.results)) {
+        studentsList = studentsRes.data.results;
+      } else if (studentsRes.data.students) {
+        studentsList = studentsRes.data.students;
+      }
+      
+      // Handle classrooms
+      let classroomsList = [];
+      if (Array.isArray(classroomsRes.data)) {
+        classroomsList = classroomsRes.data;
+      } else if (classroomsRes.data.results && Array.isArray(classroomsRes.data.results)) {
+        classroomsList = classroomsRes.data.results;
+      } else if (classroomsRes.data.classrooms) {
+        classroomsList = classroomsRes.data.classrooms;
+      }
+      
+      setEnrollments(enrollmentsList);
+      setStudents(studentsList);
+      setClassrooms(classroomsList);
     } catch (err) {
       console.error('Failed to fetch data:', err);
       showToast.error('Failed to load data');
@@ -43,7 +75,12 @@ export default function EnrollmentManagement() {
     
     try {
       await api.post('/dashboard/admin/enrollments/create/', formData);
-      showToast.success('Student enrolled successfully');
+      
+      // Find student and classroom names for success message
+      const student = students.find(s => s.student_id === parseInt(formData.student_id));
+      const classroom = classrooms.find(c => c.class_id === parseInt(formData.class_id));
+      
+      showToast.success(`${student?.full_name || 'Student'} enrolled in ${classroom?.name || 'classroom'} successfully!`);
       setShowModal(false);
       setFormData({
         student_id: '',
@@ -52,8 +89,15 @@ export default function EnrollmentManagement() {
       });
       fetchData();
     } catch (err) {
-      console.error('Failed to enroll student:', err);
-      showToast.error(err.response?.data?.error || 'Failed to enroll student');
+      console.error('Failed to enroll student:', err.response?.data);
+      
+      // Handle duplicate enrollment
+      if (err.response?.data?.error && err.response.data.error.includes('already enrolled')) {
+        showToast.error('Student is already enrolled in this classroom!');
+      } else {
+        const errorMsg = err.response?.data?.error || err.response?.data?.detail || 'Failed to enroll student';
+        showToast.error(errorMsg);
+      }
     }
   };
 
@@ -131,20 +175,22 @@ export default function EnrollmentManagement() {
 
       {/* Enroll Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+        <div className="fixed inset-0 flex items-center justify-center z-50">
+          <div className="absolute inset-0" onClick={() => setShowModal(false)}></div>
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4 relative z-10">
             <h3 className="text-lg font-bold text-gray-900 mb-4">Enroll Student</h3>
             
             <form onSubmit={handleEnroll} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Student</label>
+                {students.length === 0 && <p className="text-red-500 text-xs mb-2">No students available. Create students first in Student Management tab.</p>}
                 <select
                   value={formData.student_id}
                   onChange={(e) => setFormData({ ...formData, student_id: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   required
                 >
-                  <option value="">Select Student</option>
+                  <option value="">Select Student ({students.length} available)</option>
                   {students.map((student) => (
                     <option key={student.student_id} value={student.student_id}>
                       {student.full_name} ({student.admission_number})
