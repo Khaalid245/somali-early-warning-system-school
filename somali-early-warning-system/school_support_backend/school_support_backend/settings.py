@@ -66,6 +66,7 @@ INSTALLED_APPS = [
     'interventions',
     'academics',
     'dashboard',
+    'messaging',
 ]
 
 

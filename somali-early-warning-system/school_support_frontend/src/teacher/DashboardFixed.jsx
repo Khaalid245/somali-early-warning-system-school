@@ -14,6 +14,7 @@ import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts.jsx";
 import { RefreshCw } from "lucide-react";
 import { validateDashboardData } from "../utils/dashboardSchema";
 import { VirtualAlertList, VirtualStudentList } from "../components/VirtualList";
+import QuickMessage from "../components/QuickMessage";
 
 export default function TeacherDashboard() {
   const { user, logout } = useContext(AuthContext);
@@ -28,6 +29,16 @@ export default function TeacherDashboard() {
   const [filterRisk, setFilterRisk] = useState(() => localStorage.getItem('teacher_filter_risk') || "");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+  
+  // Escalation modal
+  const [showEscalateModal, setShowEscalateModal] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState(null);
+  const [escalationReason, setEscalationReason] = useState("");
+  const [escalating, setEscalating] = useState(false);
+  
+  // Messaging
+  const [showMessage, setShowMessage] = useState(false);
+  const [messageRecipient, setMessageRecipient] = useState(null);
   
   // FIX 1: Backend pagination state
   const [backendPage, setBackendPage] = useState(1);
@@ -94,6 +105,42 @@ export default function TeacherDashboard() {
     a.click();
     window.URL.revokeObjectURL(url);
     showToast.success(`Exported ${data.length} records to CSV`);
+  };
+
+  const getFormMasterId = async () => {
+    try {
+      const res = await api.get('/users/?role=form_master&page_size=1');
+      const formMasters = res.data.results || [];
+      return formMasters.length > 0 ? formMasters[0].id : null;
+    } catch (err) {
+      console.error('Failed to get form master', err);
+      return null;
+    }
+  };
+
+  const handleEscalate = async () => {
+    if (!escalationReason.trim()) {
+      showToast.error('Please provide a reason for escalation');
+      return;
+    }
+    setEscalating(true);
+    try {
+      await api.post('/cases/', {
+        student: selectedStudent.student__student_id,
+        case_type: 'attendance',
+        description: escalationReason,
+        priority: selectedStudent.risk_level === 'critical' ? 'high' : 'medium'
+      });
+      showToast.success(`Student ${selectedStudent.student__full_name} escalated to Form Master`);
+      setShowEscalateModal(false);
+      setEscalationReason('');
+      setSelectedStudent(null);
+      loadDashboard(backendPage);
+    } catch (err) {
+      showToast.error(getUserFriendlyError(err) || 'Failed to escalate student');
+    } finally {
+      setEscalating(false);
+    }
   };
 
   // Keyboard shortcuts
@@ -267,14 +314,14 @@ export default function TeacherDashboard() {
                 </button>
 
                 <button
-                  onClick={() => navigate('/teacher/attendance-tracking')}
-                  className="bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-xl p-4 sm:p-6 shadow-lg hover:shadow-xl transition text-left"
+                  onClick={() => navigate('/teacher/messages')}
+                  className="bg-gradient-to-br from-green-500 to-green-600 text-white rounded-xl p-4 sm:p-6 shadow-lg hover:shadow-xl transition text-left"
                 >
                   <div className="flex items-center gap-3 mb-2">
-                    <span className="text-3xl sm:text-4xl">📊</span>
-                    <h3 className="text-lg sm:text-xl font-bold">Attendance Reports</h3>
+                    <span className="text-3xl sm:text-4xl">💬</span>
+                    <h3 className="text-lg sm:text-xl font-bold">Message Form Master</h3>
                   </div>
-                  <p className="text-xs sm:text-sm text-purple-100">View student attendance records</p>
+                  <p className="text-xs sm:text-sm text-green-100">Send a message about student concerns</p>
                 </button>
               </div>
 
@@ -535,6 +582,15 @@ export default function TeacherDashboard() {
                             <p className="font-semibold text-gray-900 mb-1 truncate">{student.student__full_name}</p>
                             <p className="text-sm text-gray-600">ID: {student.student__student_id}</p>
                           </div>
+                          <button
+                            onClick={() => {
+                              setSelectedStudent(student);
+                              setShowEscalateModal(true);
+                            }}
+                            className="px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-xs font-medium whitespace-nowrap"
+                          >
+                            Escalate
+                          </button>
                         </div>
                       </div>
                     ))}
@@ -718,7 +774,16 @@ export default function TeacherDashboard() {
                           <span className="text-sm text-gray-500">Risk Score: {student.risk_score}</span>
                         </div>
                         <p className="text-lg font-bold text-gray-900 mb-1">{student.student__full_name}</p>
-                        <p className="text-sm text-gray-600">ID: {student.student__student_id} | Admission: {student.student__admission_number}</p>
+                        <p className="text-sm text-gray-600 mb-3">ID: {student.student__student_id} | Admission: {student.student__admission_number}</p>
+                        <button
+                          onClick={() => {
+                            setSelectedStudent(student);
+                            setShowEscalateModal(true);
+                          }}
+                          className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm font-medium"
+                        >
+                          Escalate to Form Master
+                        </button>
                       </div>
                     ))}
                   </div>
@@ -745,6 +810,61 @@ export default function TeacherDashboard() {
           )}
         </div>
       </div>
+
+      {/* Escalation Modal */}
+      {showEscalateModal && selectedStudent && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-md w-full p-6">
+            <h3 className="text-xl font-bold text-gray-900 mb-4">Escalate to Form Master</h3>
+            <div className="mb-4">
+              <p className="text-sm text-gray-600 mb-2">Student: <span className="font-semibold text-gray-900">{selectedStudent.student__full_name}</span></p>
+              <p className="text-sm text-gray-600 mb-2">Risk Level: <span className={`font-semibold ${
+                selectedStudent.risk_level === 'critical' ? 'text-red-600' : 'text-orange-600'
+              }`}>{selectedStudent.risk_level?.toUpperCase()}</span></p>
+            </div>
+            <div className="mb-4">
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Reason for Escalation *</label>
+              <textarea
+                value={escalationReason}
+                onChange={(e) => setEscalationReason(e.target.value)}
+                placeholder="Describe the concerns and why this student needs intervention..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                rows="4"
+              />
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowEscalateModal(false);
+                  setEscalationReason('');
+                  setSelectedStudent(null);
+                }}
+                disabled={escalating}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition text-sm font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleEscalate}
+                disabled={escalating || !escalationReason.trim()}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {escalating ? 'Escalating...' : 'Escalate'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Message Modal */}
+      {showMessage && messageRecipient && (
+        <QuickMessage
+          recipientId={messageRecipient.id}
+          recipientName={messageRecipient.name}
+          recipientRole={messageRecipient.role}
+          onClose={() => setShowMessage(false)}
+        />
+      )}
     </div>
   );
 }

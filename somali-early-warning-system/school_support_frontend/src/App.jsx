@@ -19,10 +19,12 @@ import ProfilePage from "./teacher/ProfilePage";
 import SettingsPage from "./teacher/SettingsPage";
 import MyClasses from "./teacher/MyClasses";
 import MySubjects from "./teacher/Mysubjects";
+import MessagesPage from "./teacher/MessagesPage";
 
 // Form Master pages
 import FormMasterDashboard from "./formMaster/DashboardEnhanced";
 import InterventionsPage from "./formMaster/InterventionsPage";
+import FormMasterMessagesPage from "./formMaster/MessagesPage";
 import StudentAttendanceReport from "./pages/StudentAttendanceReport";
 
 // Admin pages
@@ -167,6 +169,15 @@ function App() {
           }
         />
 
+        <Route
+          path="/teacher/messages"
+          element={
+            <ProtectedRoute role="teacher">
+              <MessagesPage />
+            </ProtectedRoute>
+          }
+        />
+
         {/* COUNSELLOR */}
         <Route
           path="/counsellor"
@@ -192,6 +203,15 @@ function App() {
           element={
             <ProtectedRoute role="form_master">
               <InterventionsPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/form-master/messages"
+          element={
+            <ProtectedRoute role="form_master">
+              <FormMasterMessagesPage />
             </ProtectedRoute>
           }
         />

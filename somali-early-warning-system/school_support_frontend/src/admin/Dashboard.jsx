@@ -19,24 +19,25 @@ import AuditLogViewer from "./components/AuditLogViewer";
 import ReportsView from "./components/ReportsView";
 import GovernanceView from "./components/GovernanceView";
 import SettingsView from "./components/SettingsView";
+import QuickMessage from "../components/QuickMessage";
 
 function AdminDashboardContent() {
   const { user, logout } = useContext(AuthContext);
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const [showMessage, setShowMessage] = useState(false);
+  const [messageRecipient, setMessageRecipient] = useState(null);
 
   const loadDashboard = async () => {
     try {
-      // Test simple endpoint first
-      const testRes = await api.get("/dashboard/admin/test/");
-      console.log("Test endpoint:", testRes.data);
-      
       const res = await api.get("/dashboard/admin/");
       setDashboardData(res.data);
     } catch (err) {
       console.error("Failed to load admin dashboard", err);
-      console.error("Error details:", err.response?.data);
       showToast.error(err.response?.data?.detail || "Failed to load dashboard data");
       setDashboardData({
         executive_kpis: {},
@@ -52,8 +53,54 @@ function AdminDashboardContent() {
     }
   };
 
+  const handleSearch = async (query) => {
+    setSearchTerm(query);
+    if (!query.trim()) {
+      setSearchResults([]);
+      setShowSearchResults(false);
+      return;
+    }
+    try {
+      const [studentsRes, alertsRes, casesRes] = await Promise.all([
+        api.get(`/students/?search=${query}`),
+        api.get(`/alerts/?search=${query}`),
+        api.get(`/cases/?search=${query}`)
+      ]);
+      const results = [
+        ...(studentsRes.data.results || []).map(s => ({ ...s, type: 'student' })),
+        ...(alertsRes.data.results || []).map(a => ({ ...a, type: 'alert' })),
+        ...(casesRes.data.results || []).map(c => ({ ...c, type: 'case' }))
+      ];
+      setSearchResults(results);
+      setShowSearchResults(true);
+    } catch (err) {
+      console.error('Search failed', err);
+    }
+  };
+
+  const handleExportCSV = (data, filename) => {
+    if (!data || data.length === 0) {
+      showToast.error('No data to export');
+      return;
+    }
+    const csv = [
+      Object.keys(data[0]).join(','),
+      ...data.map(row => Object.values(row).map(v => `"${v}"`).join(','))
+    ].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${filename}_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+    showToast.success(`Exported ${data.length} records`);
+  };
+
   useEffect(() => {
     loadDashboard();
+    const interval = setInterval(loadDashboard, 300000);
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -107,7 +154,15 @@ function AdminDashboardContent() {
       <Sidebar user={user} onLogout={logout} onTabChange={setActiveTab} />
 
       <div className="flex-1 overflow-auto">
-        <Navbar user={user} dashboardData={dashboardData} />
+        <Navbar 
+          user={user} 
+          dashboardData={dashboardData} 
+          searchQuery={searchTerm}
+          onSearchChange={handleSearch}
+          searchResults={searchResults}
+          showSearchResults={showSearchResults}
+          onCloseSearch={() => setShowSearchResults(false)}
+        />
 
         <div className="p-8 space-y-8">
           {activeTab === "overview" && (
@@ -121,12 +176,20 @@ function AdminDashboardContent() {
                     Enterprise oversight and risk intelligence
                   </p>
                 </div>
-                <button
-                  onClick={loadDashboard}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-                >
-                  Refresh Data
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={loadDashboard}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                  >
+                    Refresh Data
+                  </button>
+                  <button
+                    onClick={() => handleExportCSV(dashboardData.escalated_cases || [], 'escalated_cases')}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+                  >
+                    Export CSV
+                  </button>
+                </div>
               </div>
 
               <ExecutiveKPIs data={dashboardData} />
@@ -174,6 +237,15 @@ function AdminDashboardContent() {
           )}
         </div>
       </div>
+
+      {showMessage && messageRecipient && (
+        <QuickMessage
+          recipientId={messageRecipient.id}
+          recipientName={messageRecipient.name}
+          recipientRole="Admin"
+          onClose={() => setShowMessage(false)}
+        />
+      )}
     </div>
   );
 }

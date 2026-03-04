@@ -41,6 +41,7 @@ export default function Sidebar({ user, onLogout, onTabChange }) {
   ] : user?.role === 'form_master' ? [
     { icon: "📊", label: "Dashboard", path: "/form-master", badge: null, isRoute: true },
     { icon: "📝", label: "Interventions", path: "/form-master/interventions", badge: null, isRoute: true },
+    { icon: "💬", label: "Messages", path: "/form-master/messages", badge: null, isRoute: true },
     { icon: "🔔", label: "Alerts", path: "alerts", badge: null, isRoute: false },
     { icon: "📋", label: "Cases", path: "cases", badge: null, isRoute: false },
     { icon: "⚠️", label: "High Risk", path: "students", badge: null, isRoute: false },
@@ -53,6 +54,7 @@ export default function Sidebar({ user, onLogout, onTabChange }) {
     { icon: "✓", label: "Take Attendance", path: "/teacher/attendance", badge: null, isRoute: true },
     { icon: "✏️", label: "Edit Attendance", path: "/teacher/edit-attendance", badge: null, isRoute: true },
     { icon: "📈", label: "Attendance Tracking", path: "/teacher/attendance-tracking", badge: null, isRoute: true },
+    { icon: "💬", label: "Messages", path: "/teacher/messages", badge: null, isRoute: true },
     { icon: "🔔", label: "Alerts", path: "alerts", badge: null, isRoute: false },
     { icon: "👥", label: "Students", path: "students", badge: null, isRoute: false },
     { icon: "📚", label: "My Classes", path: "/teacher/classes", badge: null, isRoute: true },

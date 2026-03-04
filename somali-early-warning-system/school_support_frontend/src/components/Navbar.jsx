@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import NotificationBell from "./NotificationBell";
 
 export default function Navbar({ user, dashboardData, searchQuery, onSearchChange, searchResults, showSearchResults, onCloseSearch }) {
   const [showNotifications, setShowNotifications] = useState(false);
@@ -29,6 +30,7 @@ export default function Navbar({ user, dashboardData, searchQuery, onSearchChang
 
         {/* Right Section */}
         <div className="flex items-center gap-2 sm:gap-4">
+          <NotificationBell user={user} />
           {/* Search */}
           <div className="relative hidden lg:block">
             <input

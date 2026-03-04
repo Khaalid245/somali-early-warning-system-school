@@ -58,6 +58,9 @@ urlpatterns = [
 
     path('api/dashboard/', include('dashboard.urls')),
     
+    # MESSAGING
+    path('api/messages/', include('messaging.urls')),
+    
     # AUDIT LOGS
     path('api/', include('core.urls')),
 
