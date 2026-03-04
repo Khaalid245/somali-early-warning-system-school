@@ -2,7 +2,7 @@ import axios from "axios";
 import { generateReplayProtectionHeaders } from '../utils/replayProtection';
 
 const api = axios.create({
-  baseURL: "http://127.0.0.1:8000/api",
+  baseURL: "http://139.59.153.67:8000/api",
   withCredentials: true,  // Send httpOnly cookies
   timeout: 30000,  // FIX 1: 30 second timeout
 });
@@ -63,7 +63,7 @@ api.interceptors.response.use(
 
         try {
           await axios.post(
-            "http://127.0.0.1:8000/api/auth/refresh/",
+            "http://139.59.153.67:8000/api/auth/refresh/",
             {},
             { withCredentials: true }
           );
