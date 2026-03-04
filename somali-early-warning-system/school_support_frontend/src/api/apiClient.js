@@ -3,8 +3,8 @@ import { generateReplayProtectionHeaders } from '../utils/replayProtection';
 
 const api = axios.create({
   baseURL: "http://139.59.153.67:8000/api",
-  withCredentials: true,  // Send httpOnly cookies
-  timeout: 30000,  // FIX 1: 30 second timeout
+  withCredentials: true,
+  timeout: 30000,
 });
 
 let isRefreshing = false;

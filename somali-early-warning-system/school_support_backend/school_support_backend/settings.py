@@ -31,7 +31,7 @@ ENVIRONMENT = os.getenv('ENVIRONMENT', 'development')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1,139.59.153.67').split(',')
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.getenv('SECRET_KEY')
@@ -224,6 +224,7 @@ REST_FRAMEWORK = {
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:5173',
     'http://127.0.0.1:5173',
+    'http://139.59.153.67:5173',
 ]
 if not DEBUG:
     prod_origins = os.getenv('CORS_ALLOWED_ORIGINS', '')
@@ -266,7 +267,7 @@ SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 # CSRF Protection
 CSRF_COOKIE_HTTPONLY = False  # Must be False for JavaScript access
 CSRF_COOKIE_SAMESITE = 'Lax'
-CSRF_TRUSTED_ORIGINS = ['http://localhost:5173', 'http://127.0.0.1:5173']
+CSRF_TRUSTED_ORIGINS = ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://139.59.153.67:5173', 'http://139.59.153.67:8000']
 
 # JWT Settings
 from datetime import timedelta
