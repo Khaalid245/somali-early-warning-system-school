@@ -1,5 +1,10 @@
 from rest_framework import serializers
 from .models import Alert
+from django.db.models import Count, Q
+from attendance.models import AttendanceRecord
+from students.models import StudentEnrollment
+from django.utils import timezone
+from datetime import timedelta
 
 
 class AlertSerializer(serializers.ModelSerializer):
@@ -18,6 +23,47 @@ class AlertSerializer(serializers.ModelSerializer):
         source="assigned_to.name",
         read_only=True
     )
+    
+    classroom_name = serializers.SerializerMethodField()
+    days_missed = serializers.SerializerMethodField()
+    subject_missed = serializers.SerializerMethodField()
+    
+    def get_classroom_name(self, obj):
+        try:
+            enrollment = StudentEnrollment.objects.filter(
+                student=obj.student,
+                is_active=True
+            ).select_related('classroom').first()
+            return enrollment.classroom.name if enrollment else 'Not Enrolled'
+        except:
+            return 'Not Enrolled'
+    
+    def get_days_missed(self, obj):
+        try:
+            thirty_days_ago = timezone.now() - timedelta(days=30)
+            absent_count = AttendanceRecord.objects.filter(
+                student=obj.student,
+                status='absent',
+                session__attendance_date__gte=thirty_days_ago
+            ).count()
+            return absent_count
+        except:
+            return 0
+    
+    def get_subject_missed(self, obj):
+        try:
+            if not obj.subject:
+                return 0
+            thirty_days_ago = timezone.now() - timedelta(days=30)
+            missed = AttendanceRecord.objects.filter(
+                student=obj.student,
+                status='absent',
+                session__subject=obj.subject,
+                session__attendance_date__gte=thirty_days_ago
+            ).count()
+            return missed
+        except:
+            return 0
 
     class Meta:
         model = Alert
@@ -32,6 +78,9 @@ class AlertSerializer(serializers.ModelSerializer):
             "subject_name",
             "assigned_to",
             "assigned_to_name",
+            "classroom_name",
+            "days_missed",
+            "subject_missed",
             "escalated_to_admin",
             "alert_date",
             "updated_at",

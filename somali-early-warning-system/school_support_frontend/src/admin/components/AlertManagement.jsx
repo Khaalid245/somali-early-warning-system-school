@@ -21,7 +21,13 @@ export default function AlertManagement({ data, onRefresh }) {
   const loadAlerts = async () => {
     setLoading(true);
     try {
-      const res = await api.get('/alerts/');
+      // Build query params for backend filtering
+      const params = new URLSearchParams();
+      if (filters.search) params.append('search', filters.search);
+      if (filters.risk_level) params.append('risk_level', filters.risk_level);
+      if (filters.status) params.append('status', filters.status);
+      
+      const res = await api.get(`/alerts/?${params.toString()}`);
       setAlerts(res.data.results || res.data || []);
     } catch (err) {
       console.error('Failed to load alerts:', err);
@@ -31,24 +37,20 @@ export default function AlertManagement({ data, onRefresh }) {
     }
   };
 
-  const filteredAlerts = alerts.filter(alert => {
-    if (filters.risk_level && alert.risk_level !== filters.risk_level) return false;
-    if (filters.status && alert.status !== filters.status) return false;
-    if (filters.search) {
-      const search = filters.search.toLowerCase();
-      const studentName = alert.student?.full_name?.toLowerCase() || '';
-      const studentId = alert.student?.admission_number?.toLowerCase() || '';
-      if (!studentName.includes(search) && !studentId.includes(search)) return false;
-    }
-    return true;
-  });
+  // Reload when filters change
+  useEffect(() => {
+    loadAlerts();
+  }, [filters]);
+
+  // No client-side filtering needed - backend handles it
+  const filteredAlerts = alerts;
 
   const handleExport = () => {
     const csv = [
       ['Alert ID', 'Student', 'Type', 'Risk Level', 'Status', 'Date'].join(','),
       ...filteredAlerts.map(a => [
         a.alert_id,
-        a.student?.full_name || 'Unknown',
+        a.student_name || 'Unknown',
         a.alert_type,
         a.risk_level,
         a.status,
@@ -203,20 +205,36 @@ export default function AlertManagement({ data, onRefresh }) {
                 <div>
                   <span className="text-xs font-semibold text-gray-500 uppercase">Student</span>
                   <p className="text-sm font-medium text-gray-900">
-                    {alert.student?.full_name || alert.student?.name || `Student ID: ${alert.student || 'N/A'}`}
+                    {alert.student_name || 'Unknown Student'}
                   </p>
+                </div>
+                <div>
+                  <span className="text-xs font-semibold text-gray-500 uppercase">Classroom</span>
+                  <p className="text-sm text-gray-700">{alert.classroom_name || 'Not Enrolled'}</p>
                 </div>
                 <div>
                   <span className="text-xs font-semibold text-gray-500 uppercase">Alert Type</span>
                   <p className="text-sm text-gray-700 capitalize">{alert.alert_type}</p>
                 </div>
                 <div>
+                  <span className="text-xs font-semibold text-gray-500 uppercase">Subject</span>
+                  <p className="text-sm text-gray-700">{alert.subject_name || 'General'}</p>
+                </div>
+                <div>
                   <span className="text-xs font-semibold text-gray-500 uppercase">Date</span>
                   <p className="text-sm text-gray-700">{new Date(alert.alert_date).toLocaleDateString()}</p>
                 </div>
                 <div>
+                  <span className="text-xs font-semibold text-gray-500 uppercase">Days Missed (30d)</span>
+                  <p className="text-sm font-bold text-red-600">{alert.days_missed || 0}</p>
+                </div>
+                <div>
+                  <span className="text-xs font-semibold text-gray-500 uppercase">Subject Classes Missed</span>
+                  <p className="text-sm font-bold text-orange-600">{alert.subject_missed || 0}</p>
+                </div>
+                <div>
                   <span className="text-xs font-semibold text-gray-500 uppercase">Assigned To</span>
-                  <p className="text-sm text-gray-700">{alert.assigned_to?.name || 'Unassigned'}</p>
+                  <p className="text-sm text-gray-700">{alert.assigned_to_name || 'Unassigned'}</p>
                 </div>
               </div>
             </div>
@@ -257,23 +275,37 @@ export default function AlertManagement({ data, onRefresh }) {
                     <div>
                       <span className="text-xs font-semibold text-gray-500 uppercase">Full Name</span>
                       <p className="text-sm font-medium text-gray-900">
-                        {selectedAlert.student?.full_name || selectedAlert.student?.name || 'N/A'}
+                        {selectedAlert.student_name || 'N/A'}
                       </p>
                     </div>
                     <div>
                       <span className="text-xs font-semibold text-gray-500 uppercase">Student ID</span>
                       <p className="text-sm font-medium text-gray-900">
-                        {selectedAlert.student?.admission_number || selectedAlert.student?.student_id || 'N/A'}
+                        {selectedAlert.student || 'N/A'}
                       </p>
                     </div>
                     <div>
-                      <span className="text-xs font-semibold text-gray-500 uppercase">Gender</span>
-                      <p className="text-sm text-gray-900 capitalize">{selectedAlert.student?.gender || 'N/A'}</p>
+                      <span className="text-xs font-semibold text-gray-500 uppercase">Classroom</span>
+                      <p className="text-sm font-medium text-gray-900">
+                        {selectedAlert.classroom_name || 'Not Enrolled'}
+                      </p>
                     </div>
                     <div>
-                      <span className="text-xs font-semibold text-gray-500 uppercase">Date of Birth</span>
-                      <p className="text-sm text-gray-900">
-                        {selectedAlert.student?.date_of_birth ? new Date(selectedAlert.student.date_of_birth).toLocaleDateString() : 'N/A'}
+                      <span className="text-xs font-semibold text-gray-500 uppercase">Total Days Missed (30d)</span>
+                      <p className="text-sm font-bold text-red-600">
+                        {selectedAlert.days_missed || 0} days
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-xs font-semibold text-gray-500 uppercase">Subject</span>
+                      <p className="text-sm font-medium text-gray-900">
+                        {selectedAlert.subject_name || 'General'}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-xs font-semibold text-gray-500 uppercase">Subject Classes Missed (30d)</span>
+                      <p className="text-sm font-bold text-orange-600">
+                        {selectedAlert.subject_missed || 0} classes
                       </p>
                     </div>
                   </div>
@@ -310,11 +342,11 @@ export default function AlertManagement({ data, onRefresh }) {
                     </div>
                     <div>
                       <span className="text-xs font-semibold text-gray-500 uppercase">Assigned To</span>
-                      <p className="text-sm text-gray-900">{selectedAlert.assigned_to?.name || 'Unassigned'}</p>
+                      <p className="text-sm text-gray-900">{selectedAlert.assigned_to_name || 'Unassigned'}</p>
                     </div>
                     <div>
-                      <span className="text-xs font-semibold text-gray-500 uppercase">Created By</span>
-                      <p className="text-sm text-gray-900">{selectedAlert.created_by?.name || 'System'}</p>
+                      <span className="text-xs font-semibold text-gray-500 uppercase">Subject</span>
+                      <p className="text-sm text-gray-900">{selectedAlert.subject_name || 'N/A'}</p>
                     </div>
                   </div>
                   {selectedAlert.description && (

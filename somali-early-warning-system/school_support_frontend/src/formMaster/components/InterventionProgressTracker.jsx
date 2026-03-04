@@ -66,36 +66,36 @@ export default function InterventionProgressTracker({ meeting, onClose, onUpdate
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
       <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
+        <div className="sticky top-0 bg-white border-b px-4 sm:px-6 py-3 sm:py-4 flex justify-between items-center">
           <div>
-            <h2 className="text-xl font-semibold text-gray-800">
+            <h2 className="text-lg sm:text-xl font-semibold text-gray-800">
               Intervention Progress Tracker
             </h2>
-            <p className="text-sm text-gray-600 mt-1">
+            <p className="text-xs sm:text-sm text-gray-600 mt-1">
               {meeting?.student_name} - {meeting?.student_id_number}
             </p>
           </div>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-700 text-xl">
             ✕
           </button>
         </div>
 
-        <div className="p-6 space-y-6">
+        <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
           {/* Meeting Summary */}
-          <div className="bg-gray-50 p-4 rounded-lg space-y-3">
-            <div className="flex items-center justify-between">
-              <div>
+          <div className="bg-gray-50 p-3 sm:p-4 rounded-lg space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(meeting?.status)}`}>
                   {meeting?.status?.replace('_', ' ').toUpperCase()}
                 </span>
-                <span className={`ml-2 text-sm font-semibold ${getUrgencyColor(meeting?.urgency_level)}`}>
+                <span className={`text-xs sm:text-sm font-semibold ${getUrgencyColor(meeting?.urgency_level)}`}>
                   {meeting?.urgency_level?.toUpperCase()} URGENCY
                 </span>
               </div>
-              <div className="text-sm text-gray-600">
+              <div className="text-xs sm:text-sm text-gray-600">
                 Meeting: {new Date(meeting?.meeting_date).toLocaleDateString()}
               </div>
             </div>
@@ -159,7 +159,7 @@ export default function InterventionProgressTracker({ meeting, onClose, onUpdate
             <button
               onClick={handleAddProgress}
               disabled={loading || !progressText.trim()}
-              className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm sm:text-base"
             >
               {loading ? 'Saving...' : 'Add Progress Update'}
             </button>
@@ -167,27 +167,27 @@ export default function InterventionProgressTracker({ meeting, onClose, onUpdate
 
           {/* Progress History */}
           <div>
-            <h3 className="font-semibold text-gray-800 mb-4">
+            <h3 className="font-semibold text-gray-800 mb-4 text-sm sm:text-base">
               Progress History ({history.length})
             </h3>
 
             {history.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
+              <div className="text-center py-8 text-gray-500 text-sm sm:text-base">
                 No progress updates yet
               </div>
             ) : (
               <div className="space-y-4">
                 {history.map((update) => (
-                  <div key={update.id} className="border-l-4 border-blue-500 pl-4 py-2">
-                    <div className="flex justify-between items-start mb-2">
-                      <p className="text-sm font-medium text-gray-800">
+                  <div key={update.id} className="border-l-4 border-blue-500 pl-3 sm:pl-4 py-2">
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-2 gap-1">
+                      <p className="text-xs sm:text-sm font-medium text-gray-800">
                         {update.created_by_name}
                       </p>
                       <p className="text-xs text-gray-500">
                         {new Date(update.created_at).toLocaleString()}
                       </p>
                     </div>
-                    <p className="text-sm text-gray-700">{update.update_text}</p>
+                    <p className="text-xs sm:text-sm text-gray-700">{update.update_text}</p>
                   </div>
                 ))}
               </div>

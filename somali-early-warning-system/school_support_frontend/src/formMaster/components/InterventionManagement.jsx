@@ -98,34 +98,34 @@ export default function InterventionManagement({ students = [] }) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Statistics Cards */}
       {stats && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white p-4 rounded-lg shadow">
-            <p className="text-sm text-gray-600">Total Meetings</p>
-            <p className="text-2xl font-bold text-gray-800">{stats.total_meetings}</p>
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="bg-white p-3 rounded-lg shadow">
+            <p className="text-xs text-gray-600">Total Meetings</p>
+            <p className="text-xl sm:text-2xl font-bold text-gray-800">{stats.total_meetings}</p>
           </div>
-          <div className="bg-white p-4 rounded-lg shadow">
-            <p className="text-sm text-gray-600">Active Cases</p>
-            <p className="text-2xl font-bold text-blue-600">
+          <div className="bg-white p-3 rounded-lg shadow">
+            <p className="text-xs text-gray-600">Active Cases</p>
+            <p className="text-xl sm:text-2xl font-bold text-blue-600">
               {stats.by_status.open + stats.by_status.monitoring}
             </p>
           </div>
-          <div className="bg-white p-4 rounded-lg shadow">
-            <p className="text-sm text-gray-600">High Urgency</p>
-            <p className="text-2xl font-bold text-red-600">{stats.high_urgency}</p>
+          <div className="bg-white p-3 rounded-lg shadow">
+            <p className="text-xs text-gray-600">High Urgency</p>
+            <p className="text-xl sm:text-2xl font-bold text-red-600">{stats.high_urgency}</p>
           </div>
-          <div className="bg-white p-4 rounded-lg shadow">
-            <p className="text-sm text-gray-600">Overdue Follow-ups</p>
-            <p className="text-2xl font-bold text-orange-600">{stats.overdue_followups}</p>
+          <div className="bg-white p-3 rounded-lg shadow">
+            <p className="text-xs text-gray-600">Overdue Follow-ups</p>
+            <p className="text-xl sm:text-2xl font-bold text-orange-600">{stats.overdue_followups}</p>
           </div>
         </div>
       )}
 
       {/* Recurring Absences Warning */}
       {recurringStudents.length > 0 && (
-        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-3">
           <div className="flex">
             <div className="flex-shrink-0">
               <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
@@ -133,13 +133,13 @@ export default function InterventionManagement({ students = [] }) {
               </svg>
             </div>
             <div className="ml-3">
-              <h3 className="text-sm font-medium text-yellow-800">
+              <h3 className="text-xs sm:text-sm font-medium text-yellow-800">
                 {recurringStudents.length} Student(s) with Recurring Absences
               </h3>
-              <div className="mt-2 text-sm text-yellow-700">
-                <ul className="list-disc list-inside">
+              <div className="mt-2 text-xs text-yellow-700">
+                <ul className="list-disc list-inside space-y-1">
                   {recurringStudents.slice(0, 3).map((s) => (
-                    <li key={s.student}>
+                    <li key={s.student} className="truncate">
                       {s.student__full_name} - {s.intervention_count} interventions
                     </li>
                   ))}
@@ -151,13 +151,13 @@ export default function InterventionManagement({ students = [] }) {
       )}
 
       {/* Filters and Actions */}
-      <div className="bg-white p-4 rounded-lg shadow">
-        <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center justify-between">
-          <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+      <div className="bg-white p-3 rounded-lg shadow">
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col sm:flex-row gap-3">
             <select
               value={filters.status}
               onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-              className="w-full sm:w-auto px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="flex-1 px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500"
             >
               <option value="">All Statuses</option>
               <option value="open">Open</option>
@@ -171,7 +171,7 @@ export default function InterventionManagement({ students = [] }) {
             <select
               value={filters.urgency}
               onChange={(e) => setFilters({ ...filters, urgency: e.target.value })}
-              className="w-full sm:w-auto px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="flex-1 px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500"
             >
               <option value="">All Urgency Levels</option>
               <option value="high">High</option>
@@ -182,7 +182,7 @@ export default function InterventionManagement({ students = [] }) {
 
           <button
             onClick={() => setShowRecordModal(true)}
-            className="w-full sm:w-auto px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 whitespace-nowrap"
+            className="w-full sm:w-auto px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 whitespace-nowrap"
           >
             + Record New Meeting
           </button>
@@ -264,25 +264,25 @@ export default function InterventionManagement({ students = [] }) {
       </div>
 
       {/* Meetings Cards - Mobile/Tablet */}
-      <div className="lg:hidden space-y-4">
+      <div className="lg:hidden space-y-3">
         {meetings.length === 0 ? (
-          <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">
+          <div className="bg-white rounded-lg shadow p-6 text-center text-sm text-gray-500">
             No intervention meetings found
           </div>
         ) : (
           meetings.map((meeting) => (
-            <div key={meeting.id} className="bg-white rounded-lg shadow p-4 space-y-3">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="font-medium text-gray-800">{meeting.student_name}</p>
-                  <p className="text-sm text-gray-500">{meeting.student_id_number}</p>
+            <div key={meeting.id} className="bg-white rounded-lg shadow p-3 space-y-2">
+              <div className="flex justify-between items-start gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-sm text-gray-800 truncate">{meeting.student_name}</p>
+                  <p className="text-xs text-gray-500">{meeting.student_id_number}</p>
                 </div>
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getUrgencyBadge(meeting.urgency_level)}`}>
+                <span className={`px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0 ${getUrgencyBadge(meeting.urgency_level)}`}>
                   {meeting.urgency_level}
                 </span>
               </div>
               
-              <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="grid grid-cols-2 gap-2 text-xs">
                 <div>
                   <p className="text-gray-500">Date</p>
                   <p className="text-gray-700">{new Date(meeting.meeting_date).toLocaleDateString()}</p>
@@ -290,32 +290,32 @@ export default function InterventionManagement({ students = [] }) {
                 </div>
                 <div>
                   <p className="text-gray-500">Status</p>
-                  <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(meeting.status)}`}>
+                  <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(meeting.status)}`}>
                     {meeting.status?.replace('_', ' ')}
                   </span>
                 </div>
                 <div>
                   <p className="text-gray-500">Root Cause</p>
-                  <p className="text-gray-700">{meeting.root_cause?.replace('_', ' ')}</p>
+                  <p className="text-gray-700 truncate">{meeting.root_cause?.replace('_', ' ')}</p>
                 </div>
                 <div>
                   <p className="text-gray-500">Follow-up</p>
                   {meeting.follow_up_date ? (
-                    <p className={meeting.is_overdue ? 'text-red-600 font-medium' : 'text-gray-700'}>
+                    <p className={`text-xs ${meeting.is_overdue ? 'text-red-600 font-medium' : 'text-gray-700'}`}>
                       {new Date(meeting.follow_up_date).toLocaleDateString()}
                       {meeting.is_overdue && ' ⚠️'}
                     </p>
                   ) : (
-                    <p className="text-gray-400">Not set</p>
+                    <p className="text-gray-400 text-xs">Not set</p>
                   )}
                 </div>
               </div>
               
               <div className="flex justify-between items-center pt-2 border-t">
-                <p className="text-sm text-gray-600">{meeting.progress_count} update(s)</p>
+                <p className="text-xs text-gray-600">{meeting.progress_count} update(s)</p>
                 <button
                   onClick={() => handleViewProgress(meeting)}
-                  className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                  className="text-blue-600 hover:text-blue-800 text-xs font-medium"
                 >
                   Track Progress →
                 </button>

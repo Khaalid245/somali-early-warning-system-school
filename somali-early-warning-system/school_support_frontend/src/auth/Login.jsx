@@ -63,10 +63,13 @@ export default function Login() {
     setLoading(true);
 
     try {
+      console.log('[Login] Attempting login with:', { email, hasPassword: !!password });
       const res = await api.post("/auth/login/", { email, password });
+      console.log('[Login] Response status:', res.status, 'Data:', res.data);
 
       // Check if 2FA is required
       if (res.status === 202 && res.data.requires_2fa) {
+        console.log('[Login] 2FA required for user');
         setTempEmail(email);
         setShow2FA(true);
         setLoading(false);
@@ -77,22 +80,26 @@ export default function Login() {
       const refresh = res.data.refresh;
 
       if (!access || !refresh) {
+        console.error('[Login] Missing tokens in response:', res.data);
         setError("Invalid token response from server.");
         setLoading(false);
         return;
       }
 
+      console.log('[Login] Tokens received, logging in');
       login(access, refresh);
 
       const decoded = jwtDecode(access);
+      console.log('[Login] Decoded token:', decoded);
       
-      showToast.success(`Welcome back, ${decoded.username || 'User'}!`);
+      showToast.success(`Welcome back, ${decoded.username || decoded.name || 'User'}!`);
 
       if (decoded.role === "teacher") navigate("/teacher");
       else if (decoded.role === "form_master") navigate("/form-master");
       else if (decoded.role === "admin") navigate("/admin");
       else navigate("/");
     } catch (err) {
+      console.error('[Login] Error:', err.response?.status, err.response?.data);
       const errorMsg = err.response?.data?.error || err.response?.data?.detail || "Invalid email or password";
       const remaining = err.response?.data?.remaining_attempts;
       
@@ -111,16 +118,19 @@ export default function Login() {
   };
 
   const handle2FAVerified = async (access, refresh) => {
+    console.log('[Login] 2FA verified, tokens received');
     setShow2FA(false);
     
     if (!access || !refresh) {
+      console.error('[Login] Missing tokens after 2FA');
       setError("Invalid token response from server.");
       return;
     }
 
     login(access, refresh);
     const decoded = jwtDecode(access);
-    showToast.success(`Welcome back, ${decoded.username || 'User'}!`);
+    console.log('[Login] User logged in after 2FA:', decoded);
+    showToast.success(`Welcome back, ${decoded.username || decoded.name || 'User'}!`);
 
     if (decoded.role === "teacher") navigate("/teacher");
     else if (decoded.role === "form_master") navigate("/form-master");

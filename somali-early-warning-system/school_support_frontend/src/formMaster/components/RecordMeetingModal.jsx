@@ -49,18 +49,18 @@ export default function RecordMeetingModal({ student, students = [], onClose, on
   const currentStudent = student || students.find(s => s.student_id === selectedStudent);
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
       <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
-          <h2 className="text-xl font-semibold text-gray-800">
+        <div className="sticky top-0 bg-white border-b px-4 sm:px-6 py-3 sm:py-4 flex justify-between items-center">
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-800">
             Record Intervention Meeting
           </h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-700 text-xl">
             ✕
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4 sm:space-y-6">
           {/* Student Selection */}
           {!student && (
             <div>
@@ -178,7 +178,7 @@ export default function RecordMeetingModal({ student, students = [], onClose, on
           </div>
 
           {/* Follow-up Date & Urgency */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Follow-up Date
@@ -210,18 +210,18 @@ export default function RecordMeetingModal({ student, students = [], onClose, on
           </div>
 
           {/* Actions */}
-          <div className="flex justify-end gap-3 pt-4 border-t">
+          <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t">
             <button
               type="button"
               onClick={onClose}
-              className="px-6 py-2 border rounded-lg hover:bg-gray-50"
+              className="w-full sm:w-auto px-6 py-2 border rounded-lg hover:bg-gray-50"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              className="w-full sm:w-auto px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
             >
               {loading ? 'Recording...' : 'Record Meeting'}
             </button>

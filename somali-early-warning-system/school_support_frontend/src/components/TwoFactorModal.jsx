@@ -14,12 +14,21 @@ export default function TwoFactorModal({ email, onVerified, onCancel }) {
     setLoading(true);
 
     try {
+      console.log('[2FA] Verifying code for:', email);
       const res = await api.post('/auth/2fa/verify/', { email, code });
+      console.log('[2FA] Verification response:', res.data);
+      
       if (res.data.valid) {
+        console.log('[2FA] Code valid, tokens received');
         showToast.success('2FA verified successfully');
         onVerified(res.data.access, res.data.refresh);
+      } else {
+        console.warn('[2FA] Code invalid');
+        setError('Invalid code');
+        showToast.error('Invalid code');
       }
     } catch (err) {
+      console.error('[2FA] Verification error:', err.response?.status, err.response?.data);
       const errorMsg = err.response?.data?.error || 'Invalid code';
       setError(errorMsg);
       showToast.error(errorMsg);

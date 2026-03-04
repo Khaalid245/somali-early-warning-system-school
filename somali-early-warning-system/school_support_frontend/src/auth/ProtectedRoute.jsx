@@ -8,7 +8,7 @@ export default function ProtectedRoute({ children, role }) {
   // Not logged in
   if (!user) return <Navigate to="/login" />;
 
-  // Logged in but wrong role
+  // Logged in but wrong role (only check if role is specified)
   if (role && user.role !== role) {
     return <Navigate to="/login" />;
   }

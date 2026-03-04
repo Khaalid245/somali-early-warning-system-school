@@ -9,9 +9,9 @@ import Login from "./auth/Login";
 import ProtectedRoute from "./auth/ProtectedRoute";
 
 // Teacher pages
-import TeacherDashboard from "./teacher/DashboardNew";
+import TeacherDashboard from "./teacher/DashboardFixed";
 import DebugDashboard from "./teacher/DebugDashboard";
-import AttendancePage from "./teacher/AttendancePageNew";
+import AttendancePage from "./teacher/AttendancePageFixed";
 import EditAttendance from "./teacher/EditAttendance";
 import AttendanceTracking from "./teacher/AttendanceTracking";
 import AttendanceHistory from "./teacher/AttendanceHistory";
@@ -21,7 +21,7 @@ import MyClasses from "./teacher/MyClasses";
 import MySubjects from "./teacher/Mysubjects";
 
 // Form Master pages
-import FormMasterDashboard from "./formMaster/DashboardClean";
+import FormMasterDashboard from "./formMaster/DashboardEnhanced";
 import InterventionsPage from "./formMaster/InterventionsPage";
 import StudentAttendanceReport from "./pages/StudentAttendanceReport";
 
@@ -214,10 +214,14 @@ function App() {
           }
         />
 
-        {/* ATTENDANCE REPORT - Public for families */}
+        {/* ATTENDANCE REPORT - Protected (requires authentication) */}
         <Route
           path="/attendance-report/:studentId"
-          element={<StudentAttendanceReport />}
+          element={
+            <ProtectedRoute role={null}>
+              <StudentAttendanceReport />
+            </ProtectedRoute>
+          }
         />
 
         {/* ADMIN */}

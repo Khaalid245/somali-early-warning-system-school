@@ -2,6 +2,9 @@ from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.exceptions import PermissionDenied
+from django.db.models import Q
+from django.utils import timezone
+from datetime import timedelta
 
 from core.idor_protection import IDORProtectionMixin
 from .models import Alert
@@ -24,17 +27,43 @@ class AlertListCreateView(generics.ListCreateAPIView):
         # ROLE-BASED ACCESS CONTROL
         # --------------------------------------------
         if user.role == "admin":
-            return qs
-
+            pass  # Admin sees all
         elif user.role == "form_master":
-            return qs.filter(assigned_to=user)
-
+            qs = qs.filter(assigned_to=user)
         elif user.role == "teacher":
-            return qs.filter(
+            qs = qs.filter(
                 subject__teachingassignment__teacher=user
             ).distinct()
+        else:
+            return Alert.objects.none()
 
-        return Alert.objects.none()
+        # --------------------------------------------
+        # FILTERING
+        # --------------------------------------------
+        # Search by student name or ID
+        search = self.request.query_params.get('search', '').strip()
+        if search:
+            qs = qs.filter(
+                Q(student__full_name__icontains=search) |
+                Q(student__student_id__icontains=search)
+            )
+        
+        # Filter by risk level
+        risk_level = self.request.query_params.get('risk_level', '').strip()
+        if risk_level:
+            qs = qs.filter(risk_level=risk_level)
+        
+        # Filter by status
+        status_filter = self.request.query_params.get('status', '').strip()
+        if status_filter:
+            qs = qs.filter(status=status_filter)
+        
+        # Filter by student ID (for specific student)
+        student_id = self.request.query_params.get('student', '').strip()
+        if student_id:
+            qs = qs.filter(student_id=student_id)
+
+        return qs
 
     def perform_create(self, serializer):
         user = self.request.user
@@ -123,3 +152,29 @@ class AlertDetailView(IDORProtectionMixin, generics.RetrieveUpdateAPIView):
             "message": "Alert updated successfully.",
             "alert": AlertSerializer(alert).data
         })
+
+
+# =====================================================
+# ALERT HISTORY (RESOLVED ALERTS)
+# =====================================================
+class AlertHistoryView(generics.ListAPIView):
+    serializer_class = AlertSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        thirty_days_ago = timezone.now() - timedelta(days=30)
+        
+        qs = Alert.objects.filter(
+            status__in=['resolved', 'dismissed'],
+            updated_at__gte=thirty_days_ago
+        ).select_related('student', 'subject', 'assigned_to').order_by('-updated_at')
+
+        if user.role == "admin":
+            return qs
+        elif user.role == "form_master":
+            return qs.filter(assigned_to=user)
+        elif user.role == "teacher":
+            return qs.filter(subject__teachingassignment__teacher=user).distinct()
+        
+        return Alert.objects.none()

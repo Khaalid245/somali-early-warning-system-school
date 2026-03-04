@@ -133,13 +133,7 @@ function AdminDashboardContent() {
           )}
 
           {activeTab === "governance" && (
-            <div>
-              <div className="bg-red-100 border-2 border-red-500 p-4 mb-4">
-                <h1 className="text-2xl font-bold">GOVERNANCE TAB IS ACTIVE</h1>
-                <p>If you see this, the governance tab is working</p>
-              </div>
-              <GovernanceView />
-            </div>
+            <GovernanceView />
           )}
 
           {activeTab === "audit" && (

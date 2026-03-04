@@ -271,13 +271,14 @@ function FormMasterDashboardContent() {
   }
 
   return (
-    <div className="flex h-screen bg-slate-50">
+    <div className="flex flex-col md:flex-row h-screen bg-slate-50 overflow-hidden">
       <Sidebar user={user} onLogout={logout} onTabChange={handleTabChange} />
 
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 flex flex-col overflow-hidden">
         <Navbar user={user} dashboardData={dashboardData} />
 
-        <div className="p-8 space-y-8">
+        <div className="flex-1 overflow-y-auto">
+          <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-3 sm:py-4 md:py-6 space-y-4 sm:space-y-6">
           {activeTab === "overview" && (
             <>
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6 gap-3">
@@ -383,8 +384,11 @@ function FormMasterDashboardContent() {
 
           {activeTab === "cases" && (
             <>
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-bold text-gray-900">Intervention Cases</h3>
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 gap-3">
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900">Intervention Cases</h3>
+                  <p className="text-xs text-gray-500 mt-1">Cases open &gt; 14 days are marked as overdue</p>
+                </div>
                 <DateRangeFilter
                   startDate={dateRange.start}
                   endDate={dateRange.end}
@@ -452,6 +456,7 @@ function FormMasterDashboardContent() {
               </div>
             </>
           )}
+        </div>
         </div>
       </div>
       

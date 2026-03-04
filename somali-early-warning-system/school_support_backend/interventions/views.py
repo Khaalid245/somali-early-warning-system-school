@@ -34,13 +34,19 @@ class InterventionCaseListCreateView(generics.ListCreateAPIView):
 
         # Admin sees everything
         if user.role == "admin":
-            return qs
-
+            pass
         # Form master sees only assigned cases
-        if user.role == "form_master":
-            return qs.filter(assigned_to=user)
-
-        return InterventionCase.objects.none()
+        elif user.role == "form_master":
+            qs = qs.filter(assigned_to=user)
+        else:
+            return InterventionCase.objects.none()
+        
+        # Filter by status if provided
+        status_filter = self.request.query_params.get('status')
+        if status_filter:
+            qs = qs.filter(status=status_filter)
+        
+        return qs
 
     def perform_create(self, serializer):
         user = self.request.user
@@ -67,6 +73,7 @@ class InterventionCaseDetailView(IDORProtectionMixin, generics.RetrieveUpdateDes
     serializer_class = InterventionCaseSerializer
     permission_classes = [IsAuthenticated]
     throttle_classes = [CaseUpdateThrottle]
+    lookup_field = 'case_id'
 
     def get_queryset(self):
         """IDOR Protection: Filter by assignment"""

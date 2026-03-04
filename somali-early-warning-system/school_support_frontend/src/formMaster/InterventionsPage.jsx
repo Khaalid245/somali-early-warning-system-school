@@ -42,7 +42,7 @@ export default function InterventionsPage() {
   }
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex flex-col md:flex-row h-screen bg-gray-50 overflow-hidden">
       {/* Sidebar */}
       <Sidebar user={user} onLogout={logout} />
 
@@ -53,13 +53,13 @@ export default function InterventionsPage() {
 
         {/* Page Content */}
         <main className="flex-1 overflow-y-auto">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-3 sm:py-4 md:py-6">
             {/* Header */}
-            <div className="mb-8">
-              <h1 className="text-3xl font-bold text-gray-900">
+            <div className="mb-4 sm:mb-6">
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900">
                 Student Intervention & Progress Tracking
               </h1>
-              <p className="mt-2 text-gray-600">
+              <p className="mt-1 text-xs sm:text-sm text-gray-600">
                 Record meetings, track progress, and manage student interventions
               </p>
             </div>

@@ -68,6 +68,44 @@ class AdminDashboardViewSafe(APIView):
                     'avg_risk_score': 0
                 })
             
+            # Recent activities from audit logs (last 7 days)
+            seven_days_ago = timezone.now() - timedelta(days=7)
+            from dashboard.models import AuditLog
+            
+            recent_activities = []
+            audit_logs = AuditLog.objects.filter(
+                timestamp__gte=seven_days_ago
+            ).select_related('user').order_by('-timestamp')[:20]
+            
+            for log in audit_logs:
+                activity_type = 'activity'
+                if 'case' in log.action.lower():
+                    if 'created' in log.action.lower():
+                        activity_type = 'case_created'
+                    elif 'escalated' in log.action.lower():
+                        activity_type = 'case_escalated'
+                    elif 'closed' in log.action.lower():
+                        activity_type = 'case_closed'
+                
+                recent_activities.append({
+                    'type': activity_type,
+                    'description': log.description,
+                    'user': log.user.name if log.user else 'System',
+                    'timestamp': log.timestamp.isoformat(),
+                    'case_id': log.metadata.get('case_id') if log.metadata else None
+                })
+            
+            # Risk distribution from alerts
+            risk_counts = Alert.objects.filter(
+                status__in=['active', 'under_review', 'escalated']
+            ).values('risk_level').annotate(count=Count('alert_id'))
+            
+            risk_dist = {'low': 0, 'medium': 0, 'high': 0, 'critical': 0}
+            for item in risk_counts:
+                level = item['risk_level']
+                if level in risk_dist:
+                    risk_dist[level] = item['count']
+            
             return Response({
                 'executive_kpis': {
                     'total_students': total_students,
@@ -83,12 +121,7 @@ class AdminDashboardViewSafe(APIView):
                     'alerts': [],
                     'cases': []
                 },
-                'risk_distribution': {
-                    'low': 0,
-                    'medium': 0,
-                    'high': 0,
-                    'critical': 0
-                },
+                'risk_distribution': risk_dist,
                 'system_health': {
                     'risk_index': 50.0,
                     'status': 'moderate',
@@ -104,7 +137,7 @@ class AdminDashboardViewSafe(APIView):
                     'high_absence_classes': 0,
                     'missing_submissions': 0
                 },
-                'recent_activities': []
+                'recent_activities': recent_activities
             })
             
         except Exception as e:

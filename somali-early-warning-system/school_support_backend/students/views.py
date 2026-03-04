@@ -1,7 +1,9 @@
 from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.exceptions import PermissionDenied
 from .models import Student, Classroom, StudentEnrollment
 from .serializers import StudentSerializer, ClassroomSerializer, StudentEnrollmentSerializer
+from academics.models import Classroom as AcademicClassroom
 
 
 class StudentListCreateView(generics.ListCreateAPIView):
@@ -9,11 +11,46 @@ class StudentListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        queryset = Student.objects.all()
-        classroom_id = self.request.query_params.get('classroom')
-        if classroom_id:
-            queryset = queryset.filter(enrollments__classroom_id=classroom_id, enrollments__is_active=True)
-        return queryset
+        user = self.request.user
+        queryset = Student.objects.filter(is_active=True)
+        
+        # Admin sees all students
+        if user.role == 'admin':
+            classroom_id = self.request.query_params.get('classroom')
+            if classroom_id:
+                queryset = queryset.filter(enrollments__classroom_id=classroom_id, enrollments__is_active=True)
+            return queryset
+        
+        # Form Master sees only their classroom students
+        if user.role == 'form_master':
+            my_classrooms = AcademicClassroom.objects.filter(form_master=user).values_list('class_id', flat=True)
+            queryset = queryset.filter(
+                enrollments__classroom_id__in=my_classrooms,
+                enrollments__is_active=True
+            ).distinct()
+            return queryset
+        
+        # Teacher sees students from their assigned classes
+        if user.role == 'teacher':
+            from academics.models import TeachingAssignment
+            my_classrooms = TeachingAssignment.objects.filter(
+                teacher=user,
+                is_active=True
+            ).values_list('classroom_id', flat=True)
+            queryset = queryset.filter(
+                enrollments__classroom_id__in=my_classrooms,
+                enrollments__is_active=True
+            ).distinct()
+            return queryset
+        
+        # Default: no access
+        return Student.objects.none()
+    
+    def perform_create(self, serializer):
+        # Only admin can create students
+        if self.request.user.role != 'admin':
+            raise PermissionDenied("Only administrators can create students.")
+        serializer.save()
 
 
 class StudentDetailView(generics.RetrieveUpdateDestroyAPIView):

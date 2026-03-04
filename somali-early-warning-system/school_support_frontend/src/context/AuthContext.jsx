@@ -35,11 +35,19 @@ export function AuthProvider({ children }) {
   });
 
   const login = (access, refresh) => {
+    console.log('[AuthContext] Storing tokens');
     sessionStorage.setItem("access", access);
     sessionStorage.setItem("refresh", refresh);
 
-    const decoded = jwtDecode(access);
-    setUser(decoded);
+    try {
+      const decoded = jwtDecode(access);
+      console.log('[AuthContext] Token decoded successfully:', decoded);
+      setUser(decoded);
+    } catch (err) {
+      console.error('[AuthContext] Failed to decode token:', err);
+      sessionStorage.clear();
+      throw new Error('Invalid token format');
+    }
   };
 
   const updateUser = (userData) => {

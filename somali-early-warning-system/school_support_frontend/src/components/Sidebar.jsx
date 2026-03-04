@@ -45,8 +45,7 @@ export default function Sidebar({ user, onLogout, onTabChange }) {
     { icon: "📋", label: "Cases", path: "cases", badge: null, isRoute: false },
     { icon: "⚠️", label: "High Risk", path: "students", badge: null, isRoute: false },
     { icon: "📈", label: "Progression", path: "progression", badge: null, isRoute: false },
-    { icon: "📅", label: "Attendance", path: "attendance", badge: null, isRoute: false },
-    { icon: "📊", label: "Daily Monitor", path: "daily-monitor", badge: null, isRoute: false },
+    { icon: "📅", label: "Daily Monitor", path: "daily-monitor", badge: null, isRoute: false },
     { icon: "👤", label: "Profile", path: "/form-master/profile", badge: null, isRoute: true },
     { icon: "⚙️", label: "Settings", path: "/form-master/settings", badge: null, isRoute: true },
   ] : [
@@ -76,10 +75,13 @@ export default function Sidebar({ user, onLogout, onTabChange }) {
         onTabChange?.('overview');
       }
     } else {
-      navigate(basePath);
-      // Use tabName if provided (for settings sub-tabs), otherwise use path
+      // For tab-based navigation, change tab first then navigate
       const tabToActivate = item.tabName || item.path;
-      setTimeout(() => onTabChange?.(tabToActivate), 50);
+      onTabChange?.(tabToActivate);
+      // Only navigate if not already on the base path
+      if (location.pathname !== basePath) {
+        navigate(basePath);
+      }
     }
     if (isMobile) setCollapsed(true);
   };

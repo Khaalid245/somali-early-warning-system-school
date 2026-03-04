@@ -4,6 +4,7 @@ import { generateReplayProtectionHeaders } from '../utils/replayProtection';
 const api = axios.create({
   baseURL: "http://127.0.0.1:8000/api",
   withCredentials: true,  // Send httpOnly cookies
+  timeout: 30000,  // FIX 1: 30 second timeout
 });
 
 let isRefreshing = false;
@@ -40,45 +41,65 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Response interceptor (auto-refresh token)
+// Response interceptor (auto-refresh token + 401/403 handling + retry logic)
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
 
-    if (
-      error.response?.status === 401 &&
-      error.response?.data?.code === "token_not_valid" &&
-      !originalRequest._retry
-    ) {
-      if (isRefreshing) {
-        return new Promise((resolve, reject) => {
-          failedQueue.push({ resolve, reject });
-        }).then(() => {
+    // FIX 2: Handle 401/403 - Redirect to login
+    if (error.response?.status === 401 || error.response?.status === 403) {
+      if (error.response?.data?.code === "token_not_valid" && !originalRequest._retry) {
+        if (isRefreshing) {
+          return new Promise((resolve, reject) => {
+            failedQueue.push({ resolve, reject });
+          }).then(() => {
+            return api(originalRequest);
+          }).catch(err => Promise.reject(err));
+        }
+
+        originalRequest._retry = true;
+        isRefreshing = true;
+
+        try {
+          await axios.post(
+            "http://127.0.0.1:8000/api/auth/refresh/",
+            {},
+            { withCredentials: true }
+          );
+          
+          processQueue(null);
+          isRefreshing = false;
+          
           return api(originalRequest);
-        }).catch(err => Promise.reject(err));
-      }
-
-      originalRequest._retry = true;
-      isRefreshing = true;
-
-      try {
-        await axios.post(
-          "http://127.0.0.1:8000/api/auth/refresh/",
-          {},
-          { withCredentials: true }
-        );
-        
-        processQueue(null);
-        isRefreshing = false;
-        
-        return api(originalRequest);
-      } catch (refreshErr) {
-        processQueue(refreshErr, null);
-        isRefreshing = false;
+        } catch (refreshErr) {
+          processQueue(refreshErr, null);
+          isRefreshing = false;
+          sessionStorage.clear();
+          localStorage.removeItem('token');
+          window.location.href = "/login";
+          return Promise.reject(refreshErr);
+        }
+      } else {
+        // Direct 401/403 without token refresh
+        sessionStorage.clear();
+        localStorage.removeItem('token');
         window.location.href = "/login";
-        return Promise.reject(refreshErr);
+        return Promise.reject(error);
       }
+    }
+
+    // FIX 4: Retry logic with exponential backoff (network errors only)
+    if (!error.response && !originalRequest._retryCount) {
+      originalRequest._retryCount = 0;
+    }
+
+    if (!error.response && originalRequest._retryCount < 3) {
+      originalRequest._retryCount++;
+      const delay = Math.pow(2, originalRequest._retryCount) * 1000; // 2s, 4s, 8s
+      
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return api(originalRequest);
     }
 
     return Promise.reject(error);

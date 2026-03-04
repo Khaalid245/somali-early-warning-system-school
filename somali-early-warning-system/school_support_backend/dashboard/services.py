@@ -203,12 +203,24 @@ def get_form_master_dashboard_data(user, filters):
         {"assigned_to": user, "status__in": ["open", "in_progress", "awaiting_parent"]}
     )
 
-    # Urgent alerts (top 5)
+    # Urgent alerts sorted by priority (critical → high → medium → low)
+    from django.db.models import Case, When, IntegerField
+    
     urgent_alerts = list(
         Alert.objects
-        .filter(assigned_to=user, status__in=["active", "escalated"])
+        .filter(assigned_to=user, status__in=["active", "escalated", "under_review"])
         .select_related("student", "subject")
-        .order_by("-risk_level", "-alert_date")
+        .annotate(
+            priority_order=Case(
+                When(risk_level='critical', then=1),
+                When(risk_level='high', then=2),
+                When(risk_level='medium', then=3),
+                When(risk_level='low', then=4),
+                default=5,
+                output_field=IntegerField()
+            )
+        )
+        .order_by("priority_order", "-alert_date")
         .values(
             "alert_id",
             "student__full_name",
@@ -218,28 +230,37 @@ def get_form_master_dashboard_data(user, filters):
             "risk_level",
             "status",
             "alert_date"
-        )[:5]
+        )[:20]
     )
 
-    # Cases needing attention (including escalated ones)
-    pending_cases = list(
-        InterventionCase.objects
-        .filter(assigned_to=user, status__in=["open", "in_progress", "awaiting_parent", "escalated_to_admin"])
-        .select_related("student", "alert", "student__risk_profile")
-        .order_by("-created_at")
-        .values(
-            "case_id",
-            "student__full_name",
-            "student__student_id",
-            "student__risk_profile__risk_level",
-            "status",
-            "follow_up_date",
-            "created_at",
-            "meeting_date",
-            "meeting_notes",
-            "progress_status"
-        )[:10]
-    )
+    # Cases needing attention (including escalated ones) with overdue indicator
+    from datetime import date
+    today = date.today()
+    
+    pending_cases_qs = InterventionCase.objects.filter(
+        assigned_to=user, 
+        status__in=["open", "in_progress", "awaiting_parent", "escalated_to_admin"]
+    ).select_related("student", "alert", "student__risk_profile")
+    
+    pending_cases = []
+    for case in pending_cases_qs.order_by("-created_at")[:10]:
+        days_open = (today - case.created_at.date()).days
+        is_overdue = days_open > 14  # Cases open > 14 days are overdue
+        
+        pending_cases.append({
+            "case_id": case.case_id,
+            "student__full_name": case.student.full_name,
+            "student__student_id": case.student.student_id,
+            "student__risk_profile__risk_level": case.student.risk_profile.risk_level if hasattr(case.student, 'risk_profile') else 'medium',
+            "status": case.status,
+            "follow_up_date": case.follow_up_date,
+            "created_at": case.created_at,
+            "meeting_date": case.meeting_date,
+            "meeting_notes": case.meeting_notes,
+            "progress_status": case.progress_status,
+            "days_open": days_open,
+            "is_overdue": is_overdue
+        })
 
     # Case status breakdown
     case_status_breakdown = list(
@@ -384,6 +405,58 @@ def get_form_master_dashboard_data(user, filters):
     
     # Students needing immediate attention (top 5)
     immediate_attention = [s for s in high_risk_students if not s['has_intervention'] or s['days_since_followup'] and s['days_since_followup'] > 7][:5]
+    
+    # Additional KPI Metrics
+    # 1. Average Resolution Time
+    closed_cases = InterventionCase.objects.filter(
+        assigned_to=user,
+        status='closed',
+        created_at__gte=timezone.now() - timedelta(days=90)
+    )
+    resolution_times = [(case.updated_at - case.created_at).days for case in closed_cases]
+    avg_resolution_time = round(sum(resolution_times) / len(resolution_times), 1) if resolution_times else 0
+    
+    # 2. Case Success Rate
+    total_closed = closed_cases.count()
+    successful_cases = closed_cases.filter(progress_status='resolved').count()
+    case_success_rate = round((successful_cases / total_closed * 100), 1) if total_closed > 0 else 0
+    
+    # 3. Attendance Improvement Rate
+    students_with_cases = InterventionCase.objects.filter(
+        assigned_to=user,
+        status='closed',
+        created_at__gte=timezone.now() - timedelta(days=90)
+    ).values_list('student_id', flat=True)
+    
+    improved_count = 0
+    for student_id in students_with_cases:
+        before_rate = AttendanceRecord.objects.filter(
+            student_id=student_id,
+            session__attendance_date__lt=timezone.now().date() - timedelta(days=30)
+        ).aggregate(
+            total=Count('record_id'),
+            present=Count('record_id', filter=Q(status='present'))
+        )
+        after_rate = AttendanceRecord.objects.filter(
+            student_id=student_id,
+            session__attendance_date__gte=timezone.now().date() - timedelta(days=30)
+        ).aggregate(
+            total=Count('record_id'),
+            present=Count('record_id', filter=Q(status='present'))
+        )
+        before = (before_rate['present'] or 0) / max(before_rate['total'] or 1, 1) * 100
+        after = (after_rate['present'] or 0) / max(after_rate['total'] or 1, 1) * 100
+        if after > before:
+            improved_count += 1
+    
+    attendance_improvement_rate = round((improved_count / len(students_with_cases) * 100), 1) if students_with_cases else 0
+    
+    # 4. Intervention Effectiveness Score (composite metric)
+    effectiveness_score = round((case_success_rate * 0.4 + attendance_improvement_rate * 0.4 + (100 - min(avg_resolution_time * 2, 100)) * 0.2), 1)
+    
+    # 5. Workload Indicator
+    workload_score = min(100, (open_cases * 5) + (assigned_alerts * 3) + (overdue_cases * 10))
+    workload_status = 'high' if workload_score > 70 else 'moderate' if workload_score > 40 else 'manageable'
 
     return {
         "role": "form_master",
@@ -404,6 +477,20 @@ def get_form_master_dashboard_data(user, filters):
         "classroom_stats": classroom_stats,
         "overdue_cases": overdue_cases,
         "immediate_attention": immediate_attention,
+        # Additional KPI Metrics
+        "avg_resolution_time": avg_resolution_time,
+        "case_success_rate": case_success_rate,
+        "attendance_improvement_rate": attendance_improvement_rate,
+        "intervention_effectiveness_score": effectiveness_score,
+        "workload_indicator": {
+            "score": workload_score,
+            "status": workload_status,
+            "breakdown": {
+                "open_cases": open_cases,
+                "assigned_alerts": assigned_alerts,
+                "overdue_cases": overdue_cases
+            }
+        },
     }
 
 
@@ -421,6 +508,11 @@ def get_teacher_dashboard_data(user, filters):
     # Handle time range filters
     time_range = filters.get('time_range', 'current_month')  # default to current month
     date_range = _get_date_range(time_range, today)
+    
+    # Pagination parameters
+    page = int(filters.get('page', 1))
+    page_size = int(filters.get('page_size', 20))
+    offset = (page - 1) * page_size
 
     # Optimized query: Get teaching assignments with related data in one query
     teaching_assignments = TeachingAssignment.objects.filter(
@@ -535,15 +627,18 @@ def get_teacher_dashboard_data(user, filters):
         }
     )
 
-    # Optimized high-risk students query with visual indicators
+    # Optimized high-risk students query with visual indicators + PAGINATION
     # SECURITY: Only show students from teacher's assigned subjects
-    high_risk_students_raw = StudentRiskProfile.objects.filter(
+    high_risk_students_qs = StudentRiskProfile.objects.filter(
         risk_level__in=["high", "critical"],
         student__attendance_records__session__subject_id__in=teacher_subjects
-    ).select_related('student').values(
+    ).select_related('student').distinct()
+    
+    high_risk_count = high_risk_students_qs.count()
+    high_risk_students_raw = high_risk_students_qs.values(
         "student__full_name", "student__student_id", "student__admission_number",
         "risk_level", "risk_score", "last_calculated"
-    ).distinct()[:10]
+    )[offset:offset + page_size]
     
     # Add visual indicators and context
     high_risk_students = [
@@ -558,14 +653,17 @@ def get_teacher_dashboard_data(user, filters):
         for student in high_risk_students_raw
     ]
 
-    # Optimized urgent alerts query with visual indicators
-    urgent_alerts_raw = Alert.objects.filter(
+    # Optimized urgent alerts query with visual indicators + PAGINATION
+    urgent_alerts_qs = Alert.objects.filter(
         subject_id__in=teacher_subjects,
         status__in=["active", "escalated"]
-    ).select_related("student", "subject").order_by("-risk_level", "-alert_date").values(
+    ).select_related("student", "subject").order_by("-risk_level", "-alert_date")
+    
+    urgent_alerts_count = urgent_alerts_qs.count()
+    urgent_alerts_raw = urgent_alerts_qs.values(
         "alert_id", "student__full_name", "student__student_id", "subject__name",
         "alert_type", "risk_level", "status", "alert_date"
-    )[:5]
+    )[offset:offset + page_size]
     
     # Add visual indicators to urgent alerts
     urgent_alerts = [
@@ -602,6 +700,74 @@ def get_teacher_dashboard_data(user, filters):
         for assignment in teaching_assignments
     ]
     
+    # CRITICAL FIX 1: Recent Sessions (last 7 days)
+    week_ago = today - timedelta(days=7)
+    recent_sessions = list(
+        AttendanceSession.objects.filter(
+            subject_id__in=teacher_subjects,
+            attendance_date__gte=week_ago
+        ).select_related('classroom', 'subject').annotate(
+            present_count=Count('records', filter=Q(records__status='present')),
+            absent_count=Count('records', filter=Q(records__status='absent'))
+        ).values(
+            'attendance_date', 'classroom__name', 'subject__name', 'present_count', 'absent_count'
+        ).order_by('-attendance_date')[:5]
+    )
+    # Format for frontend
+    recent_sessions_formatted = [
+        {
+            'date': session['attendance_date'].isoformat(),
+            'classroom': session['classroom__name'],
+            'subject': session['subject__name'],
+            'present': session['present_count'],
+            'absent': session['absent_count']
+        }
+        for session in recent_sessions
+    ]
+
+    # CRITICAL FIX 2: Week Stats (percentages)
+    week_records = AttendanceRecord.objects.filter(
+        session__subject_id__in=teacher_subjects,
+        session__attendance_date__gte=week_ago
+    ).aggregate(
+        total=Count('record_id'),
+        present=Count('record_id', filter=Q(status='present')),
+        late=Count('record_id', filter=Q(status='late')),
+        absent=Count('record_id', filter=Q(status='absent'))
+    )
+    total_week = week_records['total'] or 1
+    week_stats = {
+        'present': round((week_records['present'] or 0) / total_week * 100, 1),
+        'late': round((week_records['late'] or 0) / total_week * 100, 1),
+        'absent': round((week_records['absent'] or 0) / total_week * 100, 1)
+    }
+
+    # CRITICAL FIX 3: Trend (week-over-week comparison)
+    two_weeks_ago = today - timedelta(days=14)
+    prev_week_records = AttendanceRecord.objects.filter(
+        session__subject_id__in=teacher_subjects,
+        session__attendance_date__range=(two_weeks_ago, week_ago)
+    ).aggregate(
+        total=Count('record_id'),
+        present=Count('record_id', filter=Q(status='present'))
+    )
+    prev_total = prev_week_records['total'] or 1
+    prev_rate = (prev_week_records['present'] or 0) / prev_total * 100
+    current_rate = week_stats['present']
+    trend = {
+        'direction': 'up' if current_rate > prev_rate else 'down',
+        'percent': round(abs(current_rate - prev_rate), 1)
+    }
+
+    # CRITICAL FIX 4: Average Attendance (overall)
+    all_records = AttendanceRecord.objects.filter(
+        session__subject_id__in=teacher_subjects
+    ).aggregate(
+        total=Count('record_id'),
+        present=Count('record_id', filter=Q(status='present'))
+    )
+    avg_attendance = round((all_records['present'] or 0) / max(all_records['total'] or 1, 1) * 100, 1)
+
     # Teacher-specific features
     teacher_features = {
         "pending_attendance_sessions": _get_pending_sessions(teacher_subjects, today),
@@ -629,8 +795,22 @@ def get_teacher_dashboard_data(user, filters):
         "monthly_absence_trend": monthly_absence_trend,
         "monthly_alert_trend": monthly_alert_trend,
         "high_risk_students": high_risk_students,
+        "high_risk_students_count": high_risk_count,
         "urgent_alerts": urgent_alerts,
+        "urgent_alerts_count": urgent_alerts_count,
         "my_classes": my_classes,
+        # CRITICAL FIELDS ADDED
+        "recent_sessions": recent_sessions_formatted,
+        "week_stats": week_stats,
+        "trend": trend,
+        "avg_attendance": avg_attendance,
+        # PAGINATION METADATA
+        "pagination": {
+            "page": page,
+            "page_size": page_size,
+            "total_students": high_risk_count,
+            "total_alerts": urgent_alerts_count
+        },
         **teacher_features  # Add teacher-specific features
     })
 

@@ -269,7 +269,7 @@ def attendance_drill_down(request):
             
             attendance_records = AttendanceRecord.objects.filter(
                 student__in=students,
-                date__gte=thirty_days_ago
+                session__attendance_date__gte=thirty_days_ago
             )
             
             total_records = attendance_records.count()

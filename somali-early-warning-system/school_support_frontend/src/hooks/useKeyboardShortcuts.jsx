@@ -112,7 +112,7 @@ export function KeyboardShortcutsHelp({ isOpen, onClose, shortcuts = TEACHER_SHO
                     <div key={key} className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded-lg">
                       <span className="text-gray-700">{shortcut.description}</span>
                       <kbd className="px-2 py-1 bg-gray-200 text-gray-800 text-sm rounded font-mono">
-                        {key.split(+".map(k => k.charAt(0).toUpperCase() + k.slice(1)).join(' + ')}
+                        {key.split('+').map(k => k.charAt(0).toUpperCase() + k.slice(1)).join(' + ')}
                       </kbd>
                     </div>
                   );

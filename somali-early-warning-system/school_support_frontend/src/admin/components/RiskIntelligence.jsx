@@ -5,25 +5,24 @@ export default function RiskIntelligence({ data }) {
   const trends = data?.monthly_trends || {};
   const riskDist = data?.risk_distribution || {};
 
-  // Generate weekly alert data (last 4 weeks)
-  const weeklyAlertData = [
-    { week: 'Week 1', alerts: Math.floor(Math.random() * 20) + 5 },
-    { week: 'Week 2', alerts: Math.floor(Math.random() * 20) + 5 },
-    { week: 'Week 3', alerts: Math.floor(Math.random() * 20) + 5 },
-    { week: 'Week 4', alerts: Math.floor(Math.random() * 20) + 5 }
-  ];
+  // Use real backend data for weekly alerts (last 4 weeks from monthly_trends)
+  const alertsData = trends.alerts || [];
+  const weeklyAlertData = alertsData.slice(-4).map((item, idx) => ({
+    week: `Week ${idx + 1}`,
+    alerts: item.count || 0
+  }));
 
-  // Generate weekly case data
-  const weeklyCaseData = [
-    { week: 'Week 1', opened: Math.floor(Math.random() * 15) + 3, closed: Math.floor(Math.random() * 10) + 2 },
-    { week: 'Week 2', opened: Math.floor(Math.random() * 15) + 3, closed: Math.floor(Math.random() * 10) + 2 },
-    { week: 'Week 3', opened: Math.floor(Math.random() * 15) + 3, closed: Math.floor(Math.random() * 10) + 2 },
-    { week: 'Week 4', opened: Math.floor(Math.random() * 15) + 3, closed: Math.floor(Math.random() * 10) + 2 }
-  ];
+  // Use real backend data for weekly cases (last 4 weeks from monthly_trends)
+  const casesData = trends.cases || [];
+  const weeklyCaseData = casesData.slice(-4).map((item, idx) => ({
+    week: `Week ${idx + 1}`,
+    opened: item.opened || 0,
+    closed: item.closed || 0
+  }));
 
   // Calculate trends
-  const alertTrend = weeklyAlertData[3].alerts > weeklyAlertData[0].alerts ? 'up' : 'down';
-  const caseTrend = weeklyCaseData[3].opened > weeklyCaseData[0].opened ? 'up' : 'down';
+  const alertTrend = weeklyAlertData.length >= 2 && weeklyAlertData[weeklyAlertData.length - 1].alerts > weeklyAlertData[0].alerts ? 'up' : 'down';
+  const caseTrend = weeklyCaseData.length >= 2 && weeklyCaseData[weeklyCaseData.length - 1].opened > weeklyCaseData[0].opened ? 'up' : 'down';
 
   // Risk distribution
   const riskData = [
@@ -156,11 +155,11 @@ export default function RiskIntelligence({ data }) {
         <div className="mt-3 grid grid-cols-2 gap-3">
           <div className="bg-orange-50 rounded-lg p-3 text-center">
             <div className="text-xs text-orange-600 font-medium mb-1">This Week Opened</div>
-            <div className="text-2xl font-bold text-orange-700">{weeklyCaseData[3].opened}</div>
+            <div className="text-2xl font-bold text-orange-700">{weeklyCaseData[weeklyCaseData.length - 1]?.opened || 0}</div>
           </div>
           <div className="bg-green-50 rounded-lg p-3 text-center">
             <div className="text-xs text-green-600 font-medium mb-1">This Week Closed</div>
-            <div className="text-2xl font-bold text-green-700">{weeklyCaseData[3].closed}</div>
+            <div className="text-2xl font-bold text-green-700">{weeklyCaseData[weeklyCaseData.length - 1]?.closed || 0}</div>
           </div>
         </div>
       </div>

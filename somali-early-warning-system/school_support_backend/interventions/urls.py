@@ -18,7 +18,7 @@ urlpatterns = [
     # Existing intervention cases
     path("", InterventionCaseListCreateView.as_view(), name="intervention-list-create"),
     path("dashboard/", FormMasterDashboardView.as_view(), name="form-master-dashboard"),
-    path("cases/<int:pk>/", InterventionCaseDetailView.as_view(), name="intervention-detail"),
+    path("<int:case_id>/", InterventionCaseDetailView.as_view(), name="intervention-detail"),
     path("alert/<int:alert_id>/", InterventionsByAlertView.as_view(), name="interventions-by-alert"),
     
     # New intervention meetings
