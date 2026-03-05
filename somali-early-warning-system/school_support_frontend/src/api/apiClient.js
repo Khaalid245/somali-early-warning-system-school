@@ -2,7 +2,7 @@ import axios from "axios";
 import { generateReplayProtectionHeaders } from '../utils/replayProtection';
 
 const api = axios.create({
-  baseURL: "http://139.59.153.67:8000/api",
+  baseURL: import.meta.env.VITE_API_URL || "http://139.59.153.67:8000/api",
   withCredentials: true,
   timeout: 30000,
 });
@@ -62,8 +62,9 @@ api.interceptors.response.use(
         isRefreshing = true;
 
         try {
+          const baseURL = import.meta.env.VITE_API_URL || "http://139.59.153.67:8000/api";
           await axios.post(
-            "http://139.59.153.67:8000/api/auth/refresh/",
+            `${baseURL}/auth/refresh/`,
             {},
             { withCredentials: true }
           );
