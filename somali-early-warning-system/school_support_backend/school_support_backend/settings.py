@@ -230,6 +230,11 @@ if not DEBUG:
     prod_origins = os.getenv('CORS_ALLOWED_ORIGINS', '')
     if prod_origins:
         CORS_ALLOWED_ORIGINS.extend(prod_origins.split(','))
+else:
+    # Allow IP-based origins in development
+    CORS_ALLOWED_ORIGINS.extend([
+        'http://139.59.153.67:5173',
+    ])
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_HEADERS = [
     'accept',
@@ -267,7 +272,16 @@ SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 # CSRF Protection
 CSRF_COOKIE_HTTPONLY = False  # Must be False for JavaScript access
 CSRF_COOKIE_SAMESITE = 'Lax'
-CSRF_TRUSTED_ORIGINS = ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://139.59.153.67:5173', 'http://139.59.153.67:8000']
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+    'http://139.59.153.67:5173',
+    'http://139.59.153.67:8000',
+]
+if not DEBUG:
+    prod_csrf_origins = os.getenv('CSRF_TRUSTED_ORIGINS', '')
+    if prod_csrf_origins:
+        CSRF_TRUSTED_ORIGINS.extend(prod_csrf_origins.split(','))
 
 # JWT Settings
 from datetime import timedelta

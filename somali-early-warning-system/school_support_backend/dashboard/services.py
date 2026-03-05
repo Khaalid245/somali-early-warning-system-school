@@ -533,6 +533,15 @@ def get_teacher_dashboard_data(user, filters):
     if not teacher_subjects:
         empty_dashboard = {
             "role": "teacher",
+            "status": "no_assignments",
+            "message": "No subjects assigned yet. Please contact your administrator to get started.",
+            "contact_admin": True,
+            "onboarding_steps": [
+                "Contact your administrator for subject assignments",
+                "Once assigned, you can take daily attendance",
+                "Monitor student alerts and risk indicators",
+                "Track attendance trends over time"
+            ],
             "empty_dashboard_guidance": {
                 "status": "no_assignments",
                 "message": "No subjects assigned yet. Please contact your administrator to get started.",
@@ -669,11 +678,9 @@ def get_teacher_dashboard_data(user, filters):
     urgent_alerts = [
         {
             **alert,
-            'visual_indicators': {
-                'status_badge': _get_alert_visual_indicator(alert['risk_level'], alert['status'])['badge'],
-                'days_since_created': (today - alert['alert_date'].date()).days if hasattr(alert['alert_date'], 'date') else (today - alert['alert_date']).days,
-                'urgency_score': _calculate_alert_urgency(alert['risk_level'], alert['status'], alert['alert_date'].date() if hasattr(alert['alert_date'], 'date') else alert['alert_date'])
-            }
+            'visual_indicator': _get_alert_visual_indicator(alert['risk_level'], alert['status']),
+            'days_since_created': (today - alert['alert_date'].date()).days if hasattr(alert['alert_date'], 'date') else (today - alert['alert_date']).days,
+            'urgency_score': _calculate_alert_urgency(alert['risk_level'], alert['status'], alert['alert_date'].date() if hasattr(alert['alert_date'], 'date') else alert['alert_date'])
         }
         for alert in urgent_alerts_raw
     ]
@@ -782,6 +789,7 @@ def get_teacher_dashboard_data(user, filters):
     return cache_dashboard_data(cache_key, {
         "role": "teacher",
         "time_range_info": {
+            "range_name": date_range['range_name'],
             "current_range": date_range['display_name'],
             "start_date": date_range['start_date'].isoformat(),
             "end_date": date_range['end_date'].isoformat()
@@ -857,7 +865,7 @@ def _get_student_progress_alerts(teacher_subjects):
 def _get_weekly_attendance_summary(teacher_subjects, today):
     """Get weekly attendance summary by day"""
     week_ago = today - timedelta(days=7)
-    weekly_summary = {}
+    weekly_summary = []
     
     for i in range(7):
         day = week_ago + timedelta(days=i)
@@ -871,18 +879,22 @@ def _get_weekly_attendance_summary(teacher_subjects, today):
             late=Count('record_id', filter=Q(status='late'))
         )
         
-        day_name = day.strftime('%A').lower()
+        day_name = day.strftime('%A')
         total = stats['total'] or 0
         present = stats['present'] or 0
         rate = round((present / max(total, 1)) * 100, 1) if total > 0 else 0
         
-        weekly_summary[day_name] = {
+        weekly_summary.append({
+            'day': day_name,
+            'day_name': day_name,
+            'date': day.isoformat(),
             'total': total,
             'present': present,
             'absent': stats['absent'] or 0,
             'late': stats['late'] or 0,
-            'rate': f"{rate}%"
-        }
+            'rate': rate,
+            'attendance_rate': rate
+        })
     
     return weekly_summary
 
@@ -895,7 +907,9 @@ def _generate_action_items(absent_today, active_alerts, urgent_alerts, teacher_s
     if len(urgent_alerts) > 0:
         critical_students = [a['student__full_name'] for a in urgent_alerts[:3]]
         items.append({
+            'type': 'urgent_intervention',
             'category': 'Urgent Intervention Required',
+            'message': f'Immediate attention needed for {len(urgent_alerts)} students',
             'description': f'Immediate attention needed for {len(urgent_alerts)} students',
             'priority': 'Critical',
             'count': len(urgent_alerts),
@@ -906,7 +920,9 @@ def _generate_action_items(absent_today, active_alerts, urgent_alerts, teacher_s
     # High priority items
     if absent_today > 5:
         items.append({
+            'type': 'high_absence',
             'category': 'High Absence Rate',
+            'message': f'{absent_today} students absent today - above threshold',
             'description': f'{absent_today} students absent today - above threshold',
             'priority': 'High',
             'count': absent_today,
@@ -915,7 +931,9 @@ def _generate_action_items(absent_today, active_alerts, urgent_alerts, teacher_s
         })
     elif absent_today > 0:
         items.append({
+            'type': 'attendance_followup',
             'category': 'Attendance Follow-up',
+            'message': f'Follow up with {absent_today} students absent today',
             'description': f'Follow up with {absent_today} students absent today',
             'priority': 'Medium',
             'count': absent_today,
@@ -926,7 +944,9 @@ def _generate_action_items(absent_today, active_alerts, urgent_alerts, teacher_s
     # Alert management
     if active_alerts > 3:
         items.append({
+            'type': 'alert_backlog',
             'category': 'Alert Backlog',
+            'message': f'{active_alerts} active alerts need review',
             'description': f'{active_alerts} active alerts need review',
             'priority': 'High',
             'count': active_alerts,
@@ -935,7 +955,9 @@ def _generate_action_items(absent_today, active_alerts, urgent_alerts, teacher_s
         })
     elif active_alerts > 0:
         items.append({
+            'type': 'alert_review',
             'category': 'Alert Review',
+            'message': f'Review {active_alerts} active student alerts',
             'description': f'Review {active_alerts} active student alerts',
             'priority': 'Medium',
             'count': active_alerts,
@@ -954,7 +976,9 @@ def _generate_action_items(absent_today, active_alerts, urgent_alerts, teacher_s
         
         if declining_students.exists():
             items.append({
+                'type': 'declining_pattern',
                 'category': 'Declining Attendance Pattern',
+                'message': f'{declining_students.count()} students with 3+ absences this week',
                 'description': f'{declining_students.count()} students with 3+ absences this week',
                 'priority': 'High',
                 'count': declining_students.count(),
@@ -964,7 +988,9 @@ def _generate_action_items(absent_today, active_alerts, urgent_alerts, teacher_s
     
     if not items:
         items.append({
+            'type': 'all_clear',
             'category': 'All Clear',
+            'message': 'All caught up! Great work maintaining student engagement.',
             'description': 'All caught up! Great work maintaining student engagement.',
             'priority': 'Low',
             'count': 0,
