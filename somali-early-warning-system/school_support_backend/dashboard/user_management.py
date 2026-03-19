@@ -4,6 +4,8 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.contrib.auth.hashers import make_password
 from django.db import transaction
+import secrets
+import string
 
 from users.models import User
 from students.models import Classroom, Student, StudentEnrollment
@@ -76,6 +78,16 @@ def create_user(request):
         # Check for duplicate email (case-insensitive)
         if User.objects.filter(email__iexact=email).exists():
             return Response({'error': 'Email already exists'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Validate password using Django's validators
+        from django.contrib.auth.password_validation import validate_password
+        from django.core.exceptions import ValidationError
+        try:
+            validate_password(password)
+        except ValidationError as e:
+            # Join all error messages into a single string for frontend display
+            error_message = '. '.join(e.messages) if hasattr(e, 'messages') else str(e)
+            return Response({'error': error_message}, status=status.HTTP_400_BAD_REQUEST)
         
         user = User.objects.create(
             name=name,
@@ -199,6 +211,82 @@ def enable_user(request, user_id):
     )
     
     return Response({'message': 'User enabled successfully'})
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def reset_user_password(request, user_id):
+    """Reset user password to a temporary password"""
+    
+    if request.user.role != 'admin':
+        return Response({'error': 'Admin access required'}, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+    # Generate secure temporary password (12 characters)
+    alphabet = string.ascii_letters + string.digits
+    temp_password = ''.join(secrets.choice(alphabet) for _ in range(12))
+    
+    # Update user password
+    user.password = make_password(temp_password)
+    user.save()
+    
+    # Send email notification to user
+    email_sent = False
+    try:
+        from django.core.mail import send_mail
+        from django.conf import settings
+        
+        send_mail(
+            subject='Password Reset - School Early Warning System',
+            message=f"""Dear {user.name},
+
+Your password has been reset by the system administrator.
+
+Your temporary password is: {temp_password}
+
+Please use this password to log in to your account. For security reasons, we recommend changing your password after logging in.
+
+Login URL: {settings.FRONTEND_URL or 'http://localhost:5173'}/login
+
+If you did not request this password reset, please contact the administrator immediately.
+
+Best regards,
+School Administration
+School Early Warning System""",
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[user.email],
+            fail_silently=False,
+        )
+        email_sent = True
+        print(f"✅ Password reset email sent to {user.email}")
+    except Exception as e:
+        print(f"⚠️ Failed to send email: {str(e)}")
+        # Don't fail the request if email fails
+    
+    # Log action
+    from dashboard.models import AuditLog
+    AuditLog.objects.create(
+        user=request.user,
+        action='password_reset',
+        description=f'Reset password for user {user.name}',
+        metadata={
+            'user_id': user_id, 
+            'reset_by': request.user.name,
+            'email_sent': email_sent
+        }
+    )
+    
+    return Response({
+        'message': 'Password reset successfully',
+        'new_password': temp_password,
+        'user_name': user.name,
+        'user_email': user.email,
+        'email_sent': email_sent
+    })
 
 
 # =====================================================

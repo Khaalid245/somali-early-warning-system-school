@@ -1,4 +1,4 @@
-from django.urls import path
+from django.urls import path, include
 from .views import (
     SubjectListCreateView,
     SubjectDetailView,
@@ -15,4 +15,7 @@ urlpatterns = [
     # Teaching Assignments
     path("assignments/", TeachingAssignmentListCreateView.as_view(), name="assignment-list-create"),
     path("assignments/<int:pk>/", TeachingAssignmentDetailView.as_view(), name="assignment-detail"),
+    
+    # Timetable Management (Professional School Scheduling)
+    path("schedule/", include('academics.schedule_urls')),
 ]

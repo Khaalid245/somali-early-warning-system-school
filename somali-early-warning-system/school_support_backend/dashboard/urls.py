@@ -21,6 +21,7 @@ from .user_management import (
     update_user,
     disable_user,
     enable_user,
+    reset_user_password,
     list_classrooms,
     create_classroom,
     update_classroom,
@@ -65,6 +66,7 @@ urlpatterns = [
     path("admin/users/<int:user_id>/", update_user, name="update_user"),
     path("admin/users/<int:user_id>/disable/", disable_user, name="disable_user"),
     path("admin/users/<int:user_id>/enable/", enable_user, name="enable_user"),
+    path("admin/users/<int:user_id>/reset-password/", reset_user_password, name="reset_user_password"),
     
     # Classroom Management
     path("admin/classrooms/", list_classrooms, name="list_classrooms"),

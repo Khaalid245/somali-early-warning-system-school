@@ -2,12 +2,24 @@ from django.db import models
 from students.models import Student, Classroom
 from users.models import User
 from academics.models import Subject
+from django.utils import timezone
 
 
 # -----------------------------------
 # ATTENDANCE SESSION (Master)
 # -----------------------------------
 class AttendanceSession(models.Model):
+
+    PERIOD_CHOICES = [
+        ('1', 'Period 1'),
+        ('2', 'Period 2'), 
+        ('3', 'Period 3'),
+        ('4', 'Period 4'),
+        ('5', 'Period 5'),
+        ('6', 'Period 6'),
+        ('morning', 'Morning Session'),
+        ('afternoon', 'Afternoon Session'),
+    ]
 
     session_id = models.AutoField(primary_key=True)
 
@@ -34,19 +46,22 @@ class AttendanceSession(models.Model):
     )
 
     attendance_date = models.DateField(db_index=True)
+    period = models.CharField(max_length=20, choices=PERIOD_CHOICES, default='1')
+    recorded_at = models.DateTimeField(default=timezone.now)  # When attendance was taken
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = ("classroom", "subject", "attendance_date")
+        unique_together = ("classroom", "subject", "teacher", "attendance_date", "period")
         indexes = [
             models.Index(fields=["attendance_date"]),
             models.Index(fields=["classroom", "subject"]),
+            models.Index(fields=["recorded_at"]),
         ]
 
     def __str__(self):
-        return f"{self.classroom.name} - {self.subject.name} - {self.attendance_date}"
+        return f"{self.classroom.name} - {self.subject.name} - {self.attendance_date} ({self.period})"
 
 
 # -----------------------------------
@@ -83,6 +98,7 @@ class AttendanceRecord(models.Model):
     )
 
     remarks = models.TextField(blank=True, null=True)
+    marked_at = models.DateTimeField(default=timezone.now)  # Exact time student was marked
 
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -91,6 +107,7 @@ class AttendanceRecord(models.Model):
         indexes = [
             models.Index(fields=["student"]),
             models.Index(fields=["status"]),
+            models.Index(fields=["marked_at"]),
         ]
 
     def __str__(self):
@@ -147,3 +164,82 @@ class AttendanceRecordArchive(models.Model):
     
     def __str__(self):
         return f"[ARCHIVE] {self.student.full_name} - {self.status}"
+
+
+# -----------------------------------
+# ATTENDANCE AUDIT TRAIL
+# -----------------------------------
+class AttendanceAudit(models.Model):
+    """Audit trail for attendance changes"""
+    
+    ACTION_CHOICES = [
+        ('create', 'Created'),
+        ('update', 'Updated'),
+        ('delete', 'Deleted'),
+    ]
+    
+    record = models.ForeignKey(
+        AttendanceRecord,
+        on_delete=models.CASCADE,
+        related_name='audit_logs'
+    )
+    
+    action = models.CharField(max_length=10, choices=ACTION_CHOICES)
+    old_status = models.CharField(max_length=10, blank=True, null=True)
+    new_status = models.CharField(max_length=10, blank=True, null=True)
+    old_remarks = models.TextField(blank=True, null=True)
+    new_remarks = models.TextField(blank=True, null=True)
+    
+    changed_by = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='attendance_changes'
+    )
+    
+    changed_at = models.DateTimeField(auto_now_add=True)
+    reason = models.TextField(blank=True, null=True)
+    
+    class Meta:
+        ordering = ['-changed_at']
+        indexes = [
+            models.Index(fields=['record', 'changed_at']),
+            models.Index(fields=['changed_by']),
+        ]
+    
+    def __str__(self):
+        return f"{self.record.student.full_name} - {self.action} by {self.changed_by.email}"
+
+
+# -----------------------------------
+# SCHOOL SETTINGS (Configurable Thresholds)
+# -----------------------------------
+class SchoolSettings(models.Model):
+    """Configurable school-wide attendance settings"""
+    
+    # Absence thresholds
+    consecutive_absence_threshold = models.IntegerField(default=3, help_text="Days of consecutive absence before alert")
+    monthly_absence_threshold = models.IntegerField(default=5, help_text="Monthly absences before intervention")
+    
+    # Tardiness settings
+    late_arrival_minutes = models.IntegerField(default=15, help_text="Minutes late before marked as tardy")
+    tardy_threshold = models.IntegerField(default=3, help_text="Tardies per week before alert")
+    
+    # Notification settings
+    parent_notification_enabled = models.BooleanField(default=True)
+    admin_notification_enabled = models.BooleanField(default=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "School Settings"
+        verbose_name_plural = "School Settings"
+    
+    def __str__(self):
+        return f"School Settings (Updated: {self.updated_at.strftime('%Y-%m-%d')})"
+    
+    @classmethod
+    def get_settings(cls):
+        """Get or create school settings"""
+        settings, created = cls.objects.get_or_create(pk=1)
+        return settings

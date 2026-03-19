@@ -67,6 +67,7 @@ INSTALLED_APPS = [
     'academics',
     'dashboard',
     'messaging',
+    'notifications',
 ]
 
 
@@ -156,7 +157,7 @@ AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
-    # {'NAME': 'core.password_validators.StrongPasswordValidator'},  # Disabled for existing users
+    {'NAME': 'core.password_validators.StrongPasswordValidator'},  # Now enabled for complete validation
 ]
 
 
@@ -209,12 +210,12 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_THROTTLE_RATES': {
         'anon': '100/hour',
-        'user': '1000/hour',
+        'user': '5000/hour',  # Increased for authenticated users
         'login': '10/hour',
         'sensitive': '10/hour',
         'file_upload': '10/hour',
         'bulk': '5/hour',
-        'dashboard': '100/hour',
+        'dashboard': '1000/hour',  # Increased for dashboard
     },
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 50,
@@ -250,9 +251,10 @@ CORS_ALLOW_HEADERS = [
     'x-request-timestamp',
 ]
 
-# Security Settings
+# Security Settings - Force disable SSL redirect in development
+SECURE_SSL_REDIRECT = False  # Always False for development
 if not DEBUG:
-    SECURE_SSL_REDIRECT = True
+    # Only enable these in production
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_BROWSER_XSS_FILTER = True
@@ -261,6 +263,10 @@ if not DEBUG:
     SECURE_HSTS_SECONDS = 31536000  # 1 year
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
+else:
+    # Development settings
+    SESSION_COOKIE_SECURE = False
+    CSRF_COOKIE_SECURE = False
 
 # Session Security
 SESSION_COOKIE_HTTPONLY = True
@@ -316,7 +322,7 @@ else:
         }
     }
 
-# Email Configuration
+# Email Configuration - Professional Grade
 EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
 EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
 EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
@@ -324,6 +330,22 @@ EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True') == 'True'
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'noreply@schoolsupport.com')
+
+# Professional Email Settings for Capstone Project
+SCHOOL_NAME = os.getenv('SCHOOL_NAME', 'Somali Early Warning School System')
+SCHOOL_PHONE = os.getenv('SCHOOL_PHONE', '+252-XX-XXXXXXX')
+TECH_SUPPORT_EMAIL = os.getenv('TECH_SUPPORT_EMAIL', 'support@schoolsupport.com')
+SCHOOL_ADDRESS = os.getenv('SCHOOL_ADDRESS', 'Mogadishu, Somalia')
+
+# Email Sender Configuration Options
+EMAIL_SENDER_TYPE = os.getenv('EMAIL_SENDER_TYPE', 'form_master')  # Options: 'school', 'principal', 'form_master'
+SCHOOL_PRINCIPAL_NAME = os.getenv('SCHOOL_PRINCIPAL_NAME', 'Dr. Ahmed Hassan')
+SCHOOL_PRINCIPAL_EMAIL = os.getenv('SCHOOL_PRINCIPAL_EMAIL', 'principal@school.edu')
+
+# Email Templates Configuration
+EMAIL_TIMEOUT = 30  # seconds
+EMAIL_MAX_RECIPIENTS = 50
+EMAIL_RETRY_ATTEMPTS = 3
 
 # Frontend URL for email links
 FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:5173')

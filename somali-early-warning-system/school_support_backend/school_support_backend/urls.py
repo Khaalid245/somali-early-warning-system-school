@@ -66,6 +66,6 @@ urlpatterns = [
 
 ]
 
-# Serve media files in development
-if settings.DEBUG:
+# Serve media files in development AND when DEBUG is False but ENVIRONMENT is development
+if settings.DEBUG or settings.ENVIRONMENT == 'development':
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

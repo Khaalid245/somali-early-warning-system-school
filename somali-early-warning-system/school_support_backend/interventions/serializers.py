@@ -38,6 +38,14 @@ class InterventionMeetingSerializer(serializers.ModelSerializer):
             'is_overdue', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'created_by']
+        extra_kwargs = {
+            'student': {'required': False},
+            'meeting_date': {'required': False},
+            'absence_reason': {'required': False},
+            'root_cause': {'required': False},
+            'intervention_notes': {'required': False},
+            'action_plan': {'required': False},
+        }
     
     def get_progress_count(self, obj):
         return obj.progress_updates.count()

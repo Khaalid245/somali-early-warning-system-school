@@ -1,7 +1,8 @@
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, parser_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 from django.contrib.auth.hashers import make_password
@@ -13,6 +14,7 @@ from dashboard.models import SystemSettings
 
 @api_view(['GET', 'PUT'])
 @permission_classes([IsAuthenticated])
+@parser_classes([MultiPartParser, FormParser, JSONParser])
 def user_profile(request):
     """Get or update user profile"""
     user = request.user
@@ -43,10 +45,16 @@ def user_profile(request):
         
         # Handle profile photo upload
         if 'profile_photo' in request.FILES:
-            print(f"Uploading new photo: {request.FILES['profile_photo'].name}")
+            photo_file = request.FILES['profile_photo']
+            print(f"Uploading new photo: {photo_file.name}, size: {photo_file.size}")
             if user.profile_image:
                 user.profile_image.delete(save=False)
-            user.profile_image = request.FILES['profile_photo']
+            user.profile_image = photo_file
+        elif 'profile_photo' in request.data and request.data['profile_photo'] is None:
+            # Handle photo removal
+            if user.profile_image:
+                user.profile_image.delete(save=False)
+            user.profile_image = None
         
         user.save()
         print(f"User saved. Profile image: {user.profile_image}")

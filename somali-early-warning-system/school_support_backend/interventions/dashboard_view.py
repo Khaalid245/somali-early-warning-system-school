@@ -54,10 +54,12 @@ class FormMasterDashboardView(APIView):
             from django.db.models import Count, Case, When, IntegerField
             from datetime import date
             
-            # Get students with attendance stats and classroom info
+            # Get students with attendance stats and classroom info - ONLY FROM FORM MASTER'S CLASSROOM
             high_risk_students = Student.objects.filter(
                 is_active=True,
-                risk_profile__isnull=False
+                risk_profile__isnull=False,
+                enrollments__classroom__form_master=user,  # CRITICAL FIX: Only show form master's students
+                enrollments__is_active=True
             ).select_related(
                 'risk_profile'
             ).prefetch_related(
@@ -67,7 +69,7 @@ class FormMasterDashboardView(APIView):
                 present_count=Count('attendance_records', filter=Q(attendance_records__status='present')),
                 absent_count=Count('attendance_records', filter=Q(attendance_records__status='absent')),
                 late_count=Count('attendance_records', filter=Q(attendance_records__status='late'))
-            ).order_by('-risk_profile__risk_score')[:20]
+            ).distinct().order_by('-risk_profile__risk_score')[:20]
             
             # Mark overdue cases
             today = date.today()

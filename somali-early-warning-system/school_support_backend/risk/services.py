@@ -206,12 +206,14 @@ def _handle_alerts_and_interventions(student, old_level, new_level):
     if new_level in ["high", "critical"]:
 
         if not active_alert:
+            # Create alert WITHOUT subject (overall attendance alert)
             active_alert = Alert.objects.create(
                 student=student,
                 alert_type="attendance",
                 risk_level=new_level,
                 status="active",
-                assigned_to=form_master
+                assigned_to=form_master,
+                subject=None  # Overall attendance alert, not subject-specific
             )
         else:
             if active_alert.risk_level != new_level:

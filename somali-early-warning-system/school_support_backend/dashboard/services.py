@@ -91,6 +91,9 @@ def get_monthly_counts(model, date_field, base_filter):
 
 
 def get_admin_dashboard_data(user, filters):
+    from interventions.models import InterventionMeeting
+    from interventions.serializers import InterventionCaseSerializer, InterventionMeetingSerializer
+    
     # Count only students with active enrollments
     total_students = Student.objects.filter(
         is_active=True,
@@ -115,14 +118,58 @@ def get_admin_dashboard_data(user, filters):
     alert_change_percent = calculate_percentage_change(current_alerts, previous_alerts)
 
     open_cases_qs = InterventionCase.objects.filter(
-        status__in=["open", "in_progress", "awaiting_parent"]
+        status__in=["open", "in_progress", "awaiting_parent", "escalated_to_admin"]
     )
     open_cases_qs = apply_date_filter(open_cases_qs, filters, "created_at")
     open_cases = open_cases_qs.count()
+    
+    # Get escalated cases with full details
+    escalated_cases_qs = InterventionCase.objects.filter(
+        status='escalated_to_admin'
+    ).select_related('student', 'assigned_to', 'alert').order_by('-updated_at')
+    
+    escalated_cases = []
+    from datetime import date
+    today = date.today()
+    
+    for case in escalated_cases_qs:
+        days_open = (today - case.created_at.date()).days
+        escalated_cases.append({
+            'case_id': case.case_id,
+            'student_name': case.student.full_name,
+            'student_id': case.student.student_id,
+            'form_master': case.assigned_to.get_full_name() if case.assigned_to else 'Unassigned',
+            'escalation_reason': case.escalation_reason or 'No reason provided',
+            'status': case.status,
+            'days_open': days_open,
+            'is_overdue': days_open > 7,
+            'risk_level': case.alert.risk_level if case.alert else 'medium',
+            'notes': case.outcome_notes or case.meeting_notes,
+        })
+    
+    # Get escalated meetings
+    escalated_meetings_qs = InterventionMeeting.objects.filter(
+        status='escalated'
+    ).select_related('student', 'created_by').order_by('-updated_at')
+    
+    for meeting in escalated_meetings_qs:
+        days_open = (today - meeting.meeting_date).days
+        escalated_cases.append({
+            'case_id': f'M{meeting.id}',
+            'student_name': meeting.student.full_name,
+            'student_id': meeting.student.student_id,
+            'form_master': meeting.created_by.get_full_name(),
+            'escalation_reason': f'{meeting.get_root_cause_display()} - {meeting.absence_reason}',
+            'status': 'escalated',
+            'days_open': days_open,
+            'is_overdue': days_open > 7,
+            'risk_level': meeting.urgency_level,
+            'notes': meeting.intervention_notes,
+        })
 
     current_cases, previous_cases = get_monthly_counts(
         InterventionCase, "created_at",
-        {"status__in": ["open", "in_progress", "awaiting_parent"]}
+        {"status__in": ["open", "in_progress", "awaiting_parent", "escalated_to_admin"]}
     )
 
     case_change_percent = calculate_percentage_change(current_cases, previous_cases)
@@ -134,7 +181,7 @@ def get_admin_dashboard_data(user, filters):
 
     monthly_case_trend = get_monthly_trend(
         InterventionCase, "created_at",
-        {"status__in": ["open", "in_progress", "awaiting_parent"]}
+        {"status__in": ["open", "in_progress", "awaiting_parent", "escalated_to_admin"]}
     )
 
     case_status_breakdown = (
@@ -152,6 +199,7 @@ def get_admin_dashboard_data(user, filters):
         "open_cases": open_cases,
         "open_cases_change_percent": case_change_percent,
         "open_cases_trend": get_trend_direction(case_change_percent),
+        "escalated_cases": escalated_cases,
         "monthly_alert_trend": monthly_alert_trend,
         "monthly_case_trend": monthly_case_trend,
         "case_status_breakdown": list(case_status_breakdown),
@@ -528,6 +576,7 @@ def get_teacher_dashboard_data(user, filters):
     )
     
     teacher_subjects = [assignment.subject.subject_id for assignment in teaching_assignments]
+    teacher_classrooms = [assignment.classroom.class_id for assignment in teaching_assignments]
 
     # If no subjects assigned, return helpful guidance
     if not teacher_subjects:
@@ -600,8 +649,15 @@ def get_teacher_dashboard_data(user, filters):
     absent_change_percent = calculate_percentage_change(current_absent, previous_absent)
 
     # Optimized alerts query with aggregation
+    # FIXED: Show alerts for students in teacher's classes (not just subject-specific alerts)
+    from students.models import StudentEnrollment
+    students_in_classes = StudentEnrollment.objects.filter(
+        classroom_id__in=teacher_classrooms,
+        is_active=True
+    ).values_list('student_id', flat=True)
+    
     alert_stats = Alert.objects.filter(
-        subject_id__in=teacher_subjects
+        student_id__in=students_in_classes
     ).aggregate(
         active_alerts=Count('alert_id', filter=Q(
             status__in=["active", "under_review", "escalated"]
@@ -631,7 +687,7 @@ def get_teacher_dashboard_data(user, filters):
     monthly_alert_trend = get_monthly_trend(
         Alert, "alert_date",
         {
-            "subject_id__in": teacher_subjects,
+            "student_id__in": students_in_classes,
             "status__in": ["active", "under_review", "escalated"]
         }
     )
@@ -664,7 +720,7 @@ def get_teacher_dashboard_data(user, filters):
 
     # Optimized urgent alerts query with visual indicators + PAGINATION
     urgent_alerts_qs = Alert.objects.filter(
-        subject_id__in=teacher_subjects,
+        student_id__in=students_in_classes,
         status__in=["active", "escalated"]
     ).select_related("student", "subject").order_by("-risk_level", "-alert_date")
     
@@ -678,6 +734,7 @@ def get_teacher_dashboard_data(user, filters):
     urgent_alerts = [
         {
             **alert,
+            'subject__name': alert['subject__name'] or 'Overall Attendance',  # Handle null subject
             'visual_indicator': _get_alert_visual_indicator(alert['risk_level'], alert['status']),
             'days_since_created': (today - alert['alert_date'].date()).days if hasattr(alert['alert_date'], 'date') else (today - alert['alert_date']).days,
             'urgency_score': _calculate_alert_urgency(alert['risk_level'], alert['status'], alert['alert_date'].date() if hasattr(alert['alert_date'], 'date') else alert['alert_date'])

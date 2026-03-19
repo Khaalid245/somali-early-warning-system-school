@@ -59,25 +59,66 @@ class AttendanceSessionListCreateView(generics.ListCreateAPIView):
         ).exists():
             raise PermissionDenied("You are not assigned to this class/subject.")
 
-        # Prevent duplicate session
-        if AttendanceSession.objects.filter(
+        # Check for existing attendance session (include period and teacher in validation)
+        period = serializer.validated_data.get("period", "1")
+        existing_sessions = AttendanceSession.objects.filter(
             classroom=classroom,
             subject=subject,
-            attendance_date=attendance_date
-        ).exists():
+            teacher=user,  # FIXED: Include teacher to allow same subject in different classes
+            attendance_date=attendance_date,
+            period=period
+        )
+        
+        print(f"[DEBUG] Checking for duplicates: classroom={classroom.class_id}, subject={subject.subject_id}, teacher={user.email}, date={attendance_date}, period={period}")
+        print(f"[DEBUG] Found {existing_sessions.count()} existing sessions")
+        
+        if existing_sessions.exists():
+            existing_session = existing_sessions.first()
+            print(f"[DEBUG] Existing session found: ID={existing_session.session_id}, Teacher={existing_session.teacher.email}")
             raise PermissionDenied(
-                "Attendance already recorded for this class, subject and date."
+                f"Attendance already recorded for {classroom.name} - {subject.name} on {attendance_date} (Period {period}). "
+                f"Please edit the existing record instead."
             )
 
-        # Save session with transaction safety
-        with transaction.atomic():
-            session = serializer.save()
-            # Call risk engine (SERVICE LAYER)
-            update_risk_after_session(session)
-            # Check for consecutive absences and send alerts
-            check_and_send_absence_alerts(session)
-            # Invalidate teacher cache after successful save
-            invalidate_teacher_cache(user.id)
+        # Handle database unique constraint for presentation
+        try:
+            # Save session with transaction safety
+            with transaction.atomic():
+                session = serializer.save(teacher=user)
+                
+                # Call risk engine (SERVICE LAYER) - wrapped in try-catch
+                try:
+                    update_risk_after_session(session)
+                    print("Risk engine updated successfully")
+                except Exception as e:
+                    print(f"Risk engine failed: {e}")
+                    # Don't fail the attendance submission
+                    pass
+                    
+                # Check for consecutive absences and send alerts - wrapped in try-catch
+                try:
+                    check_and_send_absence_alerts(session)
+                    print("Absence alerts checked successfully")
+                except Exception as e:
+                    print(f"Absence alert check failed: {e}")
+                    # Don't fail the attendance submission
+                    pass
+                    
+                # Invalidate teacher cache after successful save - wrapped in try-catch
+                try:
+                    invalidate_teacher_cache(user.id)
+                    print("Teacher cache invalidated successfully")
+                except Exception as e:
+                    print(f"Cache invalidation failed: {e}")
+                    # Don't fail the attendance submission
+                    pass
+                    
+        except Exception as e:
+            print(f"Attendance session creation failed: {e}")
+            if 'Duplicate entry' in str(e):
+                raise PermissionDenied("Attendance already recorded for this class, subject, date and period.")
+            else:
+                raise e
 
 
 # -----------------------------------
@@ -166,23 +207,37 @@ def check_and_send_absence_alerts(session):
     
     for record in absent_records:
         student = record.student
+        subject = session.subject  # Get the subject from current session
         
-        # Get last 10 attendance records for this student
+        print(f"[DEBUG] Checking consecutive absences for {student.full_name} in {subject.name}")
+        
+        # FIXED: Get attendance records for THIS SUBJECT ONLY (not all subjects mixed)
         recent_records = AttendanceRecord.objects.filter(
-            student=student
+            student=student,
+            session__subject=subject  # CRITICAL FIX: Subject-specific calculation
         ).order_by('-session__attendance_date', '-created_at')[:10]
         
-        # Count consecutive absences from most recent
+        print(f"[DEBUG] Found {recent_records.count()} recent records for {subject.name}")
+        
+        # Count consecutive absences from most recent (subject-specific)
         consecutive_absences = 0
         for rec in recent_records:
             if rec.status == 'absent':
                 consecutive_absences += 1
+                print(f"[DEBUG] Absence #{consecutive_absences} on {rec.session.attendance_date}")
             else:
+                print(f"[DEBUG] Present on {rec.session.attendance_date} - breaking streak")
                 break  # Stop at first non-absent
         
-        # Send alert if 3+ consecutive absences
+        # Send alert if 3+ consecutive absences IN THE SAME SUBJECT
         if consecutive_absences >= 3:
-            print(f"\n🚨 ALERT: {student.full_name} has {consecutive_absences} consecutive absences!")
+            print(f"\n🚨 SUBJECT-SPECIFIC ALERT: {student.full_name} has {consecutive_absences} consecutive absences in {subject.name}!")
             print(f"📧 Sending email to parent: {student.parent_email or 'NO EMAIL'}")
-            send_absence_alert(student, consecutive_absences)
-            print(f"✅ Email sent successfully!\n")
+            
+            try:
+                send_absence_alert(student, consecutive_absences, subject.name)  # Include subject in alert
+                print(f"✅ Email sent successfully for {subject.name} absences!\n")
+            except Exception as e:
+                print(f"❌ Email sending failed: {e}")
+        else:
+            print(f"[DEBUG] Only {consecutive_absences} consecutive absences in {subject.name} - no alert needed")

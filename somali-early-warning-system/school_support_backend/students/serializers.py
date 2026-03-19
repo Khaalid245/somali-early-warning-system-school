@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import Classroom, Student, StudentEnrollment
+from core.xss_sanitizer import sanitize_html
 
 
 # -----------------------------------
@@ -23,6 +24,10 @@ class ClassroomSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
+    
+    def validate_name(self, value):
+        """Sanitize classroom name to prevent XSS"""
+        return sanitize_html(value)
 
 
 # -----------------------------------
@@ -50,6 +55,22 @@ class StudentSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
+    
+    def validate_full_name(self, value):
+        """Sanitize student name to prevent XSS"""
+        return sanitize_html(value)
+    
+    def validate_parent_name(self, value):
+        """Sanitize parent name to prevent XSS"""
+        if value:
+            return sanitize_html(value)
+        return value
+    
+    def validate_admission_number(self, value):
+        """Sanitize admission number to prevent XSS"""
+        if value:
+            return sanitize_html(value)
+        return value
 
 
 # -----------------------------------

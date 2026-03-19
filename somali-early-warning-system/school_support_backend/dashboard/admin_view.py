@@ -206,7 +206,7 @@ class AdminDashboardView(APIView):
             ).count()
             sessions_with_records = AttendanceSession.objects.filter(
                 attendance_date__gte=seven_days_ago,
-                attendance_records__isnull=False
+                records__isnull=False
             ).distinct().count()
             missing_submissions = total_sessions - sessions_with_records
             

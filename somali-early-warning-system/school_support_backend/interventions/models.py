@@ -1,6 +1,8 @@
 from django.db import models
 from django.core.exceptions import ValidationError
 from django.db.models import Q
+from django.utils import timezone
+from datetime import timedelta
 from students.models import Student
 from alerts.models import Alert
 from users.models import User
@@ -89,6 +91,12 @@ class InterventionMeeting(models.Model):
     
     def __str__(self):
         return f"{self.student.full_name} - {self.get_root_cause_display()} ({self.meeting_date})"
+    
+    @classmethod
+    def cleanup_old_records(cls, days=2555):  # 7 years FERPA retention
+        """Remove intervention records older than specified days"""
+        cutoff_date = timezone.now() - timedelta(days=days)
+        return cls.objects.filter(created_at__lt=cutoff_date).delete()
 
 
 # =====================================================
@@ -222,3 +230,9 @@ class InterventionCase(models.Model):
 
     def __str__(self):
         return f"{self.student.full_name} - Case #{self.case_id}"
+    
+    @classmethod
+    def cleanup_old_records(cls, days=2555):  # 7 years FERPA retention
+        """Remove intervention cases older than specified days"""
+        cutoff_date = timezone.now() - timedelta(days=days)
+        return cls.objects.filter(created_at__lt=cutoff_date).delete()

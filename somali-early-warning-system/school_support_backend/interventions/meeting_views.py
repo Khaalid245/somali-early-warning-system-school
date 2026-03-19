@@ -90,12 +90,27 @@ class InterventionMeetingDetailView(generics.RetrieveUpdateDestroyAPIView):
     def perform_update(self, serializer):
         user = self.request.user
         meeting = self.get_object()
+        old_status = meeting.status
         
         # Only creator or admin can update
         if user.role == 'form_master' and meeting.created_by != user:
             raise PermissionDenied("You can only update your own meetings.")
         
-        serializer.save()
+        updated_meeting = serializer.save()
+        
+        # 🔥 CREATE INTERVENTION CASE WHEN ESCALATED
+        if updated_meeting.status == 'escalated' and old_status != 'escalated':
+            from .models import InterventionCase
+            
+            # Create InterventionCase for Admin dashboard
+            InterventionCase.objects.create(
+                student=updated_meeting.student,
+                assigned_to=user,
+                status='escalated_to_admin',
+                escalation_reason=f"Meeting escalated: {updated_meeting.root_cause} - {updated_meeting.absence_reason}",
+                meeting_date=updated_meeting.meeting_date,
+                meeting_notes=updated_meeting.intervention_notes
+            )
     
     def perform_destroy(self, instance):
         user = self.request.user

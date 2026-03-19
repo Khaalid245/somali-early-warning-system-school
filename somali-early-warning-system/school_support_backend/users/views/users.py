@@ -49,18 +49,43 @@ class ChangePasswordView(APIView):
     def post(self, request):
         serializer = ChangePasswordSerializer(data=request.data)
         if not serializer.is_valid():
+            # Handle password validation errors
+            if 'new_password' in serializer.errors:
+                # Join all password validation errors into a single message
+                password_errors = serializer.errors['new_password']
+                if isinstance(password_errors, list):
+                    error_message = '. '.join(password_errors)
+                else:
+                    error_message = str(password_errors)
+                return Response(
+                    {"error": error_message},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         user = request.user
         if not user.check_password(serializer.validated_data['current_password']):
             return Response(
-                {"detail": "Current password is incorrect"},
+                {"error": "Current password is incorrect"},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
         user.set_password(serializer.validated_data['new_password'])
         user.save()
+        
+        # Log the password change for security audit
+        from dashboard.models import AuditLog
+        try:
+            AuditLog.objects.create(
+                user=user,
+                action='password_changed',
+                description=f'User {user.name} changed their password',
+                metadata={'user_id': user.id, 'changed_by': 'self'}
+            )
+        except Exception:
+            pass  # Don't fail password change if audit log fails
+        
         return Response(
-            {"detail": "Password changed successfully"},
+            {"message": "Password changed successfully"},
             status=status.HTTP_200_OK
         )

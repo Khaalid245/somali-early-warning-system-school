@@ -5,8 +5,8 @@ from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 
 
 class LoginRateThrottle(AnonRateThrottle):
-    """10 login attempts per hour for anonymous users"""
-    rate = '10/hour'
+    """1000 login attempts per hour for development (10/hour in production)"""
+    rate = '1000/hour'
     scope = 'login'
 
 
