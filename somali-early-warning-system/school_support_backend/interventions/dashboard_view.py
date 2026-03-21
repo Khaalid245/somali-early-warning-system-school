@@ -11,6 +11,7 @@ from students.models import Student
 from interventions.serializers import InterventionCaseSerializer
 from alerts.serializers import AlertSerializer
 from students.serializers import StudentSerializer
+from interventions.ai_recommendations import get_ai_insights_for_student, get_classroom_ai_summary
 
 
 class FormMasterDashboardView(APIView):
@@ -147,6 +148,18 @@ class FormMasterDashboardView(APIView):
                     'late_count': s.late_count,
                 })
             
+            # AI INSIGHTS - Get AI analysis for top 5 high-risk students
+            ai_insights = []
+            for student in high_risk_students[:5]:  # Top 5 only
+                try:
+                    insights = get_ai_insights_for_student(student)
+                    ai_insights.append(insights)
+                except Exception as e:
+                    print(f"AI insights error for student {student.student_id}: {str(e)}")
+            
+            # Classroom AI Summary
+            classroom_summary = get_classroom_ai_summary(list(high_risk_students))
+            
             return Response({
                 'pending_cases': [{
                     **InterventionCaseSerializer(case).data,
@@ -154,6 +167,8 @@ class FormMasterDashboardView(APIView):
                 } for case in pending_cases_list],
                 'urgent_alerts': AlertSerializer(urgent_alerts, many=True).data,
                 'high_risk_students': high_risk_students_data,
+                'ai_insights': ai_insights,  # NEW: AI recommendations
+                'classroom_summary': classroom_summary,  # NEW: Classroom health
                 'statistics': {
                     'total_cases': stats['total_cases'] or 0,
                     'open_cases': stats['open_cases'] or 0,

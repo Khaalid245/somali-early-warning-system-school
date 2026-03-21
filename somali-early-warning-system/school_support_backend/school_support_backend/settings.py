@@ -210,12 +210,12 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_THROTTLE_RATES': {
         'anon': '100/hour',
-        'user': '5000/hour',  # Increased for authenticated users
+        'user': '100000/hour',
         'login': '10/hour',
         'sensitive': '10/hour',
         'file_upload': '10/hour',
         'bulk': '5/hour',
-        'dashboard': '1000/hour',  # Increased for dashboard
+        'dashboard': '100000/hour',
     },
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 50,
