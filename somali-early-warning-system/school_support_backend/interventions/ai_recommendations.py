@@ -1,6 +1,7 @@
 """
 Simple AI Recommendation Engine
 Rule-based system for student risk analysis and intervention recommendations
+Standard: Day-based counting (UK/international school standard)
 """
 from datetime import date, timedelta
 from django.db.models import Count, Q
@@ -8,88 +9,101 @@ from django.db.models import Count, Q
 
 def calculate_student_risk_score(student):
     """
-    Calculate risk score (0-100) based on attendance patterns
-    Simple, fast, no ML required
+    Calculate risk score (0-100) based on attendance patterns.
+    UK standard: counts distinct DAYS, not sessions.
+    Half-day: absent in morning but present in afternoon (or vice versa) = 0.5.
     """
     try:
         from attendance.models import AttendanceRecord
-        
-        # Get attendance data
-        total_sessions = AttendanceRecord.objects.filter(student=student).count()
-        
-        if total_sessions == 0:
+        from attendance.attendance_utils import compute_attendance_days
+
+        totals = compute_attendance_days(student)
+        total_days = totals['total_days']
+
+        if total_days == 0:
             return {
                 'risk_score': 0,
                 'risk_level': 'unknown',
                 'confidence': 0,
                 'factors': ['No attendance data available']
             }
-        
-        present_count = AttendanceRecord.objects.filter(
-            student=student, status='present'
-        ).count()
-        absent_count = AttendanceRecord.objects.filter(
-            student=student, status='absent'
-        ).count()
-        late_count = AttendanceRecord.objects.filter(
-            student=student, status='late'
-        ).count()
-        
-        attendance_rate = (present_count / total_sessions * 100) if total_sessions > 0 else 0
-        
-        # Get recent trend (last 2 weeks)
+
+        absent_days = totals['absent_days']
+        present_days = totals['present_days']
+        late_days = totals['late_days']
+        attendance_rate = totals['attendance_rate']
+        consecutive_days = totals['consecutive_absent_days']
+
+        # --- Recent trend: last 2 weeks (distinct absent days, UK half-day aware) ---
         two_weeks_ago = date.today() - timedelta(days=14)
-        recent_absences = AttendanceRecord.objects.filter(
+        recent_qs = AttendanceRecord.objects.filter(
             student=student,
-            status='absent',
             session__attendance_date__gte=two_weeks_ago
-        ).count()
-        
-        # Calculate risk score
+        )
+        recent_totals = compute_attendance_days(student, records_qs=recent_qs)
+        recent_absent_dates = recent_totals['absent_days']  # float, half-days counted as 0.5
+
+        # =====================================================
+        # RISK SCORE — International standard thresholds
+        # =====================================================
         risk_score = 0
         factors = []
-        
-        # Factor 1: Overall attendance rate (40 points)
-        if attendance_rate < 70:
+
+        # Factor 1: Attendance rate (40 points)
+        # Standard: <90% = persistent absentee (UK DfE / US standard)
+        if attendance_rate < 75:
             risk_score += 40
-            factors.append(f'Low attendance rate: {attendance_rate:.1f}%')
+            factors.append(f'Critical attendance: {attendance_rate:.1f}% (below 75%)')
         elif attendance_rate < 80:
-            risk_score += 25
-            factors.append(f'Below average attendance: {attendance_rate:.1f}%')
-        elif attendance_rate < 90:
-            risk_score += 10
-            factors.append(f'Moderate attendance: {attendance_rate:.1f}%')
-        
-        # Factor 2: Recent absences (30 points)
-        if recent_absences >= 5:
             risk_score += 30
-            factors.append(f'{recent_absences} absences in last 2 weeks')
-        elif recent_absences >= 3:
+            factors.append(f'Low attendance: {attendance_rate:.1f}% (below 80%)')
+        elif attendance_rate < 90:
+            risk_score += 15
+            factors.append(f'Below standard: {attendance_rate:.1f}% (persistent absentee threshold: 90%)')
+
+        # Factor 2: Consecutive absent days (30 points)
+        # Standard: 3 consecutive days = immediate alert
+        if consecutive_days >= 5:
+            risk_score += 30
+            factors.append(f'{consecutive_days} consecutive absent days — urgent')
+        elif consecutive_days >= 3:
             risk_score += 20
-            factors.append(f'{recent_absences} recent absences')
-        elif recent_absences >= 1:
-            risk_score += 10
-        
-        # Factor 3: Late arrivals (15 points)
-        if late_count >= 10:
-            risk_score += 15
-            factors.append(f'{late_count} late arrivals')
-        elif late_count >= 5:
-            risk_score += 8
-        
-        # Factor 4: Total absences (15 points)
-        if absent_count >= 15:
-            risk_score += 15
-            factors.append(f'{absent_count} total absences')
-        elif absent_count >= 10:
-            risk_score += 10
-        elif absent_count >= 5:
+            factors.append(f'{consecutive_days} consecutive absent days — alert threshold reached')
+        elif consecutive_days >= 1:
             risk_score += 5
-        
-        # Cap at 100
+
+        # Factor 3: Recent absent days in last 2 weeks (20 points)
+        # Standard: 3+ days in 2 weeks = concerning pattern
+        if recent_absent_dates >= 5:
+            risk_score += 20
+            factors.append(f'{recent_absent_dates} absent days in last 2 weeks')
+        elif recent_absent_dates >= 3:
+            risk_score += 12
+            factors.append(f'{recent_absent_dates} absent days in last 2 weeks')
+        elif recent_absent_dates >= 1:
+            risk_score += 5
+
+        # Factor 4: Total absent days this term (10 points)
+        # Standard: 10 days = intervention threshold
+        if absent_days >= 15:
+            risk_score += 10
+            factors.append(f'{int(absent_days)} total absent days — intervention required')
+        elif absent_days >= 10:
+            risk_score += 7
+            factors.append(f'{int(absent_days)} total absent days — approaching intervention threshold')
+        elif absent_days >= 5:
+            risk_score += 3
+
+        # Factor 5: Late days (bonus points)
+        if late_days >= 10:
+            risk_score += 5
+            factors.append(f'{late_days} late arrivals')
+        elif late_days >= 5:
+            risk_score += 3
+
         risk_score = min(risk_score, 100)
-        
-        # Determine risk level
+
+        # --- Risk level (international standard thresholds) ---
         if risk_score >= 75:
             risk_level = 'critical'
         elif risk_score >= 50:
@@ -98,21 +112,27 @@ def calculate_student_risk_score(student):
             risk_level = 'moderate'
         else:
             risk_level = 'low'
-        
-        # Calculate confidence (based on data availability)
-        confidence = min(100, (total_sessions / 20) * 100)
-        
+
+        # Confidence: based on how many school days of data we have
+        # 20 school days (~4 weeks) = full confidence
+        confidence = min(100, int((total_days / 20) * 100))
+
         return {
             'risk_score': risk_score,
             'risk_level': risk_level,
-            'confidence': int(confidence),
+            'confidence': confidence,
             'factors': factors,
             'attendance_rate': round(attendance_rate, 1),
-            'total_sessions': total_sessions,
-            'absent_count': absent_count,
-            'recent_absences': recent_absences
+            'total_days': total_days,
+            'absent_days': absent_days,
+            'consecutive_days': consecutive_days,
+            'recent_absent_days': recent_absent_dates,
+            'late_days': late_days,
+            # backward compat
+            'absent_count': absent_days,
+            'recent_absences': recent_absent_dates,
         }
-    
+
     except Exception as e:
         return {
             'risk_score': 0,
@@ -255,8 +275,9 @@ def get_classroom_ai_summary(students):
     if not students:
         return {
             'total_students': 0,
-            'risk_distribution': {},
-            'priority_students': []
+            'risk_distribution': {'critical': 0, 'high': 0, 'moderate': 0, 'low': 0},
+            'priority_students': [],
+            'health_score': 0,
         }
     
     risk_distribution = {

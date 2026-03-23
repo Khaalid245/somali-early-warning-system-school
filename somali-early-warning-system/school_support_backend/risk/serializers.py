@@ -29,10 +29,16 @@ class SubjectRiskInsightSerializer(serializers.ModelSerializer):
             "id",
             "student",
             "subject",
+            # Session-level (raw data)
             "total_sessions",
             "absence_count",
             "late_count",
             "absence_rate",
+            # Day-based (UK standard — use these for display)
+            "total_days",
+            "absent_days",
+            "late_days",
+            "day_absence_rate",
             "last_calculated",
             "created_at",
         ]

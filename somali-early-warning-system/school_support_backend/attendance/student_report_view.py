@@ -37,12 +37,13 @@ class StudentAttendanceReportView(APIView):
             session__attendance_date__lte=end_date
         ).select_related('session__subject')
         
-        total_records = records.count()
-        present_count = records.filter(status='present').count()
-        absent_count = records.filter(status='absent').count()
-        late_count = records.filter(status='late').count()
-        
-        attendance_rate = round((present_count / total_records * 100) if total_records > 0 else 0, 1)
+        from attendance.attendance_utils import compute_attendance_days
+        day_totals = compute_attendance_days(student, records_qs=records)
+        total_school_days = day_totals['total_days']
+        present_count = round(day_totals['present_days'])
+        absent_count = round(day_totals['absent_days'])
+        late_count = day_totals['late_days']
+        attendance_rate = day_totals['attendance_rate']
         
         # Subject breakdown
         from django.db.models import Count, Case, When
@@ -89,7 +90,7 @@ class StudentAttendanceReportView(APIView):
             'classroom': classroom_name,
             'period_start': start_date.strftime('%Y-%m-%d'),
             'period_end': end_date.strftime('%Y-%m-%d'),
-            'total_days': total_days,
+            'total_days': total_school_days,
             'present_count': present_count,
             'absent_count': absent_count,
             'late_count': late_count,

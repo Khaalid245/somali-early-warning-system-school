@@ -74,6 +74,23 @@ class Student(models.Model):
 
     is_active = models.BooleanField(default=True)
 
+    # ── Chronic absentee tracking ─────────────────────────────────────────
+    # UK DfE: persistent absentee = missing 10%+ of sessions
+    persistent_absentee = models.BooleanField(
+        default=False,
+        help_text='True when attendance rate falls below 90% (UK DfE standard)'
+    )
+    # Counts every closed InterventionCase — never resets
+    intervention_count = models.PositiveIntegerField(
+        default=0,
+        help_text='Total number of closed intervention cases for this student'
+    )
+    # Set automatically when intervention_count reaches 3
+    chronic_absentee = models.BooleanField(
+        default=False,
+        help_text='True when student has had 3+ closed cases — triggers auto-escalation on next case'
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

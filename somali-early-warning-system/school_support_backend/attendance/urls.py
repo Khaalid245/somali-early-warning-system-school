@@ -11,6 +11,7 @@ from .tracking_views import (
     ClassStudentsAttendanceView,
     StudentAttendanceHistoryView
 )
+from .cross_subject_view import CrossSubjectPatternView
 
 urlpatterns = [
     path(
@@ -52,5 +53,10 @@ urlpatterns = [
         "absence-details/",
         StudentAbsenceDetailsView.as_view(),
         name="student-absence-details"
+    ),
+    path(
+        "cross-subject-pattern/<int:student_id>/",
+        CrossSubjectPatternView.as_view(),
+        name="cross-subject-pattern"
     ),
 ]

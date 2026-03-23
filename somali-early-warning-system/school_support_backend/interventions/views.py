@@ -59,11 +59,51 @@ class InterventionCaseListCreateView(generics.ListCreateAPIView):
         if not student:
             raise PermissionDenied("Intervention case must be linked to a student.")
 
+        # One active case per student — standard case management rule
+        active_statuses = ['open', 'in_progress', 'awaiting_parent', 'escalated_to_admin']
+        existing = InterventionCase.objects.filter(
+            student=student,
+            status__in=active_statuses
+        ).first()
+        if existing:
+            from rest_framework.exceptions import ValidationError as DRFValidationError
+            raise DRFValidationError({
+                'detail': (
+                    f'An active intervention case (#{existing.case_id}) already exists '
+                    f'for {student.full_name} with status \'{existing.get_status_display()}\'. '
+                    f'Close the existing case before opening a new one.'
+                )
+            })
+
+        # Snapshot attendance rate at case open
+        from attendance.attendance_utils import compute_attendance_days
+        try:
+            totals = compute_attendance_days(student)
+            rate_at_open = round(totals['attendance_rate'], 2)
+        except Exception:
+            rate_at_open = None
+
+        # Auto-escalate if student is a chronic absentee (3+ prior closed cases)
+        initial_status = serializer.validated_data.get('status', 'open')
+        if student.chronic_absentee and initial_status not in ['escalated_to_admin']:
+            initial_status = 'escalated_to_admin'
+            logger.info(
+                f'Auto-escalated case for chronic absentee student {student.student_id} '
+                f'(intervention_count={student.intervention_count})'
+            )
+
         # If form master creates, auto assign to themselves
         if user.role == "form_master":
-            serializer.save(assigned_to=user)
+            serializer.save(
+                assigned_to=user,
+                status=initial_status,
+                attendance_rate_at_open=rate_at_open,
+            )
         else:
-            serializer.save()
+            serializer.save(
+                status=initial_status,
+                attendance_rate_at_open=rate_at_open,
+            )
 
 
 # =====================================================
@@ -184,6 +224,33 @@ class InterventionCaseDetailView(IDORProtectionMixin, generics.RetrieveUpdateDes
         try:
             updated_case = serializer.save()
             
+            # ── On case close: snapshot attendance rate + update student chronic tracking ──
+            if updated_case.status == 'closed' and old_status != 'closed':
+                from attendance.attendance_utils import compute_attendance_days
+                try:
+                    totals = compute_attendance_days(updated_case.student)
+                    updated_case.attendance_rate_at_close = round(totals['attendance_rate'], 2)
+                    # Use update() to avoid triggering version increment again
+                    InterventionCase.objects.filter(pk=updated_case.pk).update(
+                        attendance_rate_at_close=updated_case.attendance_rate_at_close
+                    )
+                except Exception:
+                    pass
+
+                # Increment intervention_count and set chronic_absentee if threshold reached
+                student = updated_case.student
+                new_count = student.intervention_count + 1
+                is_chronic = new_count >= 3
+                type(student).objects.filter(pk=student.pk).update(
+                    intervention_count=new_count,
+                    chronic_absentee=is_chronic,
+                )
+                if is_chronic and not student.chronic_absentee:
+                    logger.info(
+                        f'Student {student.student_id} ({student.full_name}) marked chronic absentee '
+                        f'after {new_count} closed intervention cases.'
+                    )
+
             # Handle notifications
             self._handle_case_notifications(updated_case, old_status)
             

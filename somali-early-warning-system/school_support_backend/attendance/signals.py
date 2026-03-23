@@ -41,37 +41,66 @@ def trigger_risk_after_attendance_record(sender, instance, created, **kwargs):
 
 def check_consecutive_absences(student):
     """
-    FIXED: Check if student has 3+ consecutive absences PER SUBJECT
+    International standard: alert when student misses 3+ consecutive FULL DAYS.
+    A full day = ALL sessions on that date are absent.
     """
-    from academics.models import Subject
-    
-    # Get all subjects this student has attendance records for
-    subjects_with_records = AttendanceRecord.objects.filter(
-        student=student
-    ).values_list('session__subject', flat=True).distinct()
-    
-    for subject_id in subjects_with_records:
-        try:
-            subject = Subject.objects.get(subject_id=subject_id)
-            
-            # FIXED: Get attendance records for THIS SUBJECT ONLY
-            recent_records = AttendanceRecord.objects.filter(
-                student=student,
-                session__subject=subject
-            ).order_by('-session__attendance_date', '-created_at')[:10]
-            
-            consecutive_absences = 0
-            for rec in recent_records:
-                if rec.status == 'absent':
-                    consecutive_absences += 1
-                else:
-                    break
-            
-            if consecutive_absences >= 3:
-                print(f"\n🚨 SUBJECT ALERT: {student.full_name} has {consecutive_absences} consecutive absences in {subject.name}!")
-                print(f"📧 Sending email to parent: {student.parent_email or 'NO EMAIL'}")
-                send_absence_alert(student, consecutive_absences)
-                print(f"✅ Email sent successfully!\n")
-                    
-        except Subject.DoesNotExist:
-            continue
+    # Get distinct dates ordered most recent first
+    dates = (
+        AttendanceRecord.objects
+        .filter(student=student)
+        .values_list('session__attendance_date', flat=True)
+        .distinct()
+        .order_by('-session__attendance_date')
+    )
+
+    consecutive_full_days = 0
+    for d in dates:
+        day_records = AttendanceRecord.objects.filter(
+            student=student,
+            session__attendance_date=d
+        )
+        all_absent = day_records.exists() and all(
+            r.status == 'absent' for r in day_records
+        )
+        if all_absent:
+            consecutive_full_days += 1
+        else:
+            break
+
+    if consecutive_full_days >= 3:
+        _create_consecutive_absence_alert(student, consecutive_full_days)
+        send_absence_alert(student, consecutive_full_days)
+
+
+def _create_consecutive_absence_alert(student, consecutive_days):
+    """
+    Create an Alert record for consecutive full-day absences.
+    Avoids duplicates: skips if an active consecutive-absence alert already exists.
+    """
+    from alerts.models import Alert
+    from students.models import StudentEnrollment
+
+    # Avoid duplicate active alerts for the same student
+    already_exists = Alert.objects.filter(
+        student=student,
+        alert_type='attendance',
+        status__in=['active', 'under_review'],
+    ).exists()
+    if already_exists:
+        return
+
+    risk_level = 'critical' if consecutive_days >= 5 else 'high'
+
+    # Find the form master assigned to this student's classroom
+    enrollment = StudentEnrollment.objects.filter(
+        student=student, is_active=True
+    ).select_related('classroom__form_master').first()
+    form_master = enrollment.classroom.form_master if enrollment and enrollment.classroom.form_master else None
+
+    Alert.objects.create(
+        student=student,
+        alert_type='attendance',
+        risk_level=risk_level,
+        status='active',
+        assigned_to=form_master,
+    )

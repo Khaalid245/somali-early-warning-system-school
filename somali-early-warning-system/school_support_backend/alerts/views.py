@@ -10,6 +10,7 @@ from core.idor_protection import IDORProtectionMixin
 from .models import Alert
 from .serializers import AlertSerializer
 from notifications.email_service import send_alert_notification
+from interventions.models import InterventionCase
 
 
 # =====================================================
@@ -132,6 +133,16 @@ class AlertDetailView(IDORProtectionMixin, generics.RetrieveUpdateAPIView):
 
             if new_status == "escalated":
                 alert.escalated_to_admin = True
+                # Auto-create InterventionCase if none exists for this alert
+                if not InterventionCase.objects.filter(alert=alert).exists():
+                    InterventionCase.objects.create(
+                        student=alert.student,
+                        alert=alert,
+                        assigned_to=user,
+                        status='escalated_to_admin',
+                        escalation_reason=f'Auto-created from escalated alert #{alert.alert_id} '
+                                          f'(risk: {alert.risk_level}, type: {alert.alert_type})',
+                    )
 
         # -------------------------------------------------
         # ADMIN WORKFLOW
@@ -148,10 +159,17 @@ class AlertDetailView(IDORProtectionMixin, generics.RetrieveUpdateAPIView):
 
         alert.save()
 
-        return Response({
-            "message": "Alert updated successfully.",
-            "alert": AlertSerializer(alert).data
-        })
+        response_data = {
+            'message': 'Alert updated successfully.',
+            'alert': AlertSerializer(alert).data,
+        }
+        if new_status == 'escalated':
+            case = InterventionCase.objects.filter(alert=alert).first()
+            if case:
+                response_data['intervention_case_id'] = case.case_id
+                response_data['case_created'] = True
+
+        return Response(response_data)
 
 
 # =====================================================

@@ -377,15 +377,162 @@ Generated: {timezone.now().strftime('%B %d, %Y at %I:%M %p')}
         logger.error(f"Failed to send critical absence alert to admin: {e}")
 
 
-# Keep existing functions for compatibility
 def send_alert_notification(alert):
-    """Send email when high-risk alert is created"""
-    pass
+    """Send email when high-risk alert is created — notifies assigned form master"""
+    try:
+        if not alert.assigned_to or not alert.assigned_to.email:
+            logger.warning(f"No form master email for alert {alert.alert_id}")
+            return
+
+        school_name = getattr(settings, 'SCHOOL_NAME', 'School Early Warning System')
+        subject = f"New {alert.risk_level.upper()} Risk Alert: {alert.student.full_name}"
+        message = f"""Dear {alert.assigned_to.name},
+
+A new {alert.risk_level.upper()} risk alert has been created for:
+
+Student: {alert.student.full_name}
+Alert Type: {alert.alert_type}
+Risk Level: {alert.risk_level.upper()}
+Date: {alert.alert_date.strftime('%B %d, %Y')}
+
+Please log in to review and take action:
+{getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')}/form-master/dashboard
+
+Best regards,
+{school_name}"""
+
+        send_mail(
+            subject=subject,
+            message=message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[alert.assigned_to.email],
+            fail_silently=True,
+        )
+        logger.info(f"Alert notification sent to {alert.assigned_to.email} for alert {alert.alert_id}")
+    except Exception as e:
+        logger.error(f"Failed to send alert notification for alert {alert.alert_id}: {e}")
+
 
 def send_case_escalation_notification(case):
-    """Send email when case is escalated to admin"""
-    pass
+    """Send email to all admins when a case is escalated"""
+    try:
+        from users.models import User
+        admins = User.objects.filter(role='admin', is_active=True)
+        admin_emails = [a.email for a in admins]
+        if not admin_emails:
+            logger.warning("No active admins found for escalation notification")
+            return
+
+        school_name = getattr(settings, 'SCHOOL_NAME', 'School Early Warning System')
+        form_master_name = case.assigned_to.name if case.assigned_to else 'Form Master'
+        subject = f"ESCALATED CASE: {case.student.full_name} — Requires Admin Review"
+        message = f"""Dear Administrator,
+
+A case has been escalated to admin level and requires your immediate attention.
+
+Case ID: #{case.case_id}
+Student: {case.student.full_name}
+Escalated By: {form_master_name}
+Escalation Reason: {case.escalation_reason or 'No reason provided'}
+Days Open: {(timezone.now().date() - case.created_at.date()).days} days
+
+Please log in to review:
+{getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')}/admin/dashboard
+
+Best regards,
+{school_name}"""
+
+        send_mail(
+            subject=subject,
+            message=message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=admin_emails,
+            fail_silently=True,
+        )
+        logger.info(f"Escalation notification sent to {len(admin_emails)} admins for case {case.case_id}")
+    except Exception as e:
+        logger.error(f"Failed to send escalation notification for case {case.case_id}: {e}")
+
 
 def send_case_resolved_notification(case):
-    """Send email when case is successfully resolved"""
-    pass
+    """Send email to form master when a case is successfully resolved"""
+    try:
+        if not case.assigned_to or not case.assigned_to.email:
+            logger.warning(f"No form master email for case {case.case_id}")
+            return
+
+        school_name = getattr(settings, 'SCHOOL_NAME', 'School Early Warning System')
+        subject = f"Case Resolved: {case.student.full_name} — #{case.case_id}"
+        message = f"""Dear {case.assigned_to.name},
+
+The following intervention case has been marked as resolved.
+
+Case ID: #{case.case_id}
+Student: {case.student.full_name}
+Resolution Notes: {case.outcome_notes or 'No notes recorded'}
+Closed At: {timezone.now().strftime('%B %d, %Y')}
+
+Please continue monitoring the student's attendance.
+
+Best regards,
+{school_name}"""
+
+        send_mail(
+            subject=subject,
+            message=message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[case.assigned_to.email],
+            fail_silently=True,
+        )
+        logger.info(f"Resolution notification sent to {case.assigned_to.email} for case {case.case_id}")
+    except Exception as e:
+        logger.error(f"Failed to send resolution notification for case {case.case_id}: {e}")
+
+
+def send_attendance_reminder_to_teacher(teacher, missing_assignments):
+    """
+    Send a reminder email to a teacher who has not recorded attendance today.
+    missing_assignments: list of dicts with keys 'classroom_name', 'subject_name', 'period'
+    """
+    try:
+        if not teacher.email:
+            logger.warning(f"Teacher {teacher.id} has no email address")
+            return
+
+        school_name = getattr(settings, 'SCHOOL_NAME', 'School Early Warning System')
+        today_str = timezone.now().strftime('%A, %B %d, %Y')
+        frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')
+
+        missing_lines = "\n".join(
+            f"  • {a['classroom_name']} — {a['subject_name']} (Period {a['period']})"
+            for a in missing_assignments
+        )
+
+        subject = f"Reminder: Attendance Not Yet Recorded — {today_str}"
+        message = f"""Dear {teacher.name},
+
+This is an automated reminder that attendance has not been recorded for the following class(es) today ({today_str}):
+
+{missing_lines}
+
+Please log in and record attendance as soon as possible:
+{frontend_url}/teacher/attendance
+
+Accurate daily attendance is essential for student risk monitoring and early intervention.
+If you have already recorded attendance and received this in error, please ignore this message.
+
+Best regards,
+{school_name}
+Early Warning System"""
+
+        send_mail(
+            subject=subject,
+            message=message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[teacher.email],
+            fail_silently=False,
+        )
+        logger.info(f"Attendance reminder sent to teacher {teacher.email} for {len(missing_assignments)} assignment(s)")
+    except Exception as e:
+        logger.error(f"Failed to send attendance reminder to teacher {getattr(teacher, 'email', 'unknown')}: {e}")
+        raise

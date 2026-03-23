@@ -14,9 +14,9 @@ class LoginRateLimitMiddleware:
     
     def __init__(self, get_response):
         self.get_response = get_response
-        self.max_attempts = 10  # Increased from 5 to 10
-        self.lockout_duration = 900  # Reduced from 30min to 15min
-        self.window_duration = 900  # 15 minutes in seconds
+        self.max_attempts = 50  # High limit — allows normal all-day login/logout usage
+        self.lockout_duration = 900  # 15 minutes lockout only after 50 consecutive failures
+        self.window_duration = 900  # 15-minute sliding window
     
     def __call__(self, request):
         # Only apply to login endpoint
@@ -29,7 +29,7 @@ class LoginRateLimitMiddleware:
             if cache.get(lockout_key):
                 logger.warning(f"Login attempt from locked out IP: {ip_address}")
                 return JsonResponse({
-                    'error': 'Too many failed login attempts. Account locked for 30 minutes.',
+                    'error': 'Too many failed login attempts. Please wait 15 minutes before trying again.',
                     'locked_until': cache.get(lockout_key)
                 }, status=429)
             
@@ -46,7 +46,7 @@ class LoginRateLimitMiddleware:
                 logger.warning(f"IP {ip_address} locked out after {attempts} failed attempts")
                 
                 return JsonResponse({
-                    'error': 'Too many failed login attempts. Account locked for 30 minutes.',
+                    'error': 'Too many failed login attempts. Please wait 15 minutes before trying again.',
                     'locked_until': lockout_until
                 }, status=429)
         

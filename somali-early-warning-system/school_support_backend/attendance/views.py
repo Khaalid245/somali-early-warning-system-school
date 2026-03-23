@@ -69,12 +69,7 @@ class AttendanceSessionListCreateView(generics.ListCreateAPIView):
             period=period
         )
         
-        print(f"[DEBUG] Checking for duplicates: classroom={classroom.class_id}, subject={subject.subject_id}, teacher={user.email}, date={attendance_date}, period={period}")
-        print(f"[DEBUG] Found {existing_sessions.count()} existing sessions")
-        
         if existing_sessions.exists():
-            existing_session = existing_sessions.first()
-            print(f"[DEBUG] Existing session found: ID={existing_session.session_id}, Teacher={existing_session.teacher.email}")
             raise PermissionDenied(
                 f"Attendance already recorded for {classroom.name} - {subject.name} on {attendance_date} (Period {period}). "
                 f"Please edit the existing record instead."
@@ -89,32 +84,20 @@ class AttendanceSessionListCreateView(generics.ListCreateAPIView):
                 # Call risk engine (SERVICE LAYER) - wrapped in try-catch
                 try:
                     update_risk_after_session(session)
-                    print("Risk engine updated successfully")
                 except Exception as e:
-                    print(f"Risk engine failed: {e}")
-                    # Don't fail the attendance submission
                     pass
                     
-                # Check for consecutive absences and send alerts - wrapped in try-catch
                 try:
                     check_and_send_absence_alerts(session)
-                    print("Absence alerts checked successfully")
                 except Exception as e:
-                    print(f"Absence alert check failed: {e}")
-                    # Don't fail the attendance submission
                     pass
                     
-                # Invalidate teacher cache after successful save - wrapped in try-catch
                 try:
                     invalidate_teacher_cache(user.id)
-                    print("Teacher cache invalidated successfully")
                 except Exception as e:
-                    print(f"Cache invalidation failed: {e}")
-                    # Don't fail the attendance submission
                     pass
                     
         except Exception as e:
-            print(f"Attendance session creation failed: {e}")
             if 'Duplicate entry' in str(e):
                 raise PermissionDenied("Attendance already recorded for this class, subject, date and period.")
             else:
@@ -161,7 +144,6 @@ class StudentAbsenceDetailsView(APIView):
             return Response({"error": "No classroom assigned."}, status=404)
         
         student_id = request.query_params.get('student_id')
-        print(f"Fetching absences for student_id: {student_id}, classroom: {classroom.name}")
         
         absences = AttendanceRecord.objects.filter(
             session__classroom=classroom,
@@ -175,19 +157,15 @@ class StudentAbsenceDetailsView(APIView):
         
         absences = absences.order_by('-session__attendance_date', '-created_at')[:100]
         
-        print(f"Found {absences.count()} absence records")
-        
         result = []
         for record in absences:
-            result.append({
-                'date': record.session.attendance_date.strftime('%Y-%m-%d'),
+            result.append({                'date': record.session.attendance_date.strftime('%Y-%m-%d'),
                 'time': record.created_at.strftime('%I:%M %p'),
                 'subject': record.session.subject.name,
                 'status': record.status,
                 'remarks': record.remarks or ''
             })
         
-        print(f"Returning {len(result)} records")
         return Response(result)
 
 
@@ -207,37 +185,22 @@ def check_and_send_absence_alerts(session):
     
     for record in absent_records:
         student = record.student
-        subject = session.subject  # Get the subject from current session
-        
-        print(f"[DEBUG] Checking consecutive absences for {student.full_name} in {subject.name}")
-        
-        # FIXED: Get attendance records for THIS SUBJECT ONLY (not all subjects mixed)
+        subject = session.subject
+
         recent_records = AttendanceRecord.objects.filter(
             student=student,
-            session__subject=subject  # CRITICAL FIX: Subject-specific calculation
+            session__subject=subject
         ).order_by('-session__attendance_date', '-created_at')[:10]
-        
-        print(f"[DEBUG] Found {recent_records.count()} recent records for {subject.name}")
-        
-        # Count consecutive absences from most recent (subject-specific)
+
         consecutive_absences = 0
         for rec in recent_records:
             if rec.status == 'absent':
                 consecutive_absences += 1
-                print(f"[DEBUG] Absence #{consecutive_absences} on {rec.session.attendance_date}")
             else:
-                print(f"[DEBUG] Present on {rec.session.attendance_date} - breaking streak")
-                break  # Stop at first non-absent
-        
-        # Send alert if 3+ consecutive absences IN THE SAME SUBJECT
+                break
+
         if consecutive_absences >= 3:
-            print(f"\n🚨 SUBJECT-SPECIFIC ALERT: {student.full_name} has {consecutive_absences} consecutive absences in {subject.name}!")
-            print(f"📧 Sending email to parent: {student.parent_email or 'NO EMAIL'}")
-            
             try:
-                send_absence_alert(student, consecutive_absences, subject.name)  # Include subject in alert
-                print(f"✅ Email sent successfully for {subject.name} absences!\n")
-            except Exception as e:
-                print(f"❌ Email sending failed: {e}")
-        else:
-            print(f"[DEBUG] Only {consecutive_absences} consecutive absences in {subject.name} - no alert needed")
+                send_absence_alert(student, consecutive_absences, subject.name)
+            except Exception:
+                pass

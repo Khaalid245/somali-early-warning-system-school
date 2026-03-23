@@ -205,11 +205,39 @@ class InterventionCase(models.Model):
     # Version control for optimistic locking
     version = models.IntegerField(default=1)
 
+    # ── Attendance snapshot ────────────────────────────────────────────────
+    # Recorded automatically — used to measure whether intervention worked
+    attendance_rate_at_open = models.DecimalField(
+        max_digits=5, decimal_places=2, null=True, blank=True,
+        help_text='Student attendance rate (%) when this case was opened'
+    )
+    attendance_rate_at_close = models.DecimalField(
+        max_digits=5, decimal_places=2, null=True, blank=True,
+        help_text='Student attendance rate (%) when this case was closed'
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
+    def clean(self):
+        """One active case per student at a time — standard case management rule."""
+        if not self.pk:  # only on creation
+            active_statuses = ['open', 'in_progress', 'awaiting_parent', 'escalated_to_admin']
+            existing = InterventionCase.objects.filter(
+                student=self.student,
+                status__in=active_statuses
+            )
+            if existing.exists():
+                existing_case = existing.first()
+                raise ValidationError(
+                    f'An active intervention case (#{existing_case.case_id}) already exists for this student. '
+                    f'Close the existing case before opening a new one.'
+                )
+
     def save(self, *args, **kwargs):
-        """Override save to implement version control"""
+        """Override save to implement version control and duplicate guard."""
+        if not self.pk:
+            self.full_clean()  # runs clean() on create
         if self.pk:
             # Get current version from database
             current = InterventionCase.objects.filter(pk=self.pk).first()

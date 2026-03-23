@@ -182,25 +182,27 @@ class InterventionCaseSerializer(serializers.ModelSerializer):
             "meeting_date",
             "meeting_notes",
             "progress_status",
-            "version",  # ✅ VERSION CONTROL
+            "attendance_rate_at_open",
+            "attendance_rate_at_close",
+            "version",
             "created_at",
             "updated_at",
         ]
 
         read_only_fields = [
             "case_id",
+            "attendance_rate_at_open",
+            "attendance_rate_at_close",
             "created_at",
             "updated_at",
-            "version",  # Version is managed by model
+            "version",
         ]
 
-    # =====================================================
-    # 🔥 INDUSTRY WORKFLOW VALIDATION
-    # =====================================================
     def validate(self, data):
         """
         If case is being closed,
         resolution_notes must be provided.
+        One active case per student at a time.
         """
 
         status = data.get("status", None)
@@ -218,5 +220,23 @@ class InterventionCaseSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 "Resolution notes are required when closing a case."
             )
+
+        # Duplicate guard — only on creation, not on updates
+        if not self.instance:
+            student = data.get("student")
+            if student:
+                active_statuses = ['open', 'in_progress', 'awaiting_parent', 'escalated_to_admin']
+                existing = InterventionCase.objects.filter(
+                    student=student,
+                    status__in=active_statuses
+                ).first()
+                if existing:
+                    raise serializers.ValidationError({
+                        'student': (
+                            f'An active intervention case (#{existing.case_id}) already exists '
+                            f'for this student with status \'{existing.get_status_display()}\'. '
+                            f'Close the existing case before opening a new one.'
+                        )
+                    })
 
         return data

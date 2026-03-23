@@ -76,15 +76,27 @@ class SubjectRiskInsight(models.Model):
         related_name="student_risk_insights"
     )
 
+    # Session-level fields (kept for raw data reference)
     total_sessions = models.IntegerField(default=0)
     absence_count = models.IntegerField(default=0)
     late_count = models.IntegerField(default=0)
-
     absence_rate = models.DecimalField(
-        max_digits=5,
-        decimal_places=2,
-        default=Decimal("0.00"),
-        validators=[MinValueValidator(0)]
+        max_digits=5, decimal_places=2,
+        default=Decimal("0.00"), validators=[MinValueValidator(0)]
+    )
+
+    # Day-based fields (UK standard — used for display and risk)
+    total_days = models.IntegerField(default=0)
+    absent_days = models.DecimalField(
+        max_digits=5, decimal_places=1,
+        default=Decimal("0.0"), validators=[MinValueValidator(0)],
+        help_text="Distinct absent days (0.5 = half-day)"
+    )
+    late_days = models.IntegerField(default=0)
+    day_absence_rate = models.DecimalField(
+        max_digits=5, decimal_places=2,
+        default=Decimal("0.00"), validators=[MinValueValidator(0)],
+        help_text="Absence rate based on distinct school days"
     )
 
     last_calculated = models.DateTimeField(auto_now=True)

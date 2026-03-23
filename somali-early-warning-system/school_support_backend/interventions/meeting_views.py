@@ -98,6 +98,24 @@ class InterventionMeetingDetailView(generics.RetrieveUpdateDestroyAPIView):
         
         updated_meeting = serializer.save()
         
+        # 🔄 SYNC InterventionCase.progress_status when meeting status changes
+        # Maps InterventionMeeting.status → InterventionCase.progress_status
+        STATUS_MAP = {
+            'open':          'no_contact',
+            'monitoring':    'contacted',
+            'improving':     'improving',
+            'not_improving': 'not_improving',
+            'escalated':     'not_improving',
+            'closed':        'resolved',
+        }
+        new_progress = STATUS_MAP.get(updated_meeting.status)
+        if new_progress:
+            from .models import InterventionCase
+            InterventionCase.objects.filter(
+                student=updated_meeting.student,
+                status__in=['open', 'in_progress', 'awaiting_parent', 'escalated_to_admin']
+            ).update(progress_status=new_progress)
+        
         # 🔥 CREATE INTERVENTION CASE WHEN ESCALATED
         if updated_meeting.status == 'escalated' and old_status != 'escalated':
             from .models import InterventionCase

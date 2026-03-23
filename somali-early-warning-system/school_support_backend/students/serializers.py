@@ -47,11 +47,17 @@ class StudentSerializer(serializers.ModelSerializer):
             "parent_name",
             "status",
             "is_active",
+            "persistent_absentee",
+            "intervention_count",
+            "chronic_absentee",
             "created_at",
             "updated_at",
         ]
         read_only_fields = [
             "student_id",
+            "persistent_absentee",
+            "intervention_count",
+            "chronic_absentee",
             "created_at",
             "updated_at",
         ]

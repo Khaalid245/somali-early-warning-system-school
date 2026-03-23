@@ -1,6 +1,6 @@
 from django.utils import timezone
 from django.db.models import Count, Q, Avg
-from django.db.models.functions import TruncMonth
+from django.db.models.functions import TruncMonth, TruncWeek
 from datetime import timedelta, date
 from django.db import models
 
@@ -65,6 +65,35 @@ def get_monthly_trend(model, date_field, base_filter=None, months=6):
             "count": item["count"]
         }
         for item in monthly_data
+    ]
+
+
+def get_weekly_trend(model, date_field, base_filter=None, weeks=8):
+    if base_filter is None:
+        base_filter = {}
+
+    now = timezone.now()
+    start_date = now - timedelta(weeks=weeks)
+
+    queryset = model.objects.filter(
+        **base_filter,
+        **{f"{date_field}__gte": start_date}
+    )
+
+    weekly_data = (
+        queryset
+        .annotate(week=TruncWeek(date_field))
+        .values("week")
+        .annotate(count=Count("*"))
+        .order_by("week")
+    )
+
+    return [
+        {
+            "month": item["week"].strftime("%Y-%m-%d"),
+            "count": item["count"]
+        }
+        for item in weekly_data
     ]
 
 
@@ -138,7 +167,7 @@ def get_admin_dashboard_data(user, filters):
             'case_id': case.case_id,
             'student_name': case.student.full_name,
             'student_id': case.student.student_id,
-            'form_master': case.assigned_to.get_full_name() if case.assigned_to else 'Unassigned',
+            'form_master': case.assigned_to.name if case.assigned_to else 'Unassigned',
             'escalation_reason': case.escalation_reason or 'No reason provided',
             'status': case.status,
             'days_open': days_open,
@@ -158,7 +187,7 @@ def get_admin_dashboard_data(user, filters):
             'case_id': f'M{meeting.id}',
             'student_name': meeting.student.full_name,
             'student_id': meeting.student.student_id,
-            'form_master': meeting.created_by.get_full_name(),
+            'form_master': meeting.created_by.name,
             'escalation_reason': f'{meeting.get_root_cause_display()} - {meeting.absence_reason}',
             'status': 'escalated',
             'days_open': days_open,
@@ -174,14 +203,12 @@ def get_admin_dashboard_data(user, filters):
 
     case_change_percent = calculate_percentage_change(current_cases, previous_cases)
 
-    monthly_alert_trend = get_monthly_trend(
-        Alert, "alert_date",
-        {"status__in": ["active", "under_review", "escalated"]}
+    monthly_alert_trend = get_weekly_trend(
+        Alert, "alert_date", weeks=8
     )
 
-    monthly_case_trend = get_monthly_trend(
-        InterventionCase, "created_at",
-        {"status__in": ["open", "in_progress", "awaiting_parent", "escalated_to_admin"]}
+    monthly_case_trend = get_weekly_trend(
+        InterventionCase, "created_at", weeks=8
     )
 
     case_status_breakdown = (
@@ -190,8 +217,47 @@ def get_admin_dashboard_data(user, filters):
         .annotate(count=Count("case_id"))
     )
 
+    # Risk distribution from StudentRiskProfile
+    risk_counts = (
+        StudentRiskProfile.objects
+        .values("risk_level")
+        .annotate(count=Count("id"))
+    )
+    risk_distribution = {"low": 0, "medium": 0, "high": 0, "critical": 0}
+    for row in risk_counts:
+        if row["risk_level"] in risk_distribution:
+            risk_distribution[row["risk_level"]] = row["count"]
+
+    # High risk alerts count (high + critical)
+    high_risk_alerts = Alert.objects.filter(
+        status__in=["active", "under_review", "escalated"],
+        risk_level__in=["high", "critical"]
+    ).count()
+
+    # Resolved this month
+    resolved_this_month = InterventionCase.objects.filter(
+        status="closed",
+        updated_at__gte=timezone.now().replace(day=1)
+    ).count()
+
+    # Escalated cases count (separate from the list)
+    escalated_cases_count = len(escalated_cases)
+
+    # Build executive_kpis block that frontend reads
+    executive_kpis = {
+        "total_students": total_students,
+        "active_alerts": active_alerts,
+        "alert_trend": alert_change_percent,
+        "high_risk_alerts": high_risk_alerts,
+        "open_cases": open_cases,
+        "case_trend": case_change_percent,
+        "escalated_cases": escalated_cases_count,
+        "resolved_this_month": resolved_this_month,
+    }
+
     return {
         "role": "admin",
+        "executive_kpis": executive_kpis,
         "total_students": total_students,
         "active_alerts": active_alerts,
         "active_alerts_change_percent": alert_change_percent,
@@ -203,6 +269,7 @@ def get_admin_dashboard_data(user, filters):
         "monthly_alert_trend": monthly_alert_trend,
         "monthly_case_trend": monthly_case_trend,
         "case_status_breakdown": list(case_status_breakdown),
+        "risk_distribution": risk_distribution,
     }
 
 
@@ -335,15 +402,14 @@ def get_form_master_dashboard_data(user, filters):
         if not hasattr(student, 'risk_profile') or student.risk_profile.risk_level not in ['high', 'critical']:
             continue
             
-        # Get attendance stats
-        total_records = AttendanceRecord.objects.filter(student=student).count()
-        absent_count = AttendanceRecord.objects.filter(student=student, status='absent').count()
-        late_count = AttendanceRecord.objects.filter(student=student, status='late').count()
-        present_count = AttendanceRecord.objects.filter(student=student, status='present').count()
-        
-        attendance_rate = 0
-        if total_records > 0:
-            attendance_rate = round((present_count / total_records) * 100, 1)
+        # UK half-day standard via shared utility
+        from attendance.attendance_utils import compute_attendance_days
+        totals = compute_attendance_days(student)
+        absent_count = round(totals['absent_days'])
+        late_count = totals['late_days']
+        present_count = round(totals['present_days'])
+        total_school_days = totals['total_days']
+        attendance_rate = totals['attendance_rate']
         
         # Calculate priority score
         priority_score = float(student.risk_profile.risk_score)
@@ -380,7 +446,7 @@ def get_form_master_dashboard_data(user, filters):
             'risk_level': student.risk_profile.risk_level,
             'risk_score': float(student.risk_profile.risk_score),
             'priority_score': round(priority_score, 1),
-            'total_sessions': total_records,
+            'total_days': total_school_days,
             'absent_count': absent_count,
             'late_count': late_count,
             'attendance_rate': attendance_rate,
@@ -406,19 +472,29 @@ def get_form_master_dashboard_data(user, filters):
         from datetime import timedelta
         thirty_days_ago = timezone.now().date() - timedelta(days=30)
         
-        recent_records = AttendanceRecord.objects.filter(
+        # UK half-day standard: group by student×day via shared utility
+        from attendance.attendance_utils import classify_day
+        from collections import defaultdict
+        student_day_map = defaultdict(lambda: defaultdict(list))
+        for rec in AttendanceRecord.objects.filter(
             session__classroom=classroom,
             session__attendance_date__gte=thirty_days_ago
-        )
-        
-        total_records = recent_records.count()
-        absent = recent_records.filter(status='absent').count()
-        late = recent_records.filter(status='late').count()
-        present = recent_records.filter(status='present').count()
-        
-        attendance_rate = 0
-        if total_records > 0:
-            attendance_rate = round((present / total_records) * 100, 1)
+        ).select_related('session'):
+            student_day_map[rec.student_id][rec.session.attendance_date].append(rec)
+
+        present_days = absent_days = late_days = 0
+        for student_id, days in student_day_map.items():
+            for d, recs in days.items():
+                result = classify_day(recs)
+                absent_days += result['absent']
+                present_days += result['present']
+                late_days += result['late']
+
+        total_student_days = present_days + absent_days
+        absent = round(absent_days)
+        late = late_days
+        present = round(present_days)
+        attendance_rate = round((present_days / total_student_days) * 100, 1) if total_student_days > 0 else 0
         
         # Calculate classroom risk health
         avg_risk = StudentRiskProfile.objects.filter(
@@ -882,18 +958,28 @@ def get_teacher_dashboard_data(user, filters):
 
 # Helper functions for teacher-specific features
 def _get_class_attendance_rate(assignment, today):
-    """Get recent attendance rate for a specific class"""
+    """Get recent attendance rate for a specific class — UK half-day standard"""
     week_ago = today - timedelta(days=7)
-    recent_records = AttendanceRecord.objects.filter(
+    from attendance.attendance_utils import classify_day
+    from collections import defaultdict
+    student_day_map = defaultdict(lambda: defaultdict(list))
+    for rec in AttendanceRecord.objects.filter(
         session__classroom=assignment.classroom,
         session__subject=assignment.subject,
         session__attendance_date__gte=week_ago
-    )
-    total = recent_records.count()
-    if total == 0:
+    ).select_related('session'):
+        student_day_map[rec.student_id][rec.session.attendance_date].append(rec)
+
+    if not student_day_map:
         return None
-    present = recent_records.filter(status='present').count()
-    return round((present / total) * 100, 1)
+
+    present_days = total_days = 0
+    for student_id, days in student_day_map.items():
+        for d, recs in days.items():
+            total_days += 1
+            result = classify_day(recs)
+            present_days += result['present']
+    return round((present_days / total_days) * 100, 1) if total_days > 0 else None
 
 
 def _get_pending_sessions(teacher_subjects, today):

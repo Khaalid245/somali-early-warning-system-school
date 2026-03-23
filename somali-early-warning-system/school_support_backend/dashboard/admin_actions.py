@@ -266,16 +266,28 @@ def attendance_drill_down(request):
                 continue
             
             thirty_days_ago = timezone.now().date() - timedelta(days=30)
-            
-            attendance_records = AttendanceRecord.objects.filter(
+
+            # Day-based absence rate (UK standard) via shared utility
+            from attendance.attendance_utils import classify_day
+            from collections import defaultdict
+
+            student_day_map = defaultdict(lambda: defaultdict(list))
+            for rec in AttendanceRecord.objects.filter(
                 student__in=students,
                 session__attendance_date__gte=thirty_days_ago
-            )
-            
-            total_records = attendance_records.count()
-            absent_records = attendance_records.filter(status='absent').count()
-            
-            absence_rate = (absent_records / total_records * 100) if total_records > 0 else 0
+            ).select_related('session'):
+                student_day_map[rec.student_id][rec.session.attendance_date].append(rec)
+
+            total_student_days = 0
+            absent_student_days = 0.0
+            for student_id, days in student_day_map.items():
+                for d, recs in days.items():
+                    total_student_days += 1
+                    result = classify_day(recs)
+                    absent_student_days += result['absent']
+
+            absence_rate = (absent_student_days / total_student_days * 100) if total_student_days > 0 else 0
+            total_absences = round(absent_student_days)
             
             classroom_data.append({
                 'classroom_id': classroom.class_id,
@@ -283,8 +295,8 @@ def attendance_drill_down(request):
                 'form_master': classroom.form_master.name if classroom.form_master else 'Unassigned',
                 'total_students': total_students,
                 'absence_rate': round(absence_rate, 2),
-                'total_absences': absent_records,
-                'is_high_risk': absence_rate > 30
+                'total_absences': total_absences,
+                'is_high_risk': absence_rate > 20  # UK standard: >20% absence rate = high risk
             })
         
         classroom_data.sort(key=lambda x: x['absence_rate'], reverse=True)
@@ -299,6 +311,61 @@ def attendance_drill_down(request):
             'high_risk_count': 0,
             'error': str(e)
         })
+
+
+# =====================================================
+# DAILY ATTENDANCE COMPLETION MONITOR
+# =====================================================
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def daily_completion(request):
+    """Show which teacher/subject/classroom combinations have NOT recorded attendance today."""
+    if request.user.role != 'admin':
+        return Response({'error': 'Admin access required'}, status=403)
+
+    from academics.models import TeachingAssignment
+    from attendance.models import AttendanceSession
+    from datetime import date
+
+    today = date.today()
+
+    all_assignments = TeachingAssignment.objects.filter(
+        is_active=True
+    ).select_related('teacher', 'subject', 'classroom')
+
+    recorded = set(
+        AttendanceSession.objects.filter(attendance_date=today)
+        .values_list('classroom_id', 'subject_id', 'teacher_id')
+    )
+
+    submitted = []
+    missing = []
+
+    for a in all_assignments:
+        key = (a.classroom_id, a.subject_id, a.teacher_id)
+        entry = {
+            'teacher_name': a.teacher.name,
+            'teacher_email': a.teacher.email,
+            'classroom': a.classroom.name,
+            'subject': a.subject.name,
+        }
+        if key in recorded:
+            submitted.append(entry)
+        else:
+            missing.append(entry)
+
+    total = len(submitted) + len(missing)
+    completion_pct = round(len(submitted) / total * 100) if total > 0 else 0
+
+    return Response({
+        'date': today.isoformat(),
+        'total_assignments': total,
+        'submitted_count': len(submitted),
+        'missing_count': len(missing),
+        'completion_pct': completion_pct,
+        'submitted': submitted,
+        'missing': missing,
+    })
 
 
 # =====================================================

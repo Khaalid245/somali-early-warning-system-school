@@ -1,5 +1,6 @@
 from django.urls import path
 from .views import DashboardView
+from .my_class_view import my_class_view
 from .admin_view_safe import AdminDashboardViewSafe
 from .test_view import AdminTestView
 from .admin_actions import (
@@ -8,6 +9,7 @@ from .admin_actions import (
     reassign_alert,
     archive_alert,
     attendance_drill_down,
+    daily_completion,
     audit_logs,
     export_cases_report,
     export_risk_summary,
@@ -40,6 +42,7 @@ from .settings_api import (
 
 urlpatterns = [
     path("", DashboardView.as_view(), name="dashboard"),
+    path("my-class/", my_class_view, name="my_class"),
     path("admin/", AdminDashboardViewSafe.as_view(), name="admin_dashboard"),
     path("admin/test/", AdminTestView.as_view(), name="admin_test"),
     
@@ -51,6 +54,7 @@ urlpatterns = [
     
     # Admin Analytics
     path("admin/attendance/drill-down/", attendance_drill_down, name="attendance_drill_down"),
+    path("admin/attendance/daily-completion/", daily_completion, name="daily_completion"),
     path("admin/audit-logs/", audit_logs, name="audit_logs"),
     
     # Admin Reports
