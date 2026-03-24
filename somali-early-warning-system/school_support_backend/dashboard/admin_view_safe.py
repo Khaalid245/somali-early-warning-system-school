@@ -2,6 +2,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import Count, Avg
+from django.db.models.functions import TruncWeek
 from django.utils import timezone
 from datetime import timedelta, date
 
@@ -105,7 +106,34 @@ class AdminDashboardViewSafe(APIView):
                 level = item['risk_level']
                 if level in risk_dist:
                     risk_dist[level] = item['count']
-            
+
+            # Weekly alert trend (last 8 weeks)
+            eight_weeks_ago = timezone.now() - timedelta(weeks=8)
+            weekly_alerts = list(
+                Alert.objects.filter(alert_date__gte=eight_weeks_ago)
+                .annotate(week=TruncWeek('alert_date'))
+                .values('week')
+                .annotate(count=Count('alert_id'))
+                .order_by('week')
+            )
+            monthly_alert_trend = [
+                {'month': row['week'].strftime('%Y-%m-%d'), 'count': row['count']}
+                for row in weekly_alerts
+            ]
+
+            # Weekly case trend (last 8 weeks)
+            weekly_cases = list(
+                InterventionCase.objects.filter(created_at__gte=eight_weeks_ago)
+                .annotate(week=TruncWeek('created_at'))
+                .values('week')
+                .annotate(count=Count('case_id'))
+                .order_by('week')
+            )
+            monthly_case_trend = [
+                {'month': row['week'].strftime('%Y-%m-%d'), 'count': row['count']}
+                for row in weekly_cases
+            ]
+
             return Response({
                 'executive_kpis': {
                     'total_students': total_students,
@@ -117,26 +145,11 @@ class AdminDashboardViewSafe(APIView):
                     'alert_trend': 0,
                     'case_trend': 0
                 },
-                'monthly_trends': {
-                    'alerts': [],
-                    'cases': []
-                },
+                'monthly_alert_trend': monthly_alert_trend,
+                'monthly_case_trend': monthly_case_trend,
                 'risk_distribution': risk_dist,
-                'system_health': {
-                    'risk_index': 50.0,
-                    'status': 'moderate',
-                    'high_risk_percentage': 0,
-                    'avg_risk_score': 0,
-                    'total_students': total_students,
-                    'high_risk_count': 0
-                },
                 'escalated_cases': escalated_list,
                 'performance_metrics': performance_metrics,
-                'attendance_compliance': {
-                    'overall_attendance_rate': 0,
-                    'high_absence_classes': 0,
-                    'missing_submissions': 0
-                },
                 'recent_activities': recent_activities
             })
             
