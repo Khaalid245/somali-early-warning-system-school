@@ -1,537 +1,386 @@
 """
-Professional Email Notification Service for School Early Warning System
-Sends comprehensive attendance alerts with detailed absence information
+Email Notification Service — School Early Warning System
 """
-from django.core.mail import send_mail, EmailMultiAlternatives
+from django.core.mail import send_mail
 from django.conf import settings
 from django.utils import timezone
-from django.template.loader import render_to_string
-from datetime import datetime, timedelta
+from datetime import timedelta
 import logging
 
 logger = logging.getLogger(__name__)
 
 
-def get_email_sender(form_master=None):
-    """
-    Determine email sender based on configuration
-    """
-    sender_type = getattr(settings, 'EMAIL_SENDER_TYPE', 'form_master')
-    
-    if sender_type == 'form_master' and form_master:
-        return f"{form_master.name} <{form_master.email}>"
-    elif sender_type == 'principal':
-        principal_name = getattr(settings, 'SCHOOL_PRINCIPAL_NAME', 'Principal')
-        principal_email = getattr(settings, 'SCHOOL_PRINCIPAL_EMAIL', settings.DEFAULT_FROM_EMAIL)
-        return f"{principal_name} <{principal_email}>"
-    else:  # 'school' or fallback
-        school_name = getattr(settings, 'SCHOOL_NAME', 'School Administration')
-        return f"{school_name} <{settings.DEFAULT_FROM_EMAIL}>"
+# ─── Helpers ──────────────────────────────────────────────────────────────────
 
+def _school_name():
+    return getattr(settings, 'SCHOOL_NAME', 'School Early Warning System')
 
-def get_email_signature(form_master=None):
-    """
-    Get appropriate email signature based on sender type
-    """
-    sender_type = getattr(settings, 'EMAIL_SENDER_TYPE', 'form_master')
-    school_name = getattr(settings, 'SCHOOL_NAME', 'School Administration')
-    
-    if sender_type == 'form_master' and form_master:
-        enrollment = getattr(form_master, 'managed_classroom', None)
-        classroom_name = enrollment.name if enrollment else 'Unknown Class'
-        return f"""{form_master.name}
-Form Master, {classroom_name}
-{school_name}"""
-    elif sender_type == 'principal':
-        principal_name = getattr(settings, 'SCHOOL_PRINCIPAL_NAME', 'Principal')
-        return f"""{principal_name}
-Principal
-{school_name}"""
-    else:  # 'school'
-        return f"""{school_name}
-School Early Warning System"""
+def _frontend_url():
+    return getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')
 
+def _sender():
+    return settings.DEFAULT_FROM_EMAIL
 
-def send_absence_alert(student, consecutive_days, subject_name=None):
-    """
-    PROFESSIONAL: Send detailed absence alert with complete absence history
-    Recipients: Parent + Form Master + Admin (if critical)
-    """
-    try:
-        # Get detailed absence information
-        absence_details = get_student_absence_details(student, subject_name)
-        
-        # Get form master from active enrollment
-        enrollment = student.enrollments.filter(is_active=True).first()
-        if not enrollment or not enrollment.classroom.form_master:
-            logger.warning(f"No form master found for student {student.student_id}")
-            return
-        
-        form_master = enrollment.classroom.form_master
-        
-        # Determine alert severity
-        alert_level = "CRITICAL" if consecutive_days >= 5 else "HIGH" if consecutive_days >= 3 else "MEDIUM"
-        
-        # PROFESSIONAL EMAIL TO PARENT
-        if student.parent_email:
-            parent_subject = f"URGENT: Attendance Alert - {student.full_name} ({alert_level} PRIORITY)"
-            
-            # Get sender and signature
-            sender_email = get_email_sender(form_master)
-            signature = get_email_signature(form_master)
-            
-            parent_message = f"""
-Dear {student.parent_name or 'Parent/Guardian'},
+def _risk_label(attendance_rate):
+    if attendance_rate >= 95: return 'Low'
+    if attendance_rate >= 85: return 'Medium'
+    if attendance_rate >= 75: return 'High'
+    return 'Critical'
 
-RE: URGENT ATTENDANCE ALERT - {student.full_name}
-Student ID: {student.admission_number}
-Class: {enrollment.classroom.name}
-Alert Level: {alert_level}
-Date: {timezone.now().strftime('%B %d, %Y')}
+def _format_recent_absences(recent_absences):
+    if not recent_absences:
+        return '  No recent absences recorded.'
+    lines = []
+    for a in recent_absences[:5]:
+        date_str = a['date'].strftime('%d %b %Y')
+        status = 'Absent' if a['status'] == 'absent' else 'Late'
+        lines.append(f'  {date_str} — {a["subject"]} ({status})')
+    return '\n'.join(lines)
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+def _format_subject_breakdown(subject_breakdown):
+    if not subject_breakdown:
+        return '  No subject data available.'
+    lines = []
+    for subject, data in sorted(subject_breakdown.items(), key=lambda x: x[1]['count'], reverse=True):
+        lines.append(f'  {subject}: {data["count"]} absence(s)')
+    return '\n'.join(lines)
 
-ABSENCE SUMMARY:
-• Consecutive Absences: {consecutive_days} days
-• Subject Affected: {subject_name or 'Multiple Subjects'}
-• Total Absences This Month: {absence_details['monthly_absences']} days
-• Attendance Rate: {absence_details['attendance_rate']:.1f}%
-
-DETAILED ABSENCE RECORD:
-{format_absence_history(absence_details['recent_absences'])}
-
-SUBJECTS AFFECTED:
-{format_subject_absences(absence_details['subject_breakdown'])}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-IMMEDIATE ACTION REQUIRED:
-1. Please contact me immediately to explain the absences
-2. Provide medical certificates if absences are health-related
-3. Schedule a meeting with me to discuss support strategies
-4. Ensure regular attendance moving forward
-
-ACADEMIC IMPACT:
-Regular attendance is crucial for academic success. Extended absences may result in:
-• Difficulty catching up with coursework
-• Lower academic performance
-• Potential intervention measures
-• Administrative review if pattern continues
-
-CONTACT INFORMATION:
-Form Master: {form_master.name}
-Email: {form_master.email}
-School Phone: {getattr(settings, 'SCHOOL_PHONE', 'Contact School')}
-
-Please respond to this email or contact me within 24 hours.
-
-This alert was generated by our School Early Warning System to ensure your child receives the support they need.
-
-Sincerely,
-{signature}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-This email was sent on {timezone.now().strftime('%B %d, %Y at %I:%M %p')}
-For technical issues, contact: {getattr(settings, 'TECH_SUPPORT_EMAIL', 'support@school.edu')}
-"""
-            
-            send_mail(
-                subject=parent_subject,
-                message=parent_message,
-                from_email=sender_email,
-                recipient_list=[student.parent_email],
-                fail_silently=False,
-            )
-            logger.info(f"Professional absence alert sent to parent: {student.parent_email}")
-        
-        # PROFESSIONAL EMAIL TO FORM MASTER
-        form_master_subject = f"Student Absence Alert: {student.full_name} - {consecutive_days} Days ({alert_level})"
-        
-        form_master_message = f"""
-Dear {form_master.name},
-
-RE: STUDENT ABSENCE ALERT - IMMEDIATE ATTENTION REQUIRED
-Student: {student.full_name} (ID: {student.admission_number})
-Class: {enrollment.classroom.name}
-Alert Level: {alert_level}
-Generated: {timezone.now().strftime('%B %d, %Y at %I:%M %p')}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-ABSENCE ANALYTICS:
-• Consecutive Absences: {consecutive_days} days
-• Subject: {subject_name or 'Multiple Subjects'}
-• Monthly Total: {absence_details['monthly_absences']} absences
-• Attendance Rate: {absence_details['attendance_rate']:.1f}%
-• Risk Level: {get_risk_level(absence_details['attendance_rate'])}
-
-RECENT ABSENCE PATTERN:
-{format_absence_history(absence_details['recent_absences'])}
-
-SUBJECT-WISE BREAKDOWN:
-{format_subject_absences(absence_details['subject_breakdown'])}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-RECOMMENDED ACTIONS:
-1. Contact parent immediately (email sent automatically)
-2. Review student's academic performance in affected subjects
-3. Consider peer support or buddy system
-4. Schedule intervention meeting if pattern continues
-5. Document all communication and actions taken
-
-SYSTEM RECOMMENDATIONS:
-{get_intervention_recommendations(consecutive_days, absence_details['attendance_rate'])}
-
-ACCESS DASHBOARD:
-View detailed analytics: {getattr(settings, 'FRONTEND_URL', 'https://school.edu')}/form-master/dashboard
-Student Profile: {getattr(settings, 'FRONTEND_URL', 'https://school.edu')}/form-master/students/{student.student_id}
-
-This alert was generated by the Early Warning System based on attendance patterns.
-Please take appropriate action and update the system with your interventions.
-
-Best regards,
-School Early Warning System
-"""
-        
-        send_mail(
-            subject=form_master_subject,
-            message=form_master_message,
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[form_master.email],
-            fail_silently=False,
-        )
-        logger.info(f"Professional absence alert sent to form master: {form_master.email}")
-        
-        # CRITICAL ALERT TO ADMIN (if 5+ consecutive days)
-        if consecutive_days >= 5:
-            send_critical_absence_alert_to_admin(student, consecutive_days, absence_details)
-        
-    except Exception as e:
-        logger.error(f"Failed to send professional absence alert for student {student.student_id}: {e}")
-
-
-def get_student_absence_details(student, subject_name=None):
-    """Get comprehensive absence details for professional reporting"""
+def _get_absence_details(student):
     from attendance.models import AttendanceRecord
-    
     records = AttendanceRecord.objects.filter(
         student=student
     ).select_related('session__subject', 'session').order_by('-session__attendance_date')
-    
+
     thirty_days_ago = timezone.now().date() - timedelta(days=30)
-    monthly_records = records.filter(session__attendance_date__gte=thirty_days_ago)
-    monthly_absences = monthly_records.filter(status='absent').count()
-    total_monthly_sessions = monthly_records.count()
-    
+    monthly = records.filter(session__attendance_date__gte=thirty_days_ago)
+    monthly_absences = monthly.filter(status='absent').count()
+    total = monthly.count()
     attendance_rate = 0
-    if total_monthly_sessions > 0:
-        present_sessions = monthly_records.filter(status='present').count()
-        attendance_rate = (present_sessions / total_monthly_sessions) * 100
-    
+    if total > 0:
+        attendance_rate = (monthly.filter(status='present').count() / total) * 100
+
     recent_absences = []
-    for record in records[:10]:
-        if record.status in ['absent', 'late']:
+    for r in records[:10]:
+        if r.status in ['absent', 'late']:
             recent_absences.append({
-                'date': record.session.attendance_date,
-                'subject': record.session.subject.name,
-                'status': record.status,
-                'remarks': record.remarks or ''
+                'date': r.session.attendance_date,
+                'subject': r.session.subject.name,
+                'status': r.status,
             })
-    
+
     subject_breakdown = {}
-    for record in records.filter(status='absent')[:20]:
-        subject = record.session.subject.name
-        if subject not in subject_breakdown:
-            subject_breakdown[subject] = {'count': 0, 'dates': []}
-        subject_breakdown[subject]['count'] += 1
-        subject_breakdown[subject]['dates'].append(record.session.attendance_date)
-    
+    for r in records.filter(status='absent')[:20]:
+        s = r.session.subject.name
+        if s not in subject_breakdown:
+            subject_breakdown[s] = {'count': 0}
+        subject_breakdown[s]['count'] += 1
+
     return {
         'monthly_absences': monthly_absences,
         'attendance_rate': attendance_rate,
         'recent_absences': recent_absences,
-        'subject_breakdown': subject_breakdown
+        'subject_breakdown': subject_breakdown,
     }
 
 
-def format_absence_history(recent_absences):
-    """Format recent absence history for email display"""
-    if not recent_absences:
-        return "No recent absences recorded."
-    
-    formatted = []
-    for absence in recent_absences[:7]:
-        date_str = absence['date'].strftime('%B %d, %Y (%A)')
-        status_icon = "X" if absence['status'] == 'absent' else "LATE"
-        remarks = f" - {absence['remarks']}" if absence['remarks'] else ""
-        formatted.append(f"  {status_icon} {date_str} | {absence['subject']}{remarks}")
-    
-    return "\n".join(formatted)
+# ─── 1. Absence alert → Parent ────────────────────────────────────────────────
 
-
-def format_subject_absences(subject_breakdown):
-    """Format subject-wise absence breakdown"""
-    if not subject_breakdown:
-        return "No subject-specific data available."
-    
-    formatted = []
-    for subject, data in sorted(subject_breakdown.items(), key=lambda x: x[1]['count'], reverse=True):
-        recent_dates = sorted(data['dates'], reverse=True)[:3]
-        date_str = ", ".join([d.strftime('%m/%d') for d in recent_dates])
-        formatted.append(f"  {subject}: {data['count']} absences (Recent: {date_str})")
-    
-    return "\n".join(formatted)
-
-
-def get_risk_level(attendance_rate):
-    """Determine risk level based on attendance rate"""
-    if attendance_rate >= 95:
-        return "LOW RISK"
-    elif attendance_rate >= 85:
-        return "MEDIUM RISK"
-    elif attendance_rate >= 75:
-        return "HIGH RISK"
-    else:
-        return "CRITICAL RISK"
-
-
-def get_intervention_recommendations(consecutive_days, attendance_rate):
-    """Get specific intervention recommendations"""
-    recommendations = []
-    
-    if consecutive_days >= 5:
-        recommendations.append("• IMMEDIATE: Schedule parent meeting within 24 hours")
-        recommendations.append("• URGENT: Request medical documentation if health-related")
-        recommendations.append("• CRITICAL: Consider home visit or welfare check")
-    
-    if attendance_rate < 75:
-        recommendations.append("• Academic: Arrange catch-up sessions with subject teachers")
-        recommendations.append("• Support: Assign peer mentor or study buddy")
-        recommendations.append("• Monitoring: Daily attendance check-ins")
-    
-    if consecutive_days >= 3:
-        recommendations.append("• Communication: Daily parent contact until pattern improves")
-        recommendations.append("• Documentation: Record all interventions in student file")
-    
-    return "\n".join(recommendations) if recommendations else "• Standard monitoring and support protocols"
-
-
-def send_critical_absence_alert_to_admin(student, consecutive_days, absence_details):
-    """Send critical alert to administrators for severe cases"""
+def send_absence_alert(student, consecutive_days, subject_name=None):
+    """
+    Triggered when a student has 3+ consecutive absences.
+    Sends to: parent, form master, and admin (if 5+ days).
+    """
     try:
-        from users.models import User
-        
-        admins = User.objects.filter(role='admin', is_active=True)
-        admin_emails = [admin.email for admin in admins]
-        
-        if not admin_emails:
-            logger.warning("No active administrators found for critical alert")
-            return
-        
+        details = _get_absence_details(student)
         enrollment = student.enrollments.filter(is_active=True).first()
-        
-        subject = f"CRITICAL ABSENCE ALERT: {student.full_name} - {consecutive_days} Consecutive Days"
-        
-        message = f"""
-CRITICAL ABSENCE ALERT - ADMINISTRATIVE INTERVENTION REQUIRED
+        if not enrollment or not enrollment.classroom.form_master:
+            logger.warning(f'No form master for student {student.student_id}')
+            return
+
+        form_master = enrollment.classroom.form_master
+        classroom   = enrollment.classroom.name
+        today       = timezone.now().strftime('%d %B %Y')
+
+        # ── Email to parent ──
+        if student.parent_email:
+            parent_name = student.parent_name or 'Parent/Guardian'
+            parent_message = f"""Dear {parent_name},
+
+We are writing to let you know that {student.full_name} has been absent from school for {consecutive_days} consecutive day(s).
 
 Student: {student.full_name}
-ID: {student.admission_number}
-Class: {enrollment.classroom.name if enrollment else 'Unknown'}
-Form Master: {enrollment.classroom.form_master.name if enrollment and enrollment.classroom.form_master else 'Unassigned'}
+Class: {classroom}
+Absences this month: {details['monthly_absences']} day(s)
+Attendance rate: {details['attendance_rate']:.0f}%
 
-CRITICAL METRICS:
-• Consecutive Absences: {consecutive_days} days
-• Monthly Absences: {absence_details['monthly_absences']} days
-• Attendance Rate: {absence_details['attendance_rate']:.1f}%
-• Risk Level: {get_risk_level(absence_details['attendance_rate'])}
+Recent absences:
+{_format_recent_absences(details['recent_absences'])}
 
-IMMEDIATE ADMINISTRATIVE ACTION REQUIRED:
-1. Review case for potential child welfare concerns
-2. Authorize home visit if necessary
-3. Consider involving social services
-4. Review school attendance policies and consequences
-5. Schedule administrative meeting with parents
+What we ask of you:
+  1. Please contact the school to explain the reason for the absences.
+  2. If the absence is due to illness, please provide a medical note.
+  3. We would like to arrange a short meeting to discuss how we can support {student.full_name}.
 
-This alert requires immediate attention due to the severity of the absence pattern.
+To reach us:
+  Form Master: {form_master.name}
+  Email: {form_master.email}
+  Phone: {getattr(settings, 'SCHOOL_PHONE', 'Contact the school office')}
 
-Access Admin Dashboard: {getattr(settings, 'FRONTEND_URL', 'https://school.edu')}/admin/dashboard
+Thank you for your support.
 
-School Early Warning System
-Generated: {timezone.now().strftime('%B %d, %Y at %I:%M %p')}
+{form_master.name}
+Form Master, {classroom}
+{_school_name()}
+{today}
 """
-        
+            send_mail(
+                subject=f'Attendance concern — {student.full_name}',
+                message=parent_message,
+                from_email=_sender(),
+                recipient_list=[student.parent_email],
+                fail_silently=False,
+            )
+            logger.info(f'Absence alert sent to parent: {student.parent_email}')
+
+        # ── Email to form master ──
+        fm_message = f"""Dear {form_master.name},
+
+This is an automatic notification from the Early Warning System.
+
+{student.full_name} (Class: {classroom}) has been absent for {consecutive_days} consecutive day(s).
+
+Attendance summary (last 30 days):
+  Absences: {details['monthly_absences']} day(s)
+  Attendance rate: {details['attendance_rate']:.0f}%
+  Risk level: {_risk_label(details['attendance_rate'])}
+
+Recent absences:
+{_format_recent_absences(details['recent_absences'])}
+
+Subjects affected:
+{_format_subject_breakdown(details['subject_breakdown'])}
+
+Suggested next steps:
+  1. A notification has been sent to the parent automatically.
+  2. Please follow up if you have not heard back within 24 hours.
+  3. If the pattern continues, consider opening an intervention case.
+
+View the student's profile:
+{_frontend_url()}/form-master/dashboard
+
+{_school_name()}
+{today}
+"""
         send_mail(
-            subject=subject,
-            message=message,
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=admin_emails,
+            subject=f'Absence alert — {student.full_name} ({consecutive_days} day(s))',
+            message=fm_message,
+            from_email=_sender(),
+            recipient_list=[form_master.email],
             fail_silently=False,
         )
-        
-        logger.info(f"Critical absence alert sent to {len(admin_emails)} administrators")
-        
+        logger.info(f'Absence alert sent to form master: {form_master.email}')
+
+        # ── Email to admin if 5+ consecutive days ──
+        if consecutive_days >= 5:
+            _send_critical_absence_to_admin(student, consecutive_days, details, enrollment)
+
     except Exception as e:
-        logger.error(f"Failed to send critical absence alert to admin: {e}")
+        logger.error(f'Failed to send absence alert for student {student.student_id}: {e}')
 
 
-def send_alert_notification(alert):
-    """Send email when high-risk alert is created — notifies assigned form master"""
-    try:
-        if not alert.assigned_to or not alert.assigned_to.email:
-            logger.warning(f"No form master email for alert {alert.alert_id}")
-            return
-
-        school_name = getattr(settings, 'SCHOOL_NAME', 'School Early Warning System')
-        subject = f"New {alert.risk_level.upper()} Risk Alert: {alert.student.full_name}"
-        message = f"""Dear {alert.assigned_to.name},
-
-A new {alert.risk_level.upper()} risk alert has been created for:
-
-Student: {alert.student.full_name}
-Alert Type: {alert.alert_type}
-Risk Level: {alert.risk_level.upper()}
-Date: {alert.alert_date.strftime('%B %d, %Y')}
-
-Please log in to review and take action:
-{getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')}/form-master/dashboard
-
-Best regards,
-{school_name}"""
-
-        send_mail(
-            subject=subject,
-            message=message,
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[alert.assigned_to.email],
-            fail_silently=True,
-        )
-        logger.info(f"Alert notification sent to {alert.assigned_to.email} for alert {alert.alert_id}")
-    except Exception as e:
-        logger.error(f"Failed to send alert notification for alert {alert.alert_id}: {e}")
-
-
-def send_case_escalation_notification(case):
-    """Send email to all admins when a case is escalated"""
+def _send_critical_absence_to_admin(student, consecutive_days, details, enrollment):
     try:
         from users.models import User
         admins = User.objects.filter(role='admin', is_active=True)
         admin_emails = [a.email for a in admins]
         if not admin_emails:
-            logger.warning("No active admins found for escalation notification")
             return
 
-        school_name = getattr(settings, 'SCHOOL_NAME', 'School Early Warning System')
-        form_master_name = case.assigned_to.name if case.assigned_to else 'Form Master'
-        subject = f"ESCALATED CASE: {case.student.full_name} — Requires Admin Review"
+        classroom   = enrollment.classroom.name if enrollment else 'Unknown'
+        form_master = enrollment.classroom.form_master.name if enrollment and enrollment.classroom.form_master else 'Unassigned'
+        today       = timezone.now().strftime('%d %B %Y')
+
         message = f"""Dear Administrator,
 
-A case has been escalated to admin level and requires your immediate attention.
+This is an urgent notification. A student has been absent for {consecutive_days} consecutive days and requires your attention.
 
-Case ID: #{case.case_id}
-Student: {case.student.full_name}
-Escalated By: {form_master_name}
-Escalation Reason: {case.escalation_reason or 'No reason provided'}
-Days Open: {(timezone.now().date() - case.created_at.date()).days} days
+Student: {student.full_name}
+Class: {classroom}
+Form Master: {form_master}
+Consecutive absences: {consecutive_days} days
+Absences this month: {details['monthly_absences']} days
+Attendance rate: {details['attendance_rate']:.0f}%
 
-Please log in to review:
-{getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')}/admin/dashboard
+The form master has been notified. Please review this case and consider whether further action is needed, such as a welfare check or parent meeting.
 
-Best regards,
-{school_name}"""
+View the case in the admin dashboard:
+{_frontend_url()}/admin/dashboard
 
+{_school_name()}
+{today}
+"""
         send_mail(
-            subject=subject,
+            subject=f'Urgent: {student.full_name} — {consecutive_days} consecutive absences',
             message=message,
-            from_email=settings.DEFAULT_FROM_EMAIL,
+            from_email=_sender(),
+            recipient_list=admin_emails,
+            fail_silently=False,
+        )
+        logger.info(f'Critical absence alert sent to {len(admin_emails)} admin(s)')
+    except Exception as e:
+        logger.error(f'Failed to send critical absence alert to admin: {e}')
+
+
+# ─── 2. New high-risk alert → Form master ─────────────────────────────────────
+
+def send_alert_notification(alert):
+    """Sent when a high or critical risk alert is created for a student."""
+    try:
+        if not alert.assigned_to or not alert.assigned_to.email:
+            logger.warning(f'No form master email for alert {alert.alert_id}')
+            return
+
+        today   = alert.alert_date.strftime('%d %B %Y')
+        message = f"""Dear {alert.assigned_to.name},
+
+A new attendance alert has been raised for one of your students.
+
+Student: {alert.student.full_name}
+Risk level: {alert.risk_level.capitalize()}
+Alert type: {alert.alert_type.replace('_', ' ').capitalize()}
+Date: {today}
+
+Please log in to review this alert and decide on next steps:
+{_frontend_url()}/form-master/dashboard
+
+{_school_name()}
+"""
+        send_mail(
+            subject=f'New {alert.risk_level} risk alert — {alert.student.full_name}',
+            message=message,
+            from_email=_sender(),
+            recipient_list=[alert.assigned_to.email],
+            fail_silently=True,
+        )
+        logger.info(f'Alert notification sent to {alert.assigned_to.email}')
+    except Exception as e:
+        logger.error(f'Failed to send alert notification for alert {alert.alert_id}: {e}')
+
+
+# ─── 3. Case escalated → All admins ───────────────────────────────────────────
+
+def send_case_escalation_notification(case):
+    """Sent to all admins when a form master escalates a case."""
+    try:
+        from users.models import User
+        admins = User.objects.filter(role='admin', is_active=True)
+        admin_emails = [a.email for a in admins]
+        if not admin_emails:
+            return
+
+        form_master = case.assigned_to.name if case.assigned_to else 'Form Master'
+        days_open   = (timezone.now().date() - case.created_at.date()).days
+        today       = timezone.now().strftime('%d %B %Y')
+
+        message = f"""Dear Administrator,
+
+A case has been escalated and needs your review.
+
+Student: {case.student.full_name}
+Case ID: #{case.case_id}
+Escalated by: {form_master}
+Days open: {days_open}
+Reason: {case.escalation_reason or 'No reason provided'}
+
+Please log in to review and take action:
+{_frontend_url()}/admin/dashboard
+
+{_school_name()}
+{today}
+"""
+        send_mail(
+            subject=f'Case escalated — {case.student.full_name} (#{case.case_id})',
+            message=message,
+            from_email=_sender(),
             recipient_list=admin_emails,
             fail_silently=True,
         )
-        logger.info(f"Escalation notification sent to {len(admin_emails)} admins for case {case.case_id}")
+        logger.info(f'Escalation notification sent to {len(admin_emails)} admin(s) for case {case.case_id}')
     except Exception as e:
-        logger.error(f"Failed to send escalation notification for case {case.case_id}: {e}")
+        logger.error(f'Failed to send escalation notification for case {case.case_id}: {e}')
 
+
+# ─── 4. Case resolved → Form master ───────────────────────────────────────────
 
 def send_case_resolved_notification(case):
-    """Send email to form master when a case is successfully resolved"""
+    """Sent to the form master when a case is closed."""
     try:
         if not case.assigned_to or not case.assigned_to.email:
-            logger.warning(f"No form master email for case {case.case_id}")
             return
 
-        school_name = getattr(settings, 'SCHOOL_NAME', 'School Early Warning System')
-        subject = f"Case Resolved: {case.student.full_name} — #{case.case_id}"
+        today   = timezone.now().strftime('%d %B %Y')
         message = f"""Dear {case.assigned_to.name},
 
-The following intervention case has been marked as resolved.
+The intervention case for {case.student.full_name} has been closed.
 
 Case ID: #{case.case_id}
 Student: {case.student.full_name}
-Resolution Notes: {case.outcome_notes or 'No notes recorded'}
-Closed At: {timezone.now().strftime('%B %d, %Y')}
+Closed on: {today}
+Notes: {case.outcome_notes or 'No notes recorded'}
 
-Please continue monitoring the student's attendance.
+Please continue to monitor this student's attendance over the coming weeks.
 
-Best regards,
-{school_name}"""
-
+{_school_name()}
+"""
         send_mail(
-            subject=subject,
+            subject=f'Case closed — {case.student.full_name} (#{case.case_id})',
             message=message,
-            from_email=settings.DEFAULT_FROM_EMAIL,
+            from_email=_sender(),
             recipient_list=[case.assigned_to.email],
             fail_silently=True,
         )
-        logger.info(f"Resolution notification sent to {case.assigned_to.email} for case {case.case_id}")
+        logger.info(f'Resolution notification sent to {case.assigned_to.email} for case {case.case_id}')
     except Exception as e:
-        logger.error(f"Failed to send resolution notification for case {case.case_id}: {e}")
+        logger.error(f'Failed to send resolution notification for case {case.case_id}: {e}')
 
+
+# ─── 5. Attendance reminder → Teacher ─────────────────────────────────────────
 
 def send_attendance_reminder_to_teacher(teacher, missing_assignments):
-    """
-    Send a reminder email to a teacher who has not recorded attendance today.
-    missing_assignments: list of dicts with keys 'classroom_name', 'subject_name', 'period'
-    """
+    """Sent to a teacher who has not recorded attendance for one or more classes today."""
     try:
         if not teacher.email:
-            logger.warning(f"Teacher {teacher.id} has no email address")
             return
 
-        school_name = getattr(settings, 'SCHOOL_NAME', 'School Early Warning System')
-        today_str = timezone.now().strftime('%A, %B %d, %Y')
-        frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')
+        today_str = timezone.now().strftime('%A, %d %B %Y')
+        frontend_url = _frontend_url()
 
-        missing_lines = "\n".join(
-            f"  • {a['classroom_name']} — {a['subject_name']} (Period {a['period']})"
+        missing_lines = '\n'.join(
+            f'  • {a["classroom_name"]} — {a["subject_name"]} (Period {a["period"]})'
             for a in missing_assignments
         )
 
-        subject = f"Reminder: Attendance Not Yet Recorded — {today_str}"
         message = f"""Dear {teacher.name},
 
-This is an automated reminder that attendance has not been recorded for the following class(es) today ({today_str}):
+Attendance has not yet been recorded for the following class(es) today ({today_str}):
 
 {missing_lines}
 
 Please log in and record attendance as soon as possible:
 {frontend_url}/teacher/attendance
 
-Accurate daily attendance is essential for student risk monitoring and early intervention.
-If you have already recorded attendance and received this in error, please ignore this message.
+If you have already done this, please ignore this message.
 
-Best regards,
-{school_name}
-Early Warning System"""
-
+{_school_name()}
+"""
         send_mail(
-            subject=subject,
+            subject=f'Reminder: attendance not recorded — {today_str}',
             message=message,
-            from_email=settings.DEFAULT_FROM_EMAIL,
+            from_email=_sender(),
             recipient_list=[teacher.email],
             fail_silently=False,
         )
-        logger.info(f"Attendance reminder sent to teacher {teacher.email} for {len(missing_assignments)} assignment(s)")
+        logger.info(f'Attendance reminder sent to {teacher.email}')
     except Exception as e:
-        logger.error(f"Failed to send attendance reminder to teacher {getattr(teacher, 'email', 'unknown')}: {e}")
+        logger.error(f'Failed to send attendance reminder to {getattr(teacher, "email", "unknown")}: {e}')
         raise
