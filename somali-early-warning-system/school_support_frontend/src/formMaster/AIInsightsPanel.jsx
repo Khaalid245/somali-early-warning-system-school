@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AlertCircle, AlertTriangle, Activity, CheckCircle, Calendar, User, ChevronDown, ChevronUp, ChevronLeft, ChevronRight } from 'lucide-react';
+import { AlertCircle, AlertTriangle, Activity, CheckCircle, Calendar, User, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Lightbulb } from 'lucide-react';
 
 const PAGE_SIZE = 10;
 
