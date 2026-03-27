@@ -98,7 +98,8 @@ export default function SettingsPage() {
         
         // Use fetch directly for file upload to avoid API client issues
         const token = sessionStorage.getItem('access');
-        const fetchResponse = await fetch('http://127.0.0.1:8000/api/dashboard/settings/profile/', {
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
+        const fetchResponse = await fetch(`${apiUrl}/dashboard/settings/profile/`, {
           method: 'PUT',
           headers: {
             'Authorization': `Bearer ${token}`,
