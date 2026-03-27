@@ -31,8 +31,7 @@ def invalidate_cache_on_attendance(sender, instance, **kwargs):
     try:
         # Get teacher from the session's subject
         if hasattr(instance.session, 'subject'):
-            teaching_assignments = instance.session.subject.teaching_assignments.all()
-            for assignment in teaching_assignments:
+            for assignment in instance.session.subject.assignments.all():
                 invalidate_teacher_cache(assignment.teacher_id)
     except Exception as e:
         logger.error(f"Error invalidating cache on attendance save: {e}")
@@ -42,9 +41,8 @@ def invalidate_cache_on_attendance(sender, instance, **kwargs):
 def invalidate_cache_on_alert(sender, instance, **kwargs):
     """Invalidate teacher dashboard cache when alert is created/updated"""
     try:
-        if hasattr(instance, 'subject'):
-            teaching_assignments = instance.subject.teaching_assignments.all()
-            for assignment in teaching_assignments:
+        if instance.subject is not None:
+            for assignment in instance.subject.assignments.all():
                 invalidate_teacher_cache(assignment.teacher_id)
     except Exception as e:
         logger.error(f"Error invalidating cache on alert save: {e}")
@@ -67,12 +65,10 @@ def invalidate_cache_on_delete(sender, instance, **kwargs):
     """Invalidate cache when records are deleted"""
     try:
         if sender == AttendanceRecord and hasattr(instance.session, 'subject'):
-            teaching_assignments = instance.session.subject.teaching_assignments.all()
-            for assignment in teaching_assignments:
+            for assignment in instance.session.subject.assignments.all():
                 invalidate_teacher_cache(assignment.teacher_id)
-        elif sender == Alert and hasattr(instance, 'subject'):
-            teaching_assignments = instance.subject.teaching_assignments.all()
-            for assignment in teaching_assignments:
+        elif sender == Alert and instance.subject is not None:
+            for assignment in instance.subject.assignments.all():
                 invalidate_teacher_cache(assignment.teacher_id)
         elif sender == InterventionCase and instance.assigned_to:
             invalidate_teacher_cache(instance.assigned_to.id)

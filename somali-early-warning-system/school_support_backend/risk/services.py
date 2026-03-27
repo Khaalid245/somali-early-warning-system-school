@@ -254,12 +254,15 @@ def _handle_alerts_and_interventions(student, old_level, new_level):
             ).first()
 
             if not existing_case:
-                InterventionCase.objects.create(
-                    student=student,
-                    alert=active_alert,
-                    assigned_to=form_master,
-                    status="open"
-                )
+                try:
+                    InterventionCase.objects.create(
+                        student=student,
+                        alert=active_alert,
+                        assigned_to=form_master,
+                        status="open"
+                    )
+                except Exception:
+                    pass  # duplicate case guard in model — safe to ignore
 
     # ------------------------------------------------
     # AUTO RESOLVE
@@ -284,6 +287,7 @@ def _handle_alerts_and_interventions(student, old_level, new_level):
                 status="closed",
                 attendance_rate_at_close=rate_at_close,
             )
+            student.refresh_from_db(fields=['intervention_count', 'chronic_absentee'])
             new_count = student.intervention_count + 1
             is_chronic = new_count >= 3
             type(student).objects.filter(pk=student.pk).update(

@@ -4,6 +4,7 @@ from .views.auth import MyTokenObtainPairView
 from .views.logout import LogoutView
 from .views.users import ChangePasswordView
 from .views.two_factor import Setup2FAView, Enable2FAView, Disable2FAView, Verify2FAView, ForceReset2FAView
+from .views.password_reset import PasswordResetRequestView, PasswordResetConfirmView
 
 urlpatterns = [
     path("login/", MyTokenObtainPairView.as_view(), name="token_obtain_pair"),
@@ -15,4 +16,6 @@ urlpatterns = [
     path("2fa/disable/", Disable2FAView.as_view(), name="2fa_disable"),
     path("2fa/verify/", Verify2FAView.as_view(), name="2fa_verify"),
     path("2fa/force-reset/", ForceReset2FAView.as_view(), name="2fa_force_reset"),
+    path("password-reset/", PasswordResetRequestView.as_view(), name="password_reset_request"),
+    path("password-reset/confirm/", PasswordResetConfirmView.as_view(), name="password_reset_confirm"),
 ]

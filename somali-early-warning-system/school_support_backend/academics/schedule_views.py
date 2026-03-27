@@ -60,11 +60,15 @@ def get_school_timetable(request):
             schedule_data[day] = []
         
         schedule_data[day].append({
+            'timetable_id': tt.timetable_id,
             'period': tt.period,
             'period_display': tt.get_period_display(),
             'classroom': tt.classroom.name,
+            'classroom_id': tt.classroom.class_id,
             'subject': tt.subject.name,
+            'subject_id': tt.subject.subject_id,
             'teacher': tt.teacher.name,
+            'teacher_id': tt.teacher.id,
             'teacher_email': tt.teacher.email,
         })
     

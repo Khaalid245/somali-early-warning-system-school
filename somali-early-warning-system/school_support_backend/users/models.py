@@ -58,3 +58,17 @@ class User(AbstractBaseUser, PermissionsMixin):
             return False
         totp = pyotp.TOTP(self.two_factor_secret)
         return totp.verify(code, valid_window=1)
+
+
+class PasswordResetToken(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='reset_tokens')
+    token = models.CharField(max_length=64, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    used = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Reset token for {self.user.email}"

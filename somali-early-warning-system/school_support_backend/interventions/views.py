@@ -239,6 +239,8 @@ class InterventionCaseDetailView(IDORProtectionMixin, generics.RetrieveUpdateDes
 
                 # Increment intervention_count and set chronic_absentee if threshold reached
                 student = updated_case.student
+                # Refresh from DB to avoid stale in-memory value
+                student.refresh_from_db(fields=['intervention_count', 'chronic_absentee'])
                 new_count = student.intervention_count + 1
                 is_chronic = new_count >= 3
                 type(student).objects.filter(pk=student.pk).update(

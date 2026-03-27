@@ -3,6 +3,8 @@ from .views import (
     AttendanceSessionListCreateView,
     AttendanceSessionDetailView,
     StudentAbsenceDetailsView,
+    TodayValidPeriodsView,
+    TodaySubmittedSessionsView,
 )
 from .daily_monitor_view import DailyAttendanceMonitorView
 from .student_report_view import StudentAttendanceReportView
@@ -48,6 +50,16 @@ urlpatterns = [
         "tracking/student/<int:student_id>/history/",
         StudentAttendanceHistoryView.as_view(),
         name="attendance-tracking-history"
+    ),
+    path(
+        "valid-periods/",
+        TodayValidPeriodsView.as_view(),
+        name="attendance-valid-periods"
+    ),
+    path(
+        "today-submitted/",
+        TodaySubmittedSessionsView.as_view(),
+        name="attendance-today-submitted"
     ),
     path(
         "absence-details/",

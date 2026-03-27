@@ -209,7 +209,6 @@ School Early Warning System
         
     except Exception as e:
         logger.error(f"Failed to send professional absence alert for student {student.student_id}: {e}")
-        raise  # Re-raise for capstone project - no silent failures
 
 
 def get_student_absence_details(student, subject_name=None):

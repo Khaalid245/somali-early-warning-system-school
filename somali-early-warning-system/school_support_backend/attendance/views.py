@@ -1,3 +1,4 @@
+import logging
 from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import PermissionDenied
@@ -14,6 +15,8 @@ from academics.models import TeachingAssignment
 from risk.services import update_risk_after_session
 from dashboard.cache_utils import invalidate_teacher_cache
 from notifications.email_service import send_absence_alert
+
+logger = logging.getLogger(__name__)
 
 
 # -----------------------------------
@@ -50,8 +53,9 @@ class AttendanceSessionListCreateView(generics.ListCreateAPIView):
         classroom = serializer.validated_data["classroom"]
         subject = serializer.validated_data["subject"]
         attendance_date = serializer.validated_data["attendance_date"]
+        period = serializer.validated_data.get("period", "1")
 
-        # Validate teacher assignment
+        # Check 1: Teacher must be assigned to this class/subject
         if not TeachingAssignment.objects.filter(
             teacher=user,
             subject=subject,
@@ -59,49 +63,79 @@ class AttendanceSessionListCreateView(generics.ListCreateAPIView):
         ).exists():
             raise PermissionDenied("You are not assigned to this class/subject.")
 
-        # Check for existing attendance session (include period and teacher in validation)
-        period = serializer.validated_data.get("period", "1")
-        existing_sessions = AttendanceSession.objects.filter(
+        # Check 2: Period must match the timetable for this day
+        from academics.schedule_models import SchoolTimetable
+        day_of_week = attendance_date.strftime('%A').lower()
+        timetable_slot = SchoolTimetable.objects.filter(
+            teacher=user,
             classroom=classroom,
             subject=subject,
-            teacher=user,  # FIXED: Include teacher to allow same subject in different classes
+            day_of_week=day_of_week,
+            period=period,
+            is_active=True
+        ).first()
+
+        if not timetable_slot:
+            # Find what periods ARE valid for this teacher/class/subject/day
+            valid_slots = SchoolTimetable.objects.filter(
+                teacher=user,
+                classroom=classroom,
+                subject=subject,
+                day_of_week=day_of_week,
+                is_active=True
+            ).values_list('period', flat=True)
+
+            if valid_slots.exists():
+                valid_str = ', '.join([f'Period {p}' for p in sorted(valid_slots)])
+                raise PermissionDenied(
+                    f"Period {period} is not scheduled for {subject.name} in {classroom.name} "
+                    f"on {day_of_week.capitalize()}. "
+                    f"Your scheduled period(s) today: {valid_str}."
+                )
+            else:
+                raise PermissionDenied(
+                    f"{subject.name} is not scheduled in {classroom.name} "
+                    f"on {day_of_week.capitalize()}. Check your timetable."
+                )
+
+        # Check 3: No duplicate session for same class/subject/period/date
+        if AttendanceSession.objects.filter(
+            classroom=classroom,
+            subject=subject,
+            teacher=user,
             attendance_date=attendance_date,
             period=period
-        )
-        
-        if existing_sessions.exists():
+        ).exists():
             raise PermissionDenied(
-                f"Attendance already recorded for {classroom.name} - {subject.name} on {attendance_date} (Period {period}). "
-                f"Please edit the existing record instead."
+                f"Attendance already recorded for {classroom.name} - {subject.name} "
+                f"on {attendance_date} (Period {period}). Edit the existing record instead."
             )
 
-        # Handle database unique constraint for presentation
         try:
-            # Save session with transaction safety
             with transaction.atomic():
                 session = serializer.save(teacher=user)
-                
-                # Call risk engine (SERVICE LAYER) - wrapped in try-catch
+
                 try:
                     update_risk_after_session(session)
-                except Exception as e:
-                    pass
-                    
+                except Exception:
+                    logger.exception("Risk update failed for session %s", session.session_id)
+
                 try:
                     check_and_send_absence_alerts(session)
-                except Exception as e:
-                    pass
-                    
+                except Exception:
+                    logger.exception("Absence alert failed for session %s", session.session_id)
+
                 try:
                     invalidate_teacher_cache(user.id)
-                except Exception as e:
-                    pass
-                    
+                except Exception:
+                    logger.exception("Cache invalidation failed for user %s", user.id)
+
+        except PermissionDenied:
+            raise
         except Exception as e:
             if 'Duplicate entry' in str(e):
                 raise PermissionDenied("Attendance already recorded for this class, subject, date and period.")
-            else:
-                raise e
+            raise
 
 
 # -----------------------------------
@@ -125,6 +159,62 @@ class AttendanceSessionDetailView(generics.RetrieveUpdateAPIView):
             serializer.save()
             update_risk_after_session(session)
             invalidate_teacher_cache(user.id)
+
+
+# -----------------------------------
+# Today's Already-Submitted Sessions
+# -----------------------------------
+class TodaySubmittedSessionsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        if user.role != 'teacher':
+            return Response({'submitted': []}, status=200)
+
+        from datetime import date
+        today = date.today()
+        sessions = AttendanceSession.objects.filter(
+            teacher=user,
+            attendance_date=today
+        ).values('classroom_id', 'subject_id', 'period')
+
+        return Response({'submitted': list(sessions)})
+
+
+# -----------------------------------
+# Valid Periods for Today
+# -----------------------------------
+class TodayValidPeriodsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        if user.role != 'teacher':
+            return Response({'error': 'Teachers only'}, status=403)
+
+        classroom_id = request.query_params.get('classroom')
+        subject_id = request.query_params.get('subject')
+
+        if not classroom_id or not subject_id:
+            return Response({'error': 'classroom and subject required'}, status=400)
+
+        from academics.schedule_models import SchoolTimetable
+        from datetime import date
+        day_of_week = date.today().strftime('%A').lower()
+
+        slots = SchoolTimetable.objects.filter(
+            teacher=user,
+            classroom_id=classroom_id,
+            subject_id=subject_id,
+            day_of_week=day_of_week,
+            is_active=True
+        ).values_list('period', flat=True)
+
+        return Response({
+            'day': day_of_week,
+            'valid_periods': list(slots)
+        })
 
 
 # -----------------------------------
@@ -173,16 +263,8 @@ class StudentAbsenceDetailsView(APIView):
 # Helper: Check Consecutive Absences
 # -----------------------------------
 def check_and_send_absence_alerts(session):
-    """
-    Check if any student has 3+ consecutive absences and send email alert
-    Called automatically after attendance is recorded
-    """
-    from students.models import Student
-    from django.utils import timezone
-    
-    # Get all absent students from this session
     absent_records = session.records.filter(status='absent').select_related('student')
-    
+
     for record in absent_records:
         student = record.student
         subject = session.subject
@@ -203,4 +285,4 @@ def check_and_send_absence_alerts(session):
             try:
                 send_absence_alert(student, consecutive_absences, subject.name)
             except Exception:
-                pass
+                logger.exception("Email alert failed for student %s", student.student_id)

@@ -63,6 +63,7 @@ class AttendanceSessionSerializer(serializers.ModelSerializer):
             "teacher",
             "teacher_name",
             "attendance_date",
+            "period",
             "created_at",
             "records",
             "total_students",
@@ -131,6 +132,14 @@ class AttendanceSessionSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 "Attendance must be submitted for ALL enrolled students."
             )
+
+        # 3️⃣ Excused records must have a reason
+        for record in records:
+            if record["status"] == "excused" and not record.get("remarks", "").strip():
+                student_name = record["student"].full_name
+                raise serializers.ValidationError(
+                    f"Excuse reason is required for {student_name}."
+                )
 
         return data
 

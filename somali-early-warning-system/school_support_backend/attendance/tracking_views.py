@@ -17,15 +17,15 @@ class StudentAttendanceTrackingView(APIView):
         if user.role != 'teacher':
             return Response({'error': 'Only teachers can access this'}, status=403)
         
-        # Get teacher's classes
-        my_classes = TeachingAssignment.objects.filter(
+        # Get teacher's unique classrooms (deduplicated — a teacher may have multiple subjects per classroom)
+        my_classrooms = TeachingAssignment.objects.filter(
             teacher=user, is_active=True
-        ).select_related('classroom', 'subject').values(
-            'classroom__class_id', 'classroom__name', 'subject__name'
-        ).distinct()
+        ).values(
+            'classroom__class_id', 'classroom__name'
+        ).order_by('classroom__class_id').distinct()
         
         classes_data = []
-        for cls in my_classes:
+        for cls in my_classrooms:
             total_sessions = AttendanceSession.objects.filter(
                 classroom_id=cls['classroom__class_id']
             ).count()
@@ -33,7 +33,7 @@ class StudentAttendanceTrackingView(APIView):
             classes_data.append({
                 'class_id': cls['classroom__class_id'],
                 'class_name': cls['classroom__name'],
-                'subject': cls['subject__name'],
+                'subject': '',
                 'total_sessions': total_sessions
             })
         

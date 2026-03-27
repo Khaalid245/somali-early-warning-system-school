@@ -16,12 +16,12 @@ class SchoolTimetable(models.Model):
     """
     
     DAYS_OF_WEEK = [
+        ('saturday', 'Saturday'),
+        ('sunday', 'Sunday'),
         ('monday', 'Monday'),
-        ('tuesday', 'Tuesday'), 
+        ('tuesday', 'Tuesday'),
         ('wednesday', 'Wednesday'),
         ('thursday', 'Thursday'),
-        ('friday', 'Friday'),
-        ('saturday', 'Saturday'),  # Some schools have Saturday classes
     ]
     
     PERIOD_CHOICES = [

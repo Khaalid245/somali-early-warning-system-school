@@ -1,0 +1,6 @@
+Teacher: 2 jibriil role=teacher
+Traceback (most recent call last):
+  File "c:\Users\Khalid\somali-early-warning-system-school\somali-early-warning-system\school_support_backend\check_attendance_500.py", line 22, in <module>
+    print(f"Assignment: classroom={assignment.classroom.id} ({assignment.classroom.name}), subject={assignment.subject.id} ({assignment.subject.name})")
+                                   ^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Classroom' object has no attribute 'id'
