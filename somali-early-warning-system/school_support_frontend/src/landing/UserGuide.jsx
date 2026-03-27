@@ -111,20 +111,20 @@ export default function UserGuide() {
       <LandingNav />
 
       {/* Hero */}
-      <div className="bg-white border-b border-slate-200">
+      <div className="bg-green-50 border-b border-gray-200">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-50 rounded-2xl mb-6">
-            <BookOpen className="w-8 h-8 text-blue-600" />
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-2xl mb-6">
+            <BookOpen className="w-8 h-8 text-green-600" />
           </div>
-          <h1 className="text-4xl font-bold text-slate-900 mb-4">User Guide</h1>
-          <p className="text-lg text-slate-600 max-w-2xl mx-auto">
+          <h1 className="text-4xl font-semibold text-gray-900 mb-4">User Guide</h1>
+          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
             Step-by-step instructions to help you navigate the School Early Warning Support System
           </p>
         </div>
       </div>
 
       {/* Role Selector */}
-      <div className="bg-slate-50 border-b border-slate-200">
+      <div className="bg-gray-50 border-b border-gray-200 mt-10">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex flex-wrap justify-center gap-3">
             {roles.map((role) => {
@@ -136,9 +136,10 @@ export default function UserGuide() {
                   onClick={() => setSelectedRole(role.id)}
                   className={`flex items-center gap-2 px-4 sm:px-6 py-3 rounded-lg font-medium transition-all ${
                     isActive
-                      ? 'bg-blue-600 text-white shadow-md'
-                      : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+                      ? 'bg-green-600 text-white shadow-md'
+                      : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
                   }`}
+                  style={!isActive ? {boxShadow: '0 1px 3px rgba(0,0,0,0.1)'} : {}}
                 >
                   <Icon className="w-5 h-5" />
                   <span className="text-sm sm:text-base">{role.name}</span>
@@ -150,11 +151,11 @@ export default function UserGuide() {
       </div>
 
       {/* Guide Content */}
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-16">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-16 mt-10">
         {/* Header */}
         <div className="mb-8 sm:mb-12">
-          <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-3">{currentGuide.title}</h2>
-          <p className="text-base sm:text-lg text-slate-600">{currentGuide.description}</p>
+          <h2 className="text-2xl sm:text-3xl font-semibold text-gray-900 mb-3">{currentGuide.title}</h2>
+          <p className="text-base sm:text-lg text-gray-600">{currentGuide.description}</p>
         </div>
 
         {/* Sections */}
@@ -162,18 +163,18 @@ export default function UserGuide() {
           {currentGuide.sections.map((section, index) => {
             const isOpen = openSections[section.id];
             return (
-              <div key={section.id} className="bg-white border border-slate-200 rounded-lg overflow-hidden">
+              <div key={section.id} className="bg-white border border-gray-200 rounded-lg overflow-hidden" style={{boxShadow: '0 1px 3px rgba(0,0,0,0.1)'}}>
                 <button
                   onClick={() => toggleSection(section.id)}
-                  className="w-full flex items-center justify-between p-4 sm:p-6 text-left hover:bg-slate-50 transition-colors"
+                  className="w-full flex items-center justify-between p-4 sm:p-6 text-left hover:bg-gray-50 transition-colors"
                 >
                   <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
-                    <div className="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 bg-blue-600 text-white rounded-lg flex items-center justify-center font-bold text-sm sm:text-base">
+                    <div className="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 bg-green-600 text-white rounded-lg flex items-center justify-center font-semibold text-sm sm:text-base">
                       {index + 1}
                     </div>
-                    <h3 className="text-base sm:text-xl font-semibold text-slate-900 truncate">{section.title}</h3>
+                    <h3 className="text-base sm:text-xl font-semibold text-gray-900 truncate">{section.title}</h3>
                   </div>
-                  <ChevronDown className={`w-5 h-5 text-slate-400 transition-transform flex-shrink-0 ml-2 ${isOpen ? 'rotate-180' : ''}`} />
+                  <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform flex-shrink-0 ml-2 ${isOpen ? 'rotate-180' : ''}`} />
                 </button>
                 
                 {isOpen && (
@@ -181,10 +182,10 @@ export default function UserGuide() {
                     <div className="pl-0 sm:pl-14 space-y-3">
                       {section.steps.map((step, idx) => (
                         <div key={idx} className="flex items-start gap-3">
-                          <div className="flex-shrink-0 w-6 h-6 bg-slate-100 text-slate-600 rounded-full flex items-center justify-center text-xs sm:text-sm font-medium mt-0.5">
+                          <div className="flex-shrink-0 w-6 h-6 bg-green-100 text-green-700 rounded-full flex items-center justify-center text-xs sm:text-sm font-medium mt-0.5">
                             {idx + 1}
                           </div>
-                          <p className="text-sm sm:text-base text-slate-700 leading-relaxed">{step}</p>
+                          <p className="text-sm sm:text-base text-gray-700 leading-relaxed">{step}</p>
                         </div>
                       ))}
                     </div>
@@ -197,13 +198,13 @@ export default function UserGuide() {
       </div>
 
       {/* CTA */}
-      <div className="bg-slate-50 border-t border-slate-200">
+      <div className="bg-gray-50 border-t border-gray-200">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 text-center">
-          <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mb-4">Ready to Get Started?</h2>
-          <p className="text-sm sm:text-base text-slate-600 mb-6 sm:mb-8">Log in to access the system</p>
+          <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-4">Ready to Get Started?</h2>
+          <p className="text-sm sm:text-base text-gray-600 mb-6 sm:mb-8">Log in to access the system</p>
           <Link
             to="/login"
-            className="inline-flex items-center gap-2 bg-blue-600 text-white px-6 sm:px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors text-sm sm:text-base"
+            className="inline-flex items-center gap-2 bg-green-600 text-white px-8 sm:px-10 py-4 rounded-lg font-medium hover:bg-green-700 transition-colors text-base sm:text-lg shadow-md"
           >
             Go to Login
           </Link>

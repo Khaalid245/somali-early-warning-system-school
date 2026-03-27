@@ -84,15 +84,15 @@ export default function TeacherAssignment() {
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
-      <div className="flex items-center justify-between mb-6">
+    <div className="p-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 mb-8">
         <div className="flex items-center gap-3">
-          <BookOpen className="w-6 h-6 text-blue-600" />
-          <h2 className="text-xl font-bold text-gray-900">Teacher Assignment</h2>
+          <BookOpen className="w-6 h-6 text-green-600" />
+          <h2 className="text-xl font-semibold text-gray-900">Teacher Assignment</h2>
         </div>
         <button
           onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+          className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
         >
           <Plus className="w-4 h-4" />
           Assign Teacher
@@ -102,16 +102,16 @@ export default function TeacherAssignment() {
       {/* Assignments Table */}
       <div className="overflow-x-auto">
         <table className="w-full">
-          <thead className="bg-gray-50 border-b-2 border-gray-200">
-            <tr>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Teacher</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Classroom</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Subject</th>
+          <thead>
+            <tr className="border-b border-gray-100">
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Teacher</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Classroom</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Subject</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200">
+          <tbody>
             {assignments.map((assignment) => (
-              <tr key={assignment.assignment_id} className="hover:bg-gray-50 transition">
+              <tr key={assignment.assignment_id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors" style={{ cursor: 'pointer' }}>
                 <td className="px-4 py-3">
                   <div className="font-medium text-gray-900">{assignment.teacher_name}</div>
                 </td>
@@ -136,21 +136,24 @@ export default function TeacherAssignment() {
 
       {/* Assign Modal */}
       {showModal && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ pointerEvents: 'none' }}>
-          <div className="absolute inset-0" onClick={() => setShowModal(false)} style={{ pointerEvents: 'auto' }}></div>
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 relative" style={{ pointerEvents: 'auto', zIndex: 100 }}>
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4 rounded-t-xl">
-              <h3 className="text-xl font-bold text-white">Assign Teacher</h3>
-              <p className="text-blue-100 text-sm mt-1">Assign a teacher to a class and subject</p>
+        <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
+          <div className="absolute inset-0" onClick={() => setShowModal(false)}></div>
+          <div className="bg-white rounded-lg max-w-md w-full mx-4 relative z-10" style={{ boxShadow: '0 10px 25px rgba(0,0,0,0.15)' }}>
+            <div className="bg-green-600 px-6 py-4 rounded-t-lg">
+              <h3 className="text-xl font-semibold text-white">Assign Teacher</h3>
+              <p className="text-green-50 text-sm mt-1">Assign a teacher to a class and subject</p>
             </div>
             
             <form onSubmit={handleAssign} className="p-6 space-y-5">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Teacher</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Teacher</label>
                 <select
                   value={formData.teacher_id}
                   onChange={(e) => setFormData({ ...formData, teacher_id: e.target.value })}
-                  className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg transition-all focus:outline-none focus:border-green-600"
+                  style={{ boxShadow: 'none' }}
+                  onFocus={(e) => e.target.style.boxShadow = '0 0 0 2px #DCFCE7'}
+                  onBlur={(e) => e.target.style.boxShadow = 'none'}
                   required
                 >
                   <option value="">Select Teacher</option>
@@ -163,11 +166,14 @@ export default function TeacherAssignment() {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Classroom</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Classroom</label>
                 <select
                   value={formData.class_id}
                   onChange={(e) => setFormData({ ...formData, class_id: e.target.value })}
-                  className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg transition-all focus:outline-none focus:border-green-600"
+                  style={{ boxShadow: 'none' }}
+                  onFocus={(e) => e.target.style.boxShadow = '0 0 0 2px #DCFCE7'}
+                  onBlur={(e) => e.target.style.boxShadow = 'none'}
                   required
                 >
                   <option value="">Select Classroom</option>
@@ -180,11 +186,14 @@ export default function TeacherAssignment() {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Subject</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Subject</label>
                 <select
                   value={formData.subject_id}
                   onChange={(e) => setFormData({ ...formData, subject_id: e.target.value })}
-                  className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg transition-all focus:outline-none focus:border-green-600"
+                  style={{ boxShadow: 'none' }}
+                  onFocus={(e) => e.target.style.boxShadow = '0 0 0 2px #DCFCE7'}
+                  onBlur={(e) => e.target.style.boxShadow = 'none'}
                   required
                 >
                   <option value="">Select Subject</option>
@@ -199,14 +208,14 @@ export default function TeacherAssignment() {
               <div className="flex gap-3 pt-4 border-t border-gray-100">
                 <button
                   type="submit"
-                  className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-lg hover:from-blue-700 hover:to-blue-800 transition shadow-lg hover:shadow-xl"
+                  className="flex-[1.2] px-6 py-3 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-colors"
                 >
-                  ✓ Assign Teacher
+                  Assign Teacher
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="flex-1 px-6 py-3 bg-gray-100 text-gray-700 font-semibold rounded-lg hover:bg-gray-200 transition"
+                  className="flex-1 px-6 py-3 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200 transition-colors"
                 >
                   Cancel
                 </button>

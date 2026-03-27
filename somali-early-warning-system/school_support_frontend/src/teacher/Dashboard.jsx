@@ -108,9 +108,12 @@ export default function TeacherDashboard() {
             </div>
             <p className="text-gray-600 text-lg mb-2">Today's Absences</p>
             <h2 className="text-5xl font-bold text-gray-800">{dashboardData.today_absent_count || 0}</h2>
+            <p className="text-xs text-gray-400 mt-1">
+              Students marked absent in today's sessions
+            </p>
             {dashboardData.absent_change_percent !== undefined && (
-              <p className={`text-sm mt-3 font-semibold ${getTrendColor(dashboardData.absent_trend_direction)}`}>
-                {Math.abs(dashboardData.absent_change_percent)}% vs last month
+              <p className={`text-sm mt-2 font-semibold ${getTrendColor(dashboardData.absent_trend_direction)}`}>
+                {getTrendIcon(dashboardData.absent_trend_direction)} {Math.abs(dashboardData.absent_change_percent)}% compared to last month
               </p>
             )}
           </div>
@@ -129,9 +132,12 @@ export default function TeacherDashboard() {
             </div>
             <p className="text-gray-600 text-lg mb-2">Active Alerts</p>
             <h2 className="text-5xl font-bold text-gray-800">{dashboardData.active_alerts || 0}</h2>
+            <p className="text-xs text-gray-400 mt-1">
+              Unresolved risk alerts across all your classes
+            </p>
             {dashboardData.alert_change_percent !== undefined && (
-              <p className={`text-sm mt-3 font-semibold ${getTrendColor(dashboardData.alert_trend_direction)}`}>
-                {Math.abs(dashboardData.alert_change_percent)}% vs last month
+              <p className={`text-sm mt-2 font-semibold ${getTrendColor(dashboardData.alert_trend_direction)}`}>
+                {getTrendIcon(dashboardData.alert_trend_direction)} {Math.abs(dashboardData.alert_change_percent)}% compared to last month
               </p>
             )}
           </div>
@@ -145,7 +151,7 @@ export default function TeacherDashboard() {
             </div>
             <p className="text-gray-600 text-lg mb-2">High Risk Students</p>
             <h2 className="text-5xl font-bold text-gray-800">{dashboardData.high_risk_students?.length || 0}</h2>
-            <p className="text-sm mt-3 text-gray-500">Require immediate attention</p>
+            <p className="text-xs text-gray-400 mt-1">Attendance &lt;75% or missed &gt;3 days</p>
           </div>
         </div>
 
@@ -349,9 +355,13 @@ export default function TeacherDashboard() {
                 <span className="text-3xl">📅</span>
               </div>
               <h3 className="text-2xl font-bold text-gray-800">Weekly Attendance Summary</h3>
-              {dashboardData.time_range_info && (
+              {dashboardData.time_range_info ? (
                 <div className="ml-auto text-sm text-gray-500">
-                  {dashboardData.time_range_info.current_range} ({dashboardData.time_range_info.start_date} to {dashboardData.time_range_info.end_date})
+                  {dashboardData.time_range_info.current_range}: {dashboardData.time_range_info.start_date} – {dashboardData.time_range_info.end_date}
+                </div>
+              ) : (
+                <div className="ml-auto text-sm text-gray-500">
+                  Week of {new Date(Date.now() - 6 * 86400000).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} – {new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
                 </div>
               )}
             </div>

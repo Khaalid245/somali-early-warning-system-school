@@ -4,10 +4,49 @@ import { AuthContext } from "../context/AuthContext";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
 import { showToast } from "../utils/toast";
-import { Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { Eye, EyeOff, AlertCircle, User, Users, Shield, Check } from 'lucide-react';
 import LandingNav from "../landing/components/LandingNav";
 import LandingFooter from "../landing/components/LandingFooter";
 import TwoFactorModal from "../components/TwoFactorModal";
+import ForgotPasswordModal from "./ForgotPasswordModal";
+
+const ROLES = [
+  { value: 'teacher',     label: 'Teacher',       icon: User },
+  { value: 'form_master', label: 'Form Master',   icon: Users },
+  { value: 'admin',       label: 'Administrator', icon: Shield },
+];
+
+function RolePicker({ value, onChange }) {
+  return (
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-2">Select Role</label>
+      <div className="flex flex-col gap-2">
+        {ROLES.map(({ value: v, label, icon: Icon }) => {
+          const selected = value === v;
+          return (
+            <button
+              key={v}
+              type="button"
+              onClick={() => onChange(v)}
+              className={`flex items-center justify-between w-full px-4 rounded-xl border transition-colors ${
+                selected
+                  ? 'bg-green-50 border-green-300 text-green-800'
+                  : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+              }`}
+              style={{ minHeight: '48px' }}
+            >
+              <div className="flex items-center gap-3">
+                <Icon className={`w-4 h-4 flex-shrink-0 ${selected ? 'text-green-600' : 'text-gray-400'}`} />
+                <span className={`text-sm ${selected ? 'font-medium' : 'font-normal'}`}>{label}</span>
+              </div>
+              {selected && <Check className="w-4 h-4 text-green-600 flex-shrink-0" />}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 export default function Login() {
   const [searchParams] = useSearchParams();
@@ -22,6 +61,7 @@ export default function Login() {
   const [passwordStrength, setPasswordStrength] = useState({ score: 0, text: '', color: '' });
   const [show2FA, setShow2FA] = useState(false);
   const [tempEmail, setTempEmail] = useState('');
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
 
   const navigate = useNavigate();
 
@@ -64,7 +104,11 @@ export default function Login() {
 
     try {
       console.log('[Login] Attempting login with:', { email, hasPassword: !!password });
-      const res = await api.post("/auth/login/", { email, password });
+      
+      // Force HTTP for localhost development
+      const loginUrl = "/auth/login/";
+      const res = await api.post(loginUrl, { email, password });
+      
       console.log('[Login] Response status:', res.status, 'Data:', res.data);
 
       // Check if 2FA is required
@@ -139,7 +183,7 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+    <div className="min-h-screen bg-green-50">
       <LandingNav />
 
       {show2FA && (
@@ -153,21 +197,23 @@ export default function Login() {
         />
       )}
 
+      {showForgotPassword && (
+        <ForgotPasswordModal onClose={() => setShowForgotPassword(false)} />
+      )}
+
       <div className="flex items-center justify-center min-h-[calc(100vh-200px)] px-4 py-12">
         <div className="w-full max-w-md">
           {/* Header */}
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-2xl mb-4">
-              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-              </svg>
+            <div className="inline-flex flex-col items-center justify-center mb-4">
+              <span className="text-4xl font-bold text-green-600">AlifMonitor</span>
             </div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome Back</h1>
+            <h1 className="text-3xl font-semibold text-gray-900 mb-2">Welcome Back</h1>
             <p className="text-gray-600">Sign in to access your dashboard</p>
           </div>
 
           {/* Login Card */}
-          <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8">
+          <div className="bg-white rounded-2xl border border-gray-200 p-8" style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
             {error && (
               <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-100">
                 <div className="flex items-start gap-3">
@@ -183,19 +229,8 @@ export default function Login() {
             )}
 
             <form onSubmit={handleSubmit} className="space-y-5">
-              {/* Role Selector */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Select Role</label>
-                <select
-                  value={role}
-                  onChange={(e) => setRole(e.target.value)}
-                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition text-gray-900"
-                >
-                  <option value="teacher">Teacher</option>
-                  <option value="form_master">Form Master</option>
-                  <option value="admin">Administrator</option>
-                </select>
-              </div>
+              {/* Role Picker */}
+              <RolePicker value={role} onChange={setRole} />
 
               {/* Email */}
               <div>
@@ -205,7 +240,10 @@ export default function Login() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="name@school.edu"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-green-600 transition"
+                  style={{ transition: 'all 0.2s' }}
+                  onFocus={(e) => e.target.style.boxShadow = '0 0 0 2px rgba(22,163,74,0.2)'}
+                  onBlur={(e) => e.target.style.boxShadow = 'none'}
                   required
                   autoComplete="email"
                 />
@@ -220,7 +258,10 @@ export default function Login() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Enter your password"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition pr-12"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-green-600 transition pr-12"
+                    style={{ transition: 'all 0.2s' }}
+                    onFocus={(e) => e.target.style.boxShadow = '0 0 0 2px rgba(22,163,74,0.2)'}
+                    onBlur={(e) => e.target.style.boxShadow = 'none'}
                     required
                     autoComplete="current-password"
                   />
@@ -253,8 +294,8 @@ export default function Login() {
               <div className="flex items-center justify-end">
                 <button
                   type="button"
-                  onClick={() => showToast.info('Contact your administrator to reset your password')}
-                  className="text-sm font-medium text-blue-600 hover:text-blue-700 transition"
+                  onClick={() => setShowForgotPassword(true)}
+                  className="text-sm font-medium text-green-600 hover:text-green-700 hover:underline transition"
                 >
                   Forgot password?
                 </button>
@@ -264,7 +305,10 @@ export default function Login() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3.5 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-blue-600/20"
+                className="w-full py-3.5 rounded-xl bg-green-600 text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ transition: 'all 0.2s' }}
+                onMouseEnter={(e) => !loading && (e.target.style.backgroundColor = '#15803D')}
+                onMouseLeave={(e) => !loading && (e.target.style.backgroundColor = '#16A34A')}
               >
                 {loading ? (
                   <span className="flex items-center justify-center gap-2">

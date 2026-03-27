@@ -69,41 +69,35 @@ export default function GovernanceView() {
     }
   ];
 
-  // Debug logging
-  console.log('GovernanceView: Rendering with', tabs.length, 'tabs');
-  console.log('GovernanceView: Active tab is', activeTab);
-  console.log('GovernanceView: Available tabs:', tabs.map(t => t.id));
-
   return (
     <div className="space-y-4 md:space-y-6">
-      {/* Progress Bar - Compact */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg shadow-md p-3 md:p-6">
-        <div className="flex items-center justify-between gap-2 mb-2">
+      {/* Progress Bar */}
+      <div className="bg-white rounded-lg p-6" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+        <div className="flex items-center justify-between gap-4 mb-4">
           <div>
-            <h1 className="text-base md:text-2xl font-bold text-white">Setup Workflow</h1>
-            <p className="text-blue-100 text-xs md:text-sm hidden sm:block">Follow steps 1-6</p>
+            <h1 className="text-2xl font-semibold text-gray-900">Setup Workflow</h1>
+            <p className="text-gray-600 text-sm mt-1">Complete all 6 steps to configure the system</p>
           </div>
-          <div className="bg-white bg-opacity-20 rounded-lg px-2 py-1 md:px-3 md:py-2">
-            <div className="text-white text-xs font-semibold">Progress</div>
-            <div className="text-white text-lg md:text-2xl font-bold">
+          <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-2">
+            <div className="text-green-800 text-xs font-medium">Progress</div>
+            <div className="text-green-600 text-2xl font-semibold">
               {Object.values(completedSteps).filter(Boolean).length}/6
             </div>
           </div>
         </div>
         
-        {/* Progress Bar */}
-        <div className="w-full bg-blue-800 bg-opacity-30 rounded-full h-2">
+        <div className="w-full bg-gray-100 rounded-full h-2">
           <div 
-            className="bg-white h-2 rounded-full transition-all duration-500"
+            className="bg-green-600 h-2 rounded-full transition-all duration-500"
             style={{ width: `${(Object.values(completedSteps).filter(Boolean).length / 6) * 100}%` }}
           ></div>
         </div>
       </div>
 
       {/* Step-by-Step Guide */}
-      <div className="bg-white rounded-lg shadow-md p-3 md:p-6">
-        <h2 className="text-sm md:text-lg font-bold text-gray-900 mb-2 md:mb-4">📋 Setup Steps</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 md:gap-4">
+      <div className="bg-white rounded-lg p-6" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+        <h2 className="text-lg font-semibold text-gray-900 mb-6">Setup Steps</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -113,37 +107,36 @@ export default function GovernanceView() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`p-1.5 md:p-4 rounded md:rounded-lg border-2 text-left transition-all touch-manipulation ${
+                className={`p-4 rounded-lg border text-left transition-colors ${
                   isActive 
-                    ? 'border-blue-600 bg-blue-50 shadow-md' 
+                    ? 'border-green-300 bg-green-50' 
                     : isCompleted
-                    ? 'border-green-300 bg-green-50'
-                    : 'border-gray-200'
+                    ? 'border-green-200 bg-green-50'
+                    : 'border-gray-200 hover:border-gray-300'
                 }`}
+                style={isActive ? { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' } : {}}
               >
-                <div className="flex items-start justify-between mb-0.5 md:mb-1">
-                  <div className="flex items-center gap-0.5 md:gap-1">
-                    <div className={`w-4 h-4 md:w-8 md:h-8 rounded-full flex items-center justify-center font-bold text-[10px] md:text-base flex-shrink-0 ${
-                      isCompleted ? 'bg-green-500 text-white' : 'bg-blue-600 text-white'
-                    }`}>
+                <div className="flex items-start justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <div 
+                      className={`w-8 h-8 rounded-full flex items-center justify-center text-sm flex-shrink-0 ${
+                        isCompleted ? 'bg-green-600 text-white font-semibold' : ''
+                      }`}
+                      style={!isCompleted ? { backgroundColor: '#DCFCE7', color: '#166534', fontWeight: 600 } : {}}
+                    >
                       {isCompleted ? '✓' : tab.step}
                     </div>
-                    <Icon className={`w-3 h-3 md:w-5 md:h-5 ${
-                      isActive ? 'text-blue-600' : isCompleted ? 'text-green-600' : 'text-gray-600'
+                    <Icon className={`w-5 h-5 ${
+                      isActive ? 'text-green-600' : isCompleted ? 'text-green-600' : 'text-gray-600'
                     }`} />
                   </div>
-                  {isCompleted && (
-                    <span className="text-[10px] md:text-xs font-semibold text-green-600 bg-green-100 px-1 py-0.5 rounded">
-                      ✓
-                    </span>
-                  )}
                 </div>
-                <h3 className={`font-semibold text-[11px] md:text-base leading-tight ${
-                  isActive ? 'text-blue-900' : isCompleted ? 'text-green-900' : 'text-gray-900'
+                <h3 className={`font-semibold text-base mb-1 ${
+                  isActive ? 'text-green-900' : isCompleted ? 'text-green-900' : 'text-gray-900'
                 }`}>
                   {tab.label}
                 </h3>
-                <p className="text-xs text-gray-600 line-clamp-2 hidden sm:block">{tab.description}</p>
+                <p className="text-sm text-gray-600">{tab.description}</p>
               </button>
             );
           })}
@@ -151,36 +144,36 @@ export default function GovernanceView() {
       </div>
 
       {/* Active Tab Content */}
-      <div className="bg-white rounded-lg shadow-md">
-        <div className="border-b border-gray-200 bg-gray-50 px-3 md:px-6 py-2 md:py-4">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
+      <div className="bg-white rounded-lg" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+        <div className="border-b border-gray-100 px-6 py-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+            <div className="flex items-center gap-3">
               {tabs.find(t => t.id === activeTab) && (() => {
                 const currentTab = tabs.find(t => t.id === activeTab);
+                const Icon = currentTab.icon;
                 return (
                   <>
-                    <div className="w-6 h-6 md:w-10 md:h-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs md:text-lg flex-shrink-0">
+                    <div className="w-10 h-10 rounded-full bg-green-600 text-white flex items-center justify-center font-semibold text-lg flex-shrink-0">
                       {currentTab.step}
                     </div>
-                    <div className="min-w-0">
-                      <h2 className="text-sm md:text-xl font-bold text-gray-900 truncate">{currentTab.label}</h2>
-                      <p className="text-xs text-gray-600 hidden md:block">{currentTab.description}</p>
+                    <div>
+                      <h2 className="text-xl font-semibold text-gray-900">{currentTab.label}</h2>
+                      <p className="text-sm text-gray-600">{currentTab.description}</p>
                     </div>
                   </>
                 );
               })()}
             </div>
-            <div className="flex gap-1.5 flex-shrink-0">
+            <div className="flex gap-2 w-full sm:w-auto">
               {activeTab !== 'users' && (
                 <button
                   onClick={() => {
                     const currentIndex = tabs.findIndex(t => t.id === activeTab);
                     if (currentIndex > 0) setActiveTab(tabs[currentIndex - 1].id);
                   }}
-                  className="w-8 h-8 md:w-auto md:px-4 md:py-2 bg-gray-200 text-gray-700 rounded-md md:rounded-lg hover:bg-gray-300 transition font-medium text-sm md:text-base flex items-center justify-center"
+                  className="flex-1 sm:flex-none px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium text-sm"
                 >
-                  <span className="md:hidden">←</span>
-                  <span className="hidden md:inline">← Prev</span>
+                  Previous
                 </button>
               )}
               {activeTab !== 'assignments' && (
@@ -189,10 +182,9 @@ export default function GovernanceView() {
                     const currentIndex = tabs.findIndex(t => t.id === activeTab);
                     if (currentIndex < tabs.length - 1) setActiveTab(tabs[currentIndex + 1].id);
                   }}
-                  className="w-8 h-8 md:w-auto md:px-4 md:py-2 bg-blue-600 text-white rounded-md md:rounded-lg hover:bg-blue-700 transition font-medium text-sm md:text-base flex items-center justify-center"
+                  className="flex-1 sm:flex-none px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium text-sm"
                 >
-                  <span className="md:hidden">→</span>
-                  <span className="hidden md:inline">Next →</span>
+                  Next
                 </button>
               )}
             </div>

@@ -1,54 +1,60 @@
 import { useState, useEffect } from 'react';
-import { AlertCircle, Filter, Download, Search, User, Eye, XCircle } from 'lucide-react';
+import { Bell, Download, Search, User, Eye, XCircle, AlertCircle, AlertTriangle, Activity, CheckCircle } from 'lucide-react';
 import api from '../../api/apiClient';
 import { showToast } from '../../utils/toast';
 
-export default function AlertManagement({ data, onRefresh }) {
-  const [alerts, setAlerts] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [selectedAlert, setSelectedAlert] = useState(null);
-  const [detailsModal, setDetailsModal] = useState(false);
-  const [filters, setFilters] = useState({
-    risk_level: '',
-    status: '',
-    search: ''
-  });
+const RISK_BADGE = {
+  critical: 'bg-red-50 text-red-700 border-red-200',
+  high:     'bg-amber-50 text-amber-700 border-amber-200',
+  medium:   'bg-yellow-50 text-yellow-700 border-yellow-200',
+  low:      'bg-green-50 text-green-700 border-green-200',
+};
 
-  useEffect(() => {
-    loadAlerts();
-  }, []);
+const RISK_ICON = {
+  critical: AlertCircle,
+  high:     AlertTriangle,
+  medium:   Activity,
+  low:      CheckCircle,
+};
+
+const STATUS_BADGE = {
+  active:       'bg-blue-50 text-blue-700 border-blue-200',
+  under_review: 'bg-yellow-50 text-yellow-700 border-yellow-200',
+  escalated:    'bg-red-50 text-red-700 border-red-200',
+  resolved:     'bg-green-50 text-green-700 border-green-200',
+  dismissed:    'bg-gray-50 text-gray-600 border-gray-200',
+};
+
+export default function AlertManagement({ data, onRefresh }) {
+  const [alerts, setAlerts]           = useState([]);
+  const [loading, setLoading]         = useState(false);
+  const [selectedAlert, setSelectedAlert] = useState(null);
+  const [detailsModal, setDetailsModal]   = useState(false);
+  const [filters, setFilters] = useState({ risk_level: '', status: '', search: '' });
+
+  useEffect(() => { loadAlerts(); }, []);
+  useEffect(() => { loadAlerts(); }, [filters]);
 
   const loadAlerts = async () => {
     setLoading(true);
     try {
-      // Build query params for backend filtering
       const params = new URLSearchParams();
-      if (filters.search) params.append('search', filters.search);
+      if (filters.search)     params.append('search',     filters.search);
       if (filters.risk_level) params.append('risk_level', filters.risk_level);
-      if (filters.status) params.append('status', filters.status);
-      
+      if (filters.status)     params.append('status',     filters.status);
       const res = await api.get(`/alerts/?${params.toString()}`);
       setAlerts(res.data.results || res.data || []);
-    } catch (err) {
-      console.error('Failed to load alerts:', err);
+    } catch {
       showToast.error('Failed to load alerts');
     } finally {
       setLoading(false);
     }
   };
 
-  // Reload when filters change
-  useEffect(() => {
-    loadAlerts();
-  }, [filters]);
-
-  // No client-side filtering needed - backend handles it
-  const filteredAlerts = alerts;
-
   const handleExport = () => {
     const csv = [
       ['Alert ID', 'Student', 'Type', 'Risk Level', 'Status', 'Date'].join(','),
-      ...filteredAlerts.map(a => [
+      ...alerts.map(a => [
         a.alert_id,
         a.student_name || 'Unknown',
         a.alert_type,
@@ -57,313 +63,287 @@ export default function AlertManagement({ data, onRefresh }) {
         new Date(a.alert_date).toLocaleDateString()
       ].join(','))
     ].join('\n');
-    
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url;
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
     a.download = `alerts_${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
-    showToast.success('Alerts exported successfully');
+    showToast.success('Exported successfully');
   };
 
-  const getRiskBadge = (level) => {
-    const badges = {
-      critical: 'bg-purple-100 text-purple-800 border-purple-300',
-      high: 'bg-red-100 text-red-800 border-red-300',
-      medium: 'bg-yellow-100 text-yellow-800 border-yellow-300',
-      low: 'bg-green-100 text-green-800 border-green-300'
-    };
-    return badges[level] || badges.low;
-  };
-
-  const getStatusBadge = (status) => {
-    const badges = {
-      active: 'bg-blue-100 text-blue-800',
-      under_review: 'bg-yellow-100 text-yellow-800',
-      escalated: 'bg-red-100 text-red-800',
-      resolved: 'bg-green-100 text-green-800',
-      dismissed: 'bg-gray-100 text-gray-800'
-    };
-    return badges[status] || badges.active;
-  };
-
-  const openDetailsModal = (alert) => {
-    setSelectedAlert(alert);
-    setDetailsModal(true);
-  };
+  const openDetails = (alert) => { setSelectedAlert(alert); setDetailsModal(true); };
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
-        <div className="flex items-center gap-3">
-          <AlertCircle className="w-6 h-6 text-orange-600 flex-shrink-0" />
-          <h2 className="text-lg sm:text-xl font-bold text-gray-900">Alert Management</h2>
+    <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+
+      {/* Header */}
+      <div className="px-5 py-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-medium text-gray-900">Student Alerts</p>
+          <p className="text-xs text-gray-400 mt-0.5">{alerts.length} alert{alerts.length !== 1 ? 's' : ''}</p>
         </div>
         <button
           onClick={handleExport}
-          className="flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm"
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-gray-200 bg-white text-gray-600 rounded-md hover:bg-gray-50 transition"
         >
-          <Download className="w-4 h-4" />
+          <Download className="w-3.5 h-3.5" />
           Export CSV
         </button>
       </div>
 
       {/* Filters */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Search</label>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              value={filters.search}
-              onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-              placeholder="Student name or ID..."
-              className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-            />
-          </div>
+      <div className="px-5 py-3 border-b border-gray-100 flex flex-wrap gap-2 items-center">
+        <div className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded-md px-2.5 py-1.5 flex-1 min-w-[160px] max-w-xs">
+          <Search className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+          <input
+            type="text"
+            value={filters.search}
+            onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+            placeholder="Search student..."
+            className="flex-1 text-xs bg-transparent outline-none text-gray-700 placeholder-gray-400"
+          />
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Risk Level</label>
-          <select
-            value={filters.risk_level}
-            onChange={(e) => setFilters({ ...filters, risk_level: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-          >
-            <option value="">All Levels</option>
-            <option value="low">Low</option>
-            <option value="medium">Medium</option>
-            <option value="high">High</option>
-            <option value="critical">Critical</option>
-          </select>
-        </div>
+        <select
+          value={filters.risk_level}
+          onChange={(e) => setFilters({ ...filters, risk_level: e.target.value })}
+          className="text-xs border border-gray-200 rounded-md px-2.5 py-1.5 bg-white text-gray-600 outline-none"
+        >
+          <option value="">All risk levels</option>
+          <option value="low">Low</option>
+          <option value="medium">Medium</option>
+          <option value="high">High</option>
+          <option value="critical">Critical</option>
+        </select>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
-          <select
-            value={filters.status}
-            onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-          >
-            <option value="">All Statuses</option>
-            <option value="active">Active</option>
-            <option value="under_review">Under Review</option>
-            <option value="escalated">Escalated</option>
-            <option value="resolved">Resolved</option>
-            <option value="dismissed">Dismissed</option>
-          </select>
-        </div>
+        <select
+          value={filters.status}
+          onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+          className="text-xs border border-gray-200 rounded-md px-2.5 py-1.5 bg-white text-gray-600 outline-none"
+        >
+          <option value="">All statuses</option>
+          <option value="active">Active</option>
+          <option value="under_review">Under review</option>
+          <option value="escalated">Escalated</option>
+          <option value="resolved">Resolved</option>
+          <option value="dismissed">Dismissed</option>
+        </select>
 
-        <div className="flex items-end">
+        {(filters.search || filters.risk_level || filters.status) && (
           <button
             onClick={() => setFilters({ risk_level: '', status: '', search: '' })}
-            className="w-full px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition text-sm"
+            className="text-xs text-gray-400 hover:text-gray-600 transition"
           >
-            Clear Filters
+            Clear
           </button>
-        </div>
+        )}
       </div>
 
-      {/* Alerts List */}
+      {/* Table */}
       {loading ? (
-        <div className="text-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="text-gray-600 mt-4">Loading alerts...</p>
+        <div className="py-16 text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-300 mx-auto" />
+          <p className="text-xs text-gray-400 mt-3">Loading alerts...</p>
         </div>
-      ) : filteredAlerts.length === 0 ? (
-        <div className="text-center py-12 text-gray-500">
-          <AlertCircle className="w-12 h-12 mx-auto mb-3 text-gray-400" />
-          <p className="text-lg font-medium">No alerts found</p>
-          <p className="text-sm">Try adjusting your filters</p>
+      ) : alerts.length === 0 ? (
+        <div className="py-16 text-center">
+          <Bell className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+          <p className="text-sm text-gray-500">No alerts found</p>
+          <p className="text-xs text-gray-400 mt-1">Try adjusting your filters</p>
         </div>
       ) : (
-        <div className="space-y-3">
-          {filteredAlerts.map((alert) => (
-            <div key={alert.alert_id} className="border-2 border-gray-200 rounded-lg p-4 hover:shadow-md transition">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
-                <div className="flex items-center gap-3">
-                  <span className="font-mono text-sm font-bold text-blue-600">#{alert.alert_id}</span>
-                  <span className={`px-2 py-1 text-xs font-semibold rounded-full border ${getRiskBadge(alert.risk_level)}`}>
-                    {alert.risk_level?.toUpperCase()}
-                  </span>
-                  <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusBadge(alert.status)}`}>
-                    {alert.status?.replace('_', ' ').toUpperCase()}
-                  </span>
-                </div>
-                <button
-                  onClick={() => openDetailsModal(alert)}
-                  className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm"
-                >
-                  <Eye className="w-4 h-4" />
-                  View Details
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <span className="text-xs font-semibold text-gray-500 uppercase">Student</span>
-                  <p className="text-sm font-medium text-gray-900">
-                    {alert.student_name || 'Unknown Student'}
-                  </p>
-                </div>
-                <div>
-                  <span className="text-xs font-semibold text-gray-500 uppercase">Classroom</span>
-                  <p className="text-sm text-gray-700">{alert.classroom_name || 'Not Enrolled'}</p>
-                </div>
-                <div>
-                  <span className="text-xs font-semibold text-gray-500 uppercase">Alert Type</span>
-                  <p className="text-sm text-gray-700 capitalize">{alert.alert_type}</p>
-                </div>
-                <div>
-                  <span className="text-xs font-semibold text-gray-500 uppercase">Subject</span>
-                  <p className="text-sm text-gray-700">{alert.subject_name || 'General'}</p>
-                </div>
-                <div>
-                  <span className="text-xs font-semibold text-gray-500 uppercase">Date</span>
-                  <p className="text-sm text-gray-700">{new Date(alert.alert_date).toLocaleDateString()}</p>
-                </div>
-                <div>
-                  <span className="text-xs font-semibold text-gray-500 uppercase">Days Missed (30d)</span>
-                  <p className="text-sm font-bold text-red-600">{alert.days_missed || 0}</p>
-                </div>
-                <div>
-                  <span className="text-xs font-semibold text-gray-500 uppercase">Subject Classes Missed</span>
-                  <p className="text-sm font-bold text-orange-600">{alert.subject_missed || 0}</p>
-                </div>
-                <div>
-                  <span className="text-xs font-semibold text-gray-500 uppercase">Assigned To</span>
-                  <p className="text-sm text-gray-700">{alert.assigned_to_name || 'Unassigned'}</p>
-                </div>
-              </div>
-            </div>
-          ))}
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-100 bg-gray-50">
+                <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500">#</th>
+                <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500">Student</th>
+                <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 hidden sm:table-cell">Classroom</th>
+                <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500">Risk</th>
+                <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 hidden md:table-cell">Status</th>
+                <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 hidden lg:table-cell">Type</th>
+                <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 hidden lg:table-cell">Date</th>
+                <th className="px-4 py-2.5 w-10" />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {alerts.map((alert) => {
+                const RiskIcon = RISK_ICON[alert.risk_level] || Activity;
+                return (
+                  <tr
+                    key={alert.alert_id}
+                    className="hover:bg-gray-50 transition-colors"
+                  >
+                    <td className="px-4 py-3 text-xs text-gray-400 tabular-nums">
+                      {alert.alert_id}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <User className="w-3.5 h-3.5 text-gray-300 flex-shrink-0" />
+                        <span className="text-sm font-medium text-gray-800">
+                          {alert.student_name || 'Unknown'}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-500 hidden sm:table-cell">
+                      {alert.classroom_name || '—'}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full border ${RISK_BADGE[alert.risk_level] || RISK_BADGE.low}`}>
+                        <RiskIcon className="w-3 h-3" />
+                        {alert.risk_level}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 hidden md:table-cell">
+                      <span className={`px-2 py-0.5 text-xs rounded-full border ${STATUS_BADGE[alert.status] || STATUS_BADGE.active}`}>
+                        {alert.status?.replace('_', ' ')}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-500 capitalize hidden lg:table-cell">
+                      {alert.alert_type}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-400 hidden lg:table-cell">
+                      {new Date(alert.alert_date).toLocaleDateString()}
+                    </td>
+                    <td className="px-4 py-3">
+                      <button
+                        onClick={() => openDetails(alert)}
+                        className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-md transition"
+                        title="View details"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
 
-      {/* Details Modal */}
+      {/* Details Modal — unchanged */}
       {detailsModal && selectedAlert && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 flex items-center justify-center z-50 p-4 bg-black/40">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-gray-200">
             {/* Modal Header */}
-            <div className="bg-gradient-to-r from-orange-600 to-orange-700 p-4 sm:p-6 rounded-t-lg">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-xl font-bold text-white">Alert #{selectedAlert.alert_id}</h3>
-                  <p className="text-orange-100 text-sm">Complete Alert & Student Details</p>
-                </div>
-                <button
-                  onClick={() => setDetailsModal(false)}
-                  className="text-white hover:bg-orange-800 rounded-lg p-2 transition"
-                >
-                  <XCircle className="w-6 h-6" />
-                </button>
-              </div>
-            </div>
-
-            {/* Modal Body */}
-            <div className="p-4 sm:p-6 space-y-6">
-              {/* Student Information */}
+            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white z-10">
               <div>
-                <h4 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
-                  <User className="w-5 h-5 text-blue-600" />
-                  Student Information
-                </h4>
-                <div className="bg-blue-50 rounded-lg p-4 space-y-3">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <span className="text-xs font-semibold text-gray-500 uppercase">Full Name</span>
-                      <p className="text-sm font-medium text-gray-900">
-                        {selectedAlert.student_name || 'N/A'}
-                      </p>
-                    </div>
-                    <div>
-                      <span className="text-xs font-semibold text-gray-500 uppercase">Student ID</span>
-                      <p className="text-sm font-medium text-gray-900">
-                        {selectedAlert.student || 'N/A'}
-                      </p>
-                    </div>
-                    <div>
-                      <span className="text-xs font-semibold text-gray-500 uppercase">Classroom</span>
-                      <p className="text-sm font-medium text-gray-900">
-                        {selectedAlert.classroom_name || 'Not Enrolled'}
-                      </p>
-                    </div>
-                    <div>
-                      <span className="text-xs font-semibold text-gray-500 uppercase">Total Days Missed (30d)</span>
-                      <p className="text-sm font-bold text-red-600">
-                        {selectedAlert.days_missed || 0} days
-                      </p>
-                    </div>
-                    <div>
-                      <span className="text-xs font-semibold text-gray-500 uppercase">Subject</span>
-                      <p className="text-sm font-medium text-gray-900">
-                        {selectedAlert.subject_name || 'General'}
-                      </p>
-                    </div>
-                    <div>
-                      <span className="text-xs font-semibold text-gray-500 uppercase">Subject Classes Missed (30d)</span>
-                      <p className="text-sm font-bold text-orange-600">
-                        {selectedAlert.subject_missed || 0} classes
-                      </p>
-                    </div>
-                  </div>
-                </div>
+                <p className="text-sm font-medium text-gray-900">Alert #{selectedAlert.alert_id}</p>
+                <p className="text-xs text-gray-400 mt-0.5">Full alert details</p>
               </div>
-
-              {/* Alert Information */}
-              <div>
-                <h4 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
-                  <AlertCircle className="w-5 h-5 text-orange-600" />
-                  Alert Details
-                </h4>
-                <div className="bg-orange-50 rounded-lg p-4 space-y-3">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <span className="text-xs font-semibold text-gray-500 uppercase">Alert Type</span>
-                      <p className="text-sm font-medium text-gray-900 capitalize">{selectedAlert.alert_type}</p>
-                    </div>
-                    <div>
-                      <span className="text-xs font-semibold text-gray-500 uppercase">Risk Level</span>
-                      <span className={`inline-block px-2 py-1 text-xs font-semibold rounded-full border ${getRiskBadge(selectedAlert.risk_level)}`}>
-                        {selectedAlert.risk_level?.toUpperCase()}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-xs font-semibold text-gray-500 uppercase">Status</span>
-                      <span className={`inline-block px-2 py-1 text-xs font-semibold rounded-full ${getStatusBadge(selectedAlert.status)}`}>
-                        {selectedAlert.status?.replace('_', ' ').toUpperCase()}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-xs font-semibold text-gray-500 uppercase">Alert Date</span>
-                      <p className="text-sm text-gray-900">{new Date(selectedAlert.alert_date).toLocaleDateString()}</p>
-                    </div>
-                    <div>
-                      <span className="text-xs font-semibold text-gray-500 uppercase">Assigned To</span>
-                      <p className="text-sm text-gray-900">{selectedAlert.assigned_to_name || 'Unassigned'}</p>
-                    </div>
-                    <div>
-                      <span className="text-xs font-semibold text-gray-500 uppercase">Subject</span>
-                      <p className="text-sm text-gray-900">{selectedAlert.subject_name || 'N/A'}</p>
-                    </div>
-                  </div>
-                  {selectedAlert.description && (
-                    <div className="pt-2 border-t border-orange-200">
-                      <span className="text-xs font-semibold text-gray-500 uppercase">Description</span>
-                      <p className="text-sm text-gray-900 mt-1 leading-relaxed">{selectedAlert.description}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Modal Footer */}
-            <div className="bg-gray-50 p-4 sm:p-6 rounded-b-lg">
               <button
                 onClick={() => setDetailsModal(false)}
-                className="w-full px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition font-medium"
+                className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-md transition"
+              >
+                <XCircle className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-5">
+              {/* Student */}
+              <div>
+                <p className="text-xs font-medium text-gray-500 uppercase mb-2">Student</p>
+                <div className="bg-gray-50 rounded-lg p-4 grid grid-cols-2 gap-3">
+                  {[
+                    ['Name',              selectedAlert.student_name || 'N/A'],
+                    ['Student ID',        selectedAlert.student || 'N/A'],
+                    ['Classroom',         selectedAlert.classroom_name || 'Not enrolled'],
+                    ['Days missed (30d)', `${selectedAlert.days_missed || 0} days`],
+                    ['Consecutive',       `${selectedAlert.consecutive_absences || 0} in a row`],
+                    ['Full days missed',  `${selectedAlert.full_days_missed?.length || 0} days`],
+                  ].map(([label, value]) => (
+                    <div key={label}>
+                      <p className="text-xs text-gray-400">{label}</p>
+                      <p className="text-sm font-medium text-gray-800 mt-0.5">{value}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {selectedAlert.full_days_missed?.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {selectedAlert.full_days_missed.slice(0, 10).map((date, i) => (
+                      <span key={i} className="px-2 py-0.5 bg-red-50 text-red-600 border border-red-200 rounded text-xs">
+                        {new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      </span>
+                    ))}
+                    {selectedAlert.full_days_missed.length > 10 && (
+                      <span className="px-2 py-0.5 bg-gray-100 text-gray-500 rounded text-xs">
+                        +{selectedAlert.full_days_missed.length - 10} more
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Missed classes */}
+              {selectedAlert.missed_classes_detail?.length > 0 && (
+                <div>
+                  <p className="text-xs font-medium text-gray-500 uppercase mb-2">Missed classes by subject</p>
+                  <div className="space-y-2">
+                    {selectedAlert.missed_classes_detail.map((subject, i) => (
+                      <div key={i} className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <div>
+                            <p className="text-sm font-medium text-gray-800">{subject.subject}</p>
+                            <p className="text-xs text-gray-400">{subject.classroom}</p>
+                          </div>
+                          <span className="text-xs font-semibold text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded-full">
+                            {subject.classes_missed} missed
+                          </span>
+                        </div>
+                        {subject.recent_dates?.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {subject.recent_dates.map((date, di) => (
+                              <span key={di} className="text-xs text-gray-500 bg-white border border-gray-200 px-1.5 py-0.5 rounded">
+                                {new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Alert details */}
+              <div>
+                <p className="text-xs font-medium text-gray-500 uppercase mb-2">Alert details</p>
+                <div className="bg-gray-50 rounded-lg p-4 grid grid-cols-2 gap-3">
+                  {[
+                    ['Type',        selectedAlert.alert_type],
+                    ['Assigned to', selectedAlert.assigned_to_name || 'Unassigned'],
+                    ['Subject',     selectedAlert.subject_name || 'N/A'],
+                    ['Date',        new Date(selectedAlert.alert_date).toLocaleDateString()],
+                  ].map(([label, value]) => (
+                    <div key={label}>
+                      <p className="text-xs text-gray-400">{label}</p>
+                      <p className="text-sm font-medium text-gray-800 mt-0.5 capitalize">{value}</p>
+                    </div>
+                  ))}
+                  <div>
+                    <p className="text-xs text-gray-400">Risk</p>
+                    <span className={`inline-block mt-0.5 px-2 py-0.5 text-xs font-medium rounded-full border ${RISK_BADGE[selectedAlert.risk_level] || RISK_BADGE.low}`}>
+                      {selectedAlert.risk_level}
+                    </span>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400">Status</p>
+                    <span className={`inline-block mt-0.5 px-2 py-0.5 text-xs rounded-full border ${STATUS_BADGE[selectedAlert.status] || STATUS_BADGE.active}`}>
+                      {selectedAlert.status?.replace('_', ' ')}
+                    </span>
+                  </div>
+                </div>
+                {selectedAlert.description && (
+                  <p className="text-xs text-gray-500 mt-2 leading-relaxed">{selectedAlert.description}</p>
+                )}
+              </div>
+            </div>
+
+            <div className="px-5 py-4 border-t border-gray-100">
+              <button
+                onClick={() => setDetailsModal(false)}
+                className="w-full py-2 text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-md transition"
               >
                 Close
               </button>

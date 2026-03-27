@@ -1,0 +1,76 @@
+@startuml Use_Case_Horizontal
+
+left to right direction
+skinparam actorStyle awesome
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam defaultFontSize 13
+skinparam packageStyle rectangle
+
+' Three Main Actors
+actor "Administrator" as admin
+actor "Teacher" as teacher  
+actor "Form Master" as fm
+
+rectangle "School Early Warning Support System" {
+  
+  ' Admin Functions
+  rectangle "Admin Functions" #TECHNOLOGY {
+    (Manage Users) as UC1
+    (Manage Classrooms) as UC2
+    (Enroll Students) as UC3
+    (Assign Teachers) as UC4
+  }
+  
+  ' Teacher Functions
+  rectangle "Teacher Functions" #APPLICATION {
+    (Take Attendance) as UC5
+    (View Alerts) as UC6
+    (Send Messages) as UC7
+  }
+  
+  ' Form Master Functions
+  rectangle "Form Master Functions" #MOTIVATION {
+    (View Risk Profiles) as UC8
+    (Manage Alerts) as UC9
+    (Create Intervention) as UC10
+    (Track Progress) as UC11
+  }
+  
+  ' Shared Functions
+  rectangle "Shared" #IMPLEMENTATION {
+    (Login) as UC12
+    (View Dashboard) as UC13
+  }
+}
+
+' Admin connections
+admin --> UC1
+admin --> UC2
+admin --> UC3
+admin --> UC4
+admin --> UC12
+admin --> UC13
+
+' Teacher connections
+teacher --> UC5
+teacher --> UC6
+teacher --> UC7
+teacher --> UC12
+teacher --> UC13
+
+' Form Master connections
+fm --> UC8
+fm --> UC9
+fm --> UC10
+fm --> UC11
+fm --> UC7
+fm --> UC12
+fm --> UC13
+
+' Automated workflow
+UC5 ..> UC8 : <<auto calculate>>
+UC8 ..> UC6 : <<auto create>>
+UC9 ..> UC10 : <<escalate>>
+
+@enduml

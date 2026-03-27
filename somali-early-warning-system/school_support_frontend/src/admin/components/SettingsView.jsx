@@ -298,42 +298,42 @@ export default function SettingsView({ initialTab = 'profile' }) {
   };
 
   const tabs = [
-    { id: 'profile', label: 'My Profile', icon: User, emoji: '👤' },
-    { id: 'school', label: 'School Info', icon: School, emoji: '🏫' },
-    { id: 'system', label: 'System Config', icon: Settings, emoji: '⚙️' },
-    { id: 'security', label: 'Security', icon: Shield, emoji: '🔒' },
-    { id: 'backup', label: 'Backup', icon: Database, emoji: '💾' }
+    { id: 'profile', label: 'My Profile', icon: User },
+    { id: 'school', label: 'School Info', icon: School },
+    { id: 'system', label: 'System Config', icon: Settings },
+    { id: 'security', label: 'Security', icon: Shield },
+    { id: 'backup', label: 'Backup', icon: Database }
   ];
 
   return (
     <div className="space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="bg-gradient-to-r from-indigo-600 to-indigo-700 rounded-lg shadow-lg p-4 sm:p-6">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
         <div className="flex items-center gap-3">
-          <Settings className="w-8 h-8 text-white flex-shrink-0" />
+          <Settings className="w-8 h-8 text-green-600 flex-shrink-0" />
           <div>
-            <h1 className="text-lg sm:text-2xl font-bold text-white">System Settings</h1>
-            <p className="text-indigo-100 text-xs sm:text-sm">Manage your profile and system configuration</p>
+            <h1 className="text-lg sm:text-2xl font-semibold text-gray-900">System Settings</h1>
+            <p className="text-gray-600 text-xs sm:text-sm">Manage your profile and system configuration</p>
           </div>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="bg-white rounded-lg shadow-md p-2 sm:p-4">
-        <div className="flex overflow-x-auto gap-2 pb-2">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div className="flex overflow-x-auto gap-1 p-2">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             return (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition ${
+                className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-colors ${
                   activeTab === tab.id
-                    ? 'bg-indigo-600 text-white shadow-md'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    ? 'bg-green-600 text-white'
+                    : 'text-gray-700 hover:bg-gray-50'
                 }`}
               >
-                <span className="text-lg">{tab.emoji}</span>
+                <Icon className="w-4 h-4" />
                 <span className="hidden sm:inline">{tab.label}</span>
               </button>
             );
@@ -343,16 +343,16 @@ export default function SettingsView({ initialTab = 'profile' }) {
 
       {/* Profile Settings */}
       {activeTab === 'profile' && (
-        <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
-          <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-            <span className="text-2xl">👤</span>
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <User className="w-6 h-6 text-green-600" />
             My Profile
           </h2>
 
           <div className="space-y-6">
             {/* Profile Photo */}
-            <div className="flex flex-col sm:flex-row items-center gap-4 pb-6 border-b">
-              <div className="w-24 h-24 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-full flex items-center justify-center text-white text-3xl font-bold overflow-hidden">
+            <div className="flex flex-col sm:flex-row items-center gap-4 pb-6 border-b border-gray-200">
+              <div className="w-24 h-24 bg-green-600 rounded-full flex items-center justify-center text-white text-3xl font-semibold overflow-hidden">
                 {profile.photoPreview ? (
                   <img src={profile.photoPreview} alt="Profile" className="w-full h-full object-cover" />
                 ) : (
@@ -362,7 +362,7 @@ export default function SettingsView({ initialTab = 'profile' }) {
               <div className="flex-1 text-center sm:text-left">
                 <h3 className="font-semibold text-gray-900 mb-1">{profile.name}</h3>
                 <p className="text-sm text-gray-600 mb-3">{profile.email}</p>
-                <label className="flex items-center gap-2 px-4 py-2 bg-indigo-100 text-indigo-700 rounded-lg hover:bg-indigo-200 transition text-sm font-medium mx-auto sm:mx-0 cursor-pointer w-fit">
+                <label className="flex items-center gap-2 px-4 py-2 bg-green-50 text-green-700 border border-green-200 rounded-lg hover:bg-green-100 transition-colors text-sm font-medium mx-auto sm:mx-0 cursor-pointer w-fit">
                   <Camera className="w-4 h-4" />
                   <span>Change Photo</span>
                   <input type="file" accept="image/*" onChange={handleProfilePhotoChange} className="hidden" />
@@ -458,24 +458,24 @@ export default function SettingsView({ initialTab = 'profile' }) {
             </div>
 
             {/* 2FA Setup */}
-            <div className="pt-4 border-t">
+            <div className="pt-4 border-t border-gray-200">
               <h3 className="font-semibold text-gray-900 mb-4">Two-Factor Authentication</h3>
               <p className="text-sm text-gray-600 mb-4">
                 Add an extra layer of security to your account with 2FA
               </p>
               <button
                 onClick={() => setShow2FA(true)}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium flex items-center gap-2"
+                className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center gap-2"
               >
                 <Shield className="w-5 h-5" />
-                {currentUser?.two_factor_enabled ? '✓ 2FA Enabled - Manage' : 'Setup 2FA'}
+                {currentUser?.two_factor_enabled ? '2FA Enabled - Manage' : 'Setup 2FA'}
               </button>
             </div>
 
             <button
               onClick={handleSaveProfile}
               disabled={saving}
-              className="w-full sm:w-auto px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:bg-gray-300 transition font-medium flex items-center justify-center gap-2"
+              className="w-full sm:w-auto px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium flex items-center justify-center gap-2"
             >
               <Save className="w-5 h-5" />
               {saving ? 'Saving...' : 'Save Profile'}
@@ -486,9 +486,9 @@ export default function SettingsView({ initialTab = 'profile' }) {
 
       {/* School Information */}
       {activeTab === 'school' && (
-        <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
-          <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-            <span className="text-2xl">🏫</span>
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <School className="w-6 h-6 text-green-600" />
             School Information
           </h2>
 
@@ -559,7 +559,7 @@ export default function SettingsView({ initialTab = 'profile' }) {
             <button
               onClick={handleSaveSchool}
               disabled={saving}
-              className="w-full sm:w-auto px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:bg-gray-300 transition font-medium flex items-center justify-center gap-2"
+              className="w-full sm:w-auto px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium flex items-center justify-center gap-2"
             >
               <Save className="w-5 h-5" />
               {saving ? 'Saving...' : 'Save School Info'}
@@ -572,9 +572,9 @@ export default function SettingsView({ initialTab = 'profile' }) {
       {activeTab === 'system' && (
         <div className="space-y-4">
           {/* Alert Thresholds */}
-          <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
-            <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-              <span className="text-2xl">🔔</span>
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <Bell className="w-6 h-6 text-green-600" />
               Alert Thresholds
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -607,9 +607,9 @@ export default function SettingsView({ initialTab = 'profile' }) {
           </div>
 
           {/* Risk Levels */}
-          <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
-            <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-              <span className="text-2xl">🎯</span>
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <Settings className="w-6 h-6 text-green-600" />
               Risk Level Definitions
             </h2>
             <div className="space-y-3">
@@ -661,9 +661,9 @@ export default function SettingsView({ initialTab = 'profile' }) {
           </div>
 
           {/* Notifications */}
-          <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
-            <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-              <span className="text-2xl">📧</span>
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <Bell className="w-6 h-6 text-green-600" />
               Notification Settings
             </h2>
             <div className="space-y-3">
@@ -672,7 +672,7 @@ export default function SettingsView({ initialTab = 'profile' }) {
                   type="checkbox"
                   checked={systemConfig.emailNotifications}
                   onChange={(e) => setSystemConfig({ ...systemConfig, emailNotifications: e.target.checked })}
-                  className="w-5 h-5 text-indigo-600 rounded focus:ring-2 focus:ring-indigo-500"
+                  className="w-5 h-5 text-green-600 rounded focus:ring-2 focus:ring-green-600"
                 />
                 <div>
                   <span className="text-sm font-medium text-gray-900">Email Notifications</span>
@@ -685,7 +685,7 @@ export default function SettingsView({ initialTab = 'profile' }) {
                   type="checkbox"
                   checked={systemConfig.smsNotifications}
                   onChange={(e) => setSystemConfig({ ...systemConfig, smsNotifications: e.target.checked })}
-                  className="w-5 h-5 text-indigo-600 rounded focus:ring-2 focus:ring-indigo-500"
+                  className="w-5 h-5 text-green-600 rounded focus:ring-2 focus:ring-green-600"
                 />
                 <div>
                   <span className="text-sm font-medium text-gray-900">SMS Notifications</span>
@@ -698,7 +698,7 @@ export default function SettingsView({ initialTab = 'profile' }) {
           <button
             onClick={handleSaveSystem}
             disabled={saving}
-            className="w-full sm:w-auto px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:bg-gray-300 transition font-medium flex items-center justify-center gap-2"
+            className="w-full sm:w-auto px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium flex items-center justify-center gap-2"
           >
             <Save className="w-5 h-5" />
             {saving ? 'Saving...' : 'Save Configuration'}
@@ -708,9 +708,9 @@ export default function SettingsView({ initialTab = 'profile' }) {
 
       {/* Security Settings */}
       {activeTab === 'security' && (
-        <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
-          <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-            <span className="text-2xl">🔒</span>
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <Shield className="w-6 h-6 text-green-600" />
             Security Settings
           </h2>
 
@@ -756,7 +756,7 @@ export default function SettingsView({ initialTab = 'profile' }) {
               </div>
             </div>
 
-            <div className="space-y-3 pt-4 border-t">
+            <div className="space-y-3 pt-4 border-t border-gray-200">
               <h3 className="font-semibold text-gray-900 mb-3">Password Requirements</h3>
               
               <label className="flex items-center gap-3 cursor-pointer">
@@ -764,7 +764,7 @@ export default function SettingsView({ initialTab = 'profile' }) {
                   type="checkbox"
                   checked={security.requireUppercase}
                   onChange={(e) => setSecurity({ ...security, requireUppercase: e.target.checked })}
-                  className="w-5 h-5 text-indigo-600 rounded focus:ring-2 focus:ring-indigo-500"
+                  className="w-5 h-5 text-green-600 rounded focus:ring-2 focus:ring-green-600"
                 />
                 <span className="text-sm text-gray-900">Require uppercase letters</span>
               </label>
@@ -774,7 +774,7 @@ export default function SettingsView({ initialTab = 'profile' }) {
                   type="checkbox"
                   checked={security.requireNumbers}
                   onChange={(e) => setSecurity({ ...security, requireNumbers: e.target.checked })}
-                  className="w-5 h-5 text-indigo-600 rounded focus:ring-2 focus:ring-indigo-500"
+                  className="w-5 h-5 text-green-600 rounded focus:ring-2 focus:ring-green-600"
                 />
                 <span className="text-sm text-gray-900">Require numbers</span>
               </label>
@@ -784,7 +784,7 @@ export default function SettingsView({ initialTab = 'profile' }) {
                   type="checkbox"
                   checked={security.twoFactorAuth}
                   onChange={(e) => setSecurity({ ...security, twoFactorAuth: e.target.checked })}
-                  className="w-5 h-5 text-indigo-600 rounded focus:ring-2 focus:ring-indigo-500"
+                  className="w-5 h-5 text-green-600 rounded focus:ring-2 focus:ring-green-600"
                 />
                 <div>
                   <span className="text-sm text-gray-900">Two-Factor Authentication</span>
@@ -793,9 +793,9 @@ export default function SettingsView({ initialTab = 'profile' }) {
               </label>
             </div>
 
-            <div className="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-4">
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
               <p className="text-sm text-yellow-800 flex items-start gap-2">
-                <span className="text-lg">⚠️</span>
+                <Shield className="w-5 h-5 flex-shrink-0 text-yellow-600" />
                 <span><strong>FERPA Compliance:</strong> These security settings help meet legal requirements for protecting student data. Keep data retention at 7 years minimum.</span>
               </p>
             </div>
@@ -803,7 +803,7 @@ export default function SettingsView({ initialTab = 'profile' }) {
             <button
               onClick={handleSaveSecurity}
               disabled={saving}
-              className="w-full sm:w-auto px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:bg-gray-300 transition font-medium flex items-center justify-center gap-2"
+              className="w-full sm:w-auto px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium flex items-center justify-center gap-2"
             >
               <Save className="w-5 h-5" />
               {saving ? 'Saving...' : 'Save Security Settings'}
@@ -814,45 +814,45 @@ export default function SettingsView({ initialTab = 'profile' }) {
 
       {/* Backup & Export */}
       {activeTab === 'backup' && (
-        <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
-          <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-            <span className="text-2xl">💾</span>
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <Database className="w-6 h-6 text-green-600" />
             Backup & Data Export
           </h2>
 
           <div className="space-y-6">
-            <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4">
-              <h3 className="font-semibold text-blue-900 mb-2">Why Backup?</h3>
-              <p className="text-sm text-blue-800">Regular backups protect your data from loss. Export all data for migration or compliance audits.</p>
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <h3 className="font-semibold text-green-900 mb-2">Why Backup?</h3>
+              <p className="text-sm text-green-800">Regular backups protect your data from loss. Export all data for migration or compliance audits.</p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="border-2 border-gray-200 rounded-lg p-4">
+              <div className="border border-gray-200 rounded-lg p-4">
                 <h3 className="font-semibold text-gray-900 mb-2">Database Backup</h3>
                 <p className="text-sm text-gray-600 mb-4">Download complete database backup</p>
-                <button className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium flex items-center justify-center gap-2">
+                <button className="w-full px-4 py-2 bg-gray-100 text-gray-900 border border-gray-300 rounded-lg hover:bg-gray-200 transition-colors font-medium flex items-center justify-center gap-2">
                   <Database className="w-5 h-5" />
                   Download Backup
                 </button>
               </div>
 
-              <div className="border-2 border-gray-200 rounded-lg p-4">
+              <div className="border border-gray-200 rounded-lg p-4">
                 <h3 className="font-semibold text-gray-900 mb-2">Export All Data</h3>
                 <p className="text-sm text-gray-600 mb-4">Export all records as CSV files</p>
-                <button className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium flex items-center justify-center gap-2">
+                <button className="w-full px-4 py-2 bg-gray-100 text-gray-900 border border-gray-300 rounded-lg hover:bg-gray-200 transition-colors font-medium flex items-center justify-center gap-2">
                   <Upload className="w-5 h-5" />
                   Export Data
                 </button>
               </div>
             </div>
 
-            <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
               <h3 className="font-semibold text-red-900 mb-2 flex items-center gap-2">
-                <span>⚠️</span>
+                <Shield className="w-5 h-5 text-red-600" />
                 Restore from Backup
               </h3>
               <p className="text-sm text-red-800 mb-3">This will replace all current data. Use with caution!</p>
-              <button className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-medium text-sm">
+              <button className="px-4 py-2 bg-red-50 text-red-700 border border-red-300 rounded-lg hover:bg-red-100 transition-colors font-medium text-sm">
                 Restore Backup
               </button>
             </div>

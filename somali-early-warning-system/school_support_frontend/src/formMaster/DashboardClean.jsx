@@ -15,12 +15,18 @@ import KPICards from "./components/KPICards";
 import HighRiskStudentsTable from "./components/HighRiskStudentsTable";
 import ClassroomStats from "./components/ClassroomStats";
 import AlertsList from "./components/AlertsList";
+import ReviewModal from "./components/ReviewModal";
+import CreateCaseModal from "./components/CreateCaseModal";
 import CasesTable from "./components/CasesTable";
 import UrgentBanner from "./components/UrgentBanner";
 import ImmediateAttentionWidget from "./components/ImmediateAttentionWidget";
-import ProgressionTracking from "./components/ProgressionTracking";
 import AttendanceOverview from "./components/AttendanceOverview";
 import DailyAttendanceMonitor from "./components/DailyAttendanceMonitor";
+import ChartsVisualization from "./components/ChartsVisualization";
+import AIInsightsPanel from "./AIInsightsPanel";
+import BulkAnalysisPanel from "./BulkAnalysisPanel";
+import WeeklyReportPanel from "./WeeklyReportPanel";
+import ProgressDashboard from "./ProgressDashboard";
 import { getBadgeColors, getTrendHelpers } from "./utils/helpers";
 import { sanitizeDashboardData } from "./utils/dataValidation";
 import { useActionLoading } from "../hooks/useActionLoading";
@@ -77,6 +83,11 @@ function FormMasterDashboardContent() {
       }
     }
   };
+
+  const existingCaseStudentIds = React.useMemo(
+    () => (dashboardData?.pending_cases || []).map(c => c.student),
+    [dashboardData?.pending_cases]
+  );
 
   const studentsPagination = usePagination(
     selectedRiskFilter === 'all' 
@@ -142,8 +153,33 @@ function FormMasterDashboardContent() {
     }
   };
 
-  const handleCreateCase = (student) => {
-    showToast.info(`Create case for ${student.student__full_name}`);
+  const [createCaseStudent,   setCreateCaseStudent]   = useState(null);
+  const [createCaseSubmitting, setCreateCaseSubmitting] = useState(false);
+
+  const handleCreateCase = (student) => setCreateCaseStudent(student);
+
+  const handleCreateCaseConfirm = async ({ observation, urgency, followUp }) => {
+    setCreateCaseSubmitting(true);
+    try {
+      const res = await api.post('/interventions/', {
+        student:       createCaseStudent.student__student_id,
+        status:        'open',
+        outcome_notes: `[Urgency: ${urgency}] ${observation}`,
+        ...(followUp && { follow_up_date: followUp }),
+      });
+      showToast.success(`Case #${res.data?.case_id} created for ${createCaseStudent.student__full_name}`);
+      setCreateCaseStudent(null);
+      loadDashboard();
+    } catch (err) {
+      const msg =
+        err?.response?.data?.detail ||
+        err?.response?.data?.student?.[0] ||
+        err?.response?.data?.error ||
+        'Failed to create case';
+      showToast.error(msg);
+    } finally {
+      setCreateCaseSubmitting(false);
+    }
   };
 
   const handleUpdateProgress = async (caseId, formData) => {
@@ -161,7 +197,7 @@ function FormMasterDashboardContent() {
     }));
 
     try {
-      await api.patch(`/interventions/cases/${caseId}/`, {
+      await api.patch(`/interventions/${caseId}/`, {
         ...formData,
         version: currentCase?.version  // Send version for race condition check
       });
@@ -213,7 +249,7 @@ function FormMasterDashboardContent() {
     }));
 
     try {
-      await api.patch(`/interventions/cases/${caseId}/`, {
+      await api.patch(`/interventions/${caseId}/`, {
         status: 'escalated_to_admin',
         escalation_reason: reason,
         version: currentCase?.version
@@ -234,6 +270,35 @@ function FormMasterDashboardContent() {
       }
     } finally {
       setActionLoading(`escalate-${caseId}`, false);
+    }
+  };
+
+  const [reviewAlert, setReviewAlert] = useState(null);
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+
+  const handleReview = (alert) => setReviewAlert(alert);
+
+  const handleReviewConfirm = async ({ observation, urgency, followUp }) => {
+    setReviewSubmitting(true);
+    try {
+      await api.patch(`/alerts/${reviewAlert.alert_id}/`, { status: 'under_review' });
+      const casePayload = {
+        student:           reviewAlert.student,
+        alert:             reviewAlert.alert_id,
+        status:            'in_progress',
+        outcome_notes:     observation,
+        escalation_reason: `Urgency: ${urgency}. Initial observation: ${observation}`,
+        ...(followUp && { follow_up_date: followUp }),
+      };
+      const caseRes = await api.post('/interventions/', casePayload);
+      const caseId  = caseRes.data?.case_id;
+      showToast.success(caseId ? `Review started — Case #${caseId} created` : 'Review started');
+      setReviewAlert(null);
+      loadDashboard();
+    } catch (err) {
+      showToast.error(err?.response?.data?.detail || err?.response?.data?.error || 'Failed to start review');
+    } finally {
+      setReviewSubmitting(false);
     }
   };
 
@@ -262,7 +327,7 @@ function FormMasterDashboardContent() {
       <div className="flex h-screen items-center justify-center bg-gray-50">
         <div className="text-center">
           <p className="text-red-600 mb-4">Failed to load dashboard</p>
-          <button onClick={loadDashboard} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+          <button onClick={loadDashboard} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium">
             Retry
           </button>
         </div>
@@ -283,12 +348,15 @@ function FormMasterDashboardContent() {
             <>
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6 gap-3">
                 <div>
-                  <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Student Support Center</h1>
-                  <p className="text-sm sm:text-base text-gray-600">Monitor and support student success</p>
+                  <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Form Master Dashboard</h1>
+                  <p className="text-sm sm:text-base text-gray-500">
+                    Classroom overview &nbsp;·&nbsp;
+                    Data as of {new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </p>
                 </div>
                 <button 
                   onClick={debouncedRefresh} 
-                  className="text-xs sm:text-sm text-blue-600 hover:text-blue-700 font-medium"
+                  className="text-xs sm:text-sm text-green-600 hover:text-green-700 font-medium"
                   aria-label="Refresh dashboard data"
                 >
                   Refresh Data
@@ -315,11 +383,11 @@ function FormMasterDashboardContent() {
               
               {dashboardData.immediate_attention?.length > 0 && (
                 <SectionErrorBoundary>
-                  <ImmediateAttentionWidget students={dashboardData.immediate_attention} getRiskBadgeColor={getRiskBadgeColor} />
+                  <ImmediateAttentionWidget students={dashboardData.immediate_attention} getRiskBadgeColor={getRiskBadgeColor} onCreateCase={handleCreateCase} />
                 </SectionErrorBoundary>
               )}
               
-              {studentsPagination.items?.length > 0 && (
+              {studentsPagination.items?.length > 0 ? (
                 <SectionErrorBoundary>
                   <div className="mb-4">
                     <RiskLevelFilter 
@@ -334,13 +402,14 @@ function FormMasterDashboardContent() {
                     }))} 
                     getRiskBadgeColor={getRiskBadgeColor}
                     onCreateCase={handleCreateCase}
+                    existingCaseStudentIds={existingCaseStudentIds}
                   />
                   {studentsPagination.totalPages > 1 && (
                     <div className="flex justify-center items-center gap-4 mt-4">
                       <button
                         onClick={studentsPagination.prevPage}
                         disabled={!studentsPagination.hasPrev}
-                        className="px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-50"
+                        className="px-4 py-2 bg-green-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-green-700 transition-colors font-medium"
                       >
                         Previous
                       </button>
@@ -350,12 +419,58 @@ function FormMasterDashboardContent() {
                       <button
                         onClick={studentsPagination.nextPage}
                         disabled={!studentsPagination.hasNext}
-                        className="px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-50"
+                        className="px-4 py-2 bg-green-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-green-700 transition-colors font-medium"
                       >
                         Next
                       </button>
                     </div>
                   )}
+                </SectionErrorBoundary>
+              ) : dashboardData.high_risk_students?.length > 0 && selectedRiskFilter !== 'all' ? (
+                <SectionErrorBoundary>
+                  <div className="mb-4">
+                    <RiskLevelFilter 
+                      selectedRisk={selectedRiskFilter} 
+                      onFilterChange={setSelectedRiskFilter} 
+                    />
+                  </div>
+                  <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-8">
+                    <div className="p-6 border-b border-gray-200">
+                      <h3 className="text-lg font-semibold text-gray-800">High-Risk Students</h3>
+                    </div>
+                    <div className="p-12 text-center">
+                      <div className="max-w-md mx-auto">
+                        <div className="w-16 h-16 mx-auto mb-4 bg-blue-100 rounded-full flex items-center justify-center">
+                          <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                          </svg>
+                        </div>
+                        <h4 className="text-lg font-semibold text-gray-800 mb-2">No {selectedRiskFilter.charAt(0).toUpperCase() + selectedRiskFilter.slice(1)} Risk Students</h4>
+                        <p className="text-gray-600 mb-4">No students match the selected risk level filter. Try selecting a different risk level or clear the filter.</p>
+                        <button
+                          onClick={() => setSelectedRiskFilter('all')}
+                          className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+                        >
+                          Show All Students
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </SectionErrorBoundary>
+              ) : (
+                <SectionErrorBoundary>
+                  <div className="mb-4">
+                    <RiskLevelFilter 
+                      selectedRisk={selectedRiskFilter} 
+                      onFilterChange={setSelectedRiskFilter} 
+                    />
+                  </div>
+                  <HighRiskStudentsTable 
+                    students={[]} 
+                    getRiskBadgeColor={getRiskBadgeColor}
+                    onCreateCase={handleCreateCase}
+                    existingCaseStudentIds={existingCaseStudentIds}
+                  />
                 </SectionErrorBoundary>
               )}
               
@@ -364,6 +479,10 @@ function FormMasterDashboardContent() {
                   <ClassroomStats classrooms={dashboardData.classroom_stats} />
                 </SectionErrorBoundary>
               )}
+
+              <SectionErrorBoundary>
+                <ChartsVisualization dashboardData={dashboardData} />
+              </SectionErrorBoundary>
             </>
           )}
 
@@ -373,10 +492,9 @@ function FormMasterDashboardContent() {
               <div className="bg-white rounded-lg shadow-sm border border-gray-200" role="region" aria-label="Assigned alerts list">
                 <AlertsList 
                   alerts={dashboardData.urgent_alerts || []}
-                  getRiskBadgeColor={getRiskBadgeColor}
-                  getAlertStatusBadgeColor={getAlertStatusBadgeColor}
+                  onReview={handleReview}
                   onAlertAction={handleAlertAction}
-                  isLoading={isLoading}
+                  loadingKey={null}
                 />
               </div>
             </>
@@ -387,7 +505,13 @@ function FormMasterDashboardContent() {
               <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 gap-3">
                 <div>
                   <h3 className="text-xl font-bold text-gray-900">Intervention Cases</h3>
-                  <p className="text-xs text-gray-500 mt-1">Cases open &gt; 14 days are marked as overdue</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Cases open &gt;14 days without update are marked overdue &nbsp;·&nbsp;
+                    Showing {filteredCases.length} case{filteredCases.length !== 1 ? 's' : ''}
+                    {(dateRange.start || dateRange.end) && (
+                      <span className="ml-1 text-green-700 font-medium">(filtered by date)</span>
+                    )}
+                  </p>
                 </div>
                 <DateRangeFilter
                   startDate={dateRange.start}
@@ -400,41 +524,22 @@ function FormMasterDashboardContent() {
               <div className="bg-white rounded-lg shadow-sm border border-gray-200" role="region" aria-label="Intervention cases table">
                 <CasesTable 
                   cases={filteredCases} 
-                  getCaseStatusBadgeColor={getCaseStatusBadgeColor} 
+                  getCaseStatusBadgeColor={getCaseStatusBadgeColor}
+                  onRefresh={loadDashboard}
                 />
               </div>
             </>
           )}
 
           {activeTab === "students" && (
-            <>
-              <h3 className="text-xl font-bold text-gray-900 mb-4">Students Needing Support</h3>
-              <div role="region" aria-label="Students needing support table">
-                <HighRiskStudentsTable 
-                  students={dashboardData.high_risk_students || []} 
-                  getRiskBadgeColor={getRiskBadgeColor}
-                  onCreateCase={handleCreateCase}
-                />
-              </div>
-            </>
-          )}
-
-          {activeTab === "progression" && (
-            <>
-              <div className="mb-6">
-                <h1 className="text-2xl font-bold text-gray-900">Student Progression Tracking</h1>
-                <p className="text-gray-600">Monitor intervention effectiveness and student improvement</p>
-              </div>
-              <div role="region" aria-label="Student progression tracking">
-                <ProgressionTracking 
-                  cases={dashboardData.pending_cases || []} 
-                  getRiskBadgeColor={getRiskBadgeColor}
-                  onUpdateProgress={handleUpdateProgress}
-                  onEscalate={handleEscalateToAdmin}
-                  isLoading={isLoading}
-                />
-              </div>
-            </>
+            <div role="region" aria-label="Students needing support table">
+              <HighRiskStudentsTable 
+                students={dashboardData.high_risk_students || []} 
+                getRiskBadgeColor={getRiskBadgeColor}
+                onCreateCase={handleCreateCase}
+                existingCaseStudentIds={existingCaseStudentIds}
+              />
+            </div>
           )}
 
           {activeTab === "attendance" && (
@@ -456,10 +561,36 @@ function FormMasterDashboardContent() {
               </div>
             </>
           )}
+
+          {activeTab === "ai-insights" && <AIInsightsPanel aiInsights={dashboardData.ai_insights || []} classroomSummary={dashboardData.classroom_summary || null} />}
+
+          {activeTab === "bulk-analysis" && <BulkAnalysisPanel />}
+
+          {activeTab === "weekly-report" && <WeeklyReportPanel />}
+
+          {activeTab === "progress-tracking" && <ProgressDashboard />}
         </div>
         </div>
       </div>
       
+      {reviewAlert && (
+        <ReviewModal
+          alert={reviewAlert}
+          onConfirm={handleReviewConfirm}
+          onClose={() => setReviewAlert(null)}
+          isSubmitting={reviewSubmitting}
+        />
+      )}
+
+      {createCaseStudent && (
+        <CreateCaseModal
+          student={createCaseStudent}
+          onConfirm={handleCreateCaseConfirm}
+          onClose={() => setCreateCaseStudent(null)}
+          isSubmitting={createCaseSubmitting}
+        />
+      )}
+
       <ConfirmDialog
         isOpen={confirmDialog.isOpen}
         title={confirmDialog.title}

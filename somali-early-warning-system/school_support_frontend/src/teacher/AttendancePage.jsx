@@ -3,50 +3,55 @@ import { useLocation } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import api from "../api/apiClient";
 
+const DAY_NAMES = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+
 export default function AttendancePage() {
   const { user } = useContext(AuthContext);
   const location = useLocation();
 
   const [assignments, setAssignments] = useState([]);
   const [classrooms, setClassrooms] = useState([]);
-  const [subjects, setSubjects] = useState([]);
   const [subjectMap, setSubjectMap] = useState({});
   const [students, setStudents] = useState([]);
 
+  // Today's timetable slots: [{period, classroom_id, classroom, subject_id, subject}]
+  const [todaySlots, setTodaySlots] = useState([]);
+  const [selectedSlotIndex, setSelectedSlotIndex] = useState("");
+
   const [selectedClassroom, setSelectedClassroom] = useState("");
   const [selectedSubject, setSelectedSubject] = useState("");
+  const [selectedPeriod, setSelectedPeriod] = useState("");
 
   const [statusMap, setStatusMap] = useState({});
 
   // --------------------------
-  // LOAD TEACHER ASSIGNMENTS + REAL CLASSROOMS
+  // LOAD TEACHER ASSIGNMENTS + TODAY'S TIMETABLE
   // --------------------------
   const loadAssignments = async () => {
     try {
-      const res = await api.get("/academics/assignments/");
-      const myAssignments = res.data.filter((a) => a.teacher === user.user_id);
+      const [assignRes, classRes, subjectRes, timetableRes] = await Promise.all([
+        api.get("/academics/assignments/"),
+        api.get("/students/classrooms/"),
+        api.get("/academics/subjects/"),
+        api.get("/academics/schedule/timetable/"),
+      ]);
 
+      const myAssignments = assignRes.data.filter((a) => a.teacher === user.user_id);
       setAssignments(myAssignments);
 
-      // Get only the classroom IDs the teacher teaches
       const classIds = [...new Set(myAssignments.map((a) => a.classroom))];
-
-      // Fetch all classrooms
-      const classRes = await api.get("/students/classrooms/");
-
-      // Keep only classrooms assigned to this teacher
-      const filteredClasses = classRes.data.filter((cls) =>
-        classIds.includes(cls.class_id),
-      );
-
+      const filteredClasses = classRes.data.filter((cls) => classIds.includes(cls.class_id));
       setClassrooms(filteredClasses);
-      
-      const subjectRes = await api.get("/academics/subjects/");
+
       const subjectMapping = {};
-      subjectRes.data.forEach(sub => {
-        subjectMapping[sub.subject_id] = sub.name;
-      });
+      subjectRes.data.forEach(sub => { subjectMapping[sub.subject_id] = sub.name; });
       setSubjectMap(subjectMapping);
+
+      // Build today's slots from timetable
+      const todayName = DAY_NAMES[new Date().getDay()];
+      const schedule = timetableRes.data.schedule || {};
+      const slots = (schedule[todayName] || []).sort((a, b) => a.period - b.period);
+      setTodaySlots(slots);
     } catch (err) {
       console.error("Failed to load assignments", err);
     }
@@ -64,21 +69,8 @@ export default function AttendancePage() {
     }
   };
 
-  // --------------------------
-  // LOAD SUBJECTS ASSIGNED FOR THIS CLASS
-  // --------------------------
-  const updateSubjects = (classroomId) => {
-    const filtered = assignments
-      .filter((a) => a.classroom === classroomId)
-      .map((a) => a.subject);
-
-    setSubjects(filtered);
-  };
-
   // INITIAL LOAD
-  useEffect(() => {
-    loadAssignments();
-  }, []);
+  useEffect(() => { loadAssignments(); }, []);
 
   // PRE-SELECT FROM DASHBOARD
   useEffect(() => {
@@ -91,14 +83,28 @@ export default function AttendancePage() {
   // WHEN CLASS CHANGES
   useEffect(() => {
     if (selectedClassroom) {
-      const id = parseInt(selectedClassroom);
-
-      loadStudents(id);
-      updateSubjects(id);
+      loadStudents(parseInt(selectedClassroom));
       setSelectedSubject("");
       setStatusMap({});
     }
   }, [selectedClassroom]);
+
+  // When a timetable slot is selected, auto-fill classroom/subject/period
+  const handleSlotSelect = (index) => {
+    setSelectedSlotIndex(index);
+    if (index === "") {
+      setSelectedClassroom("");
+      setSelectedSubject("");
+      setSelectedPeriod("");
+      return;
+    }
+    const slot = todaySlots[index];
+    setSelectedClassroom(String(slot.classroom_id));
+    setSelectedSubject(String(slot.subject_id));
+    setSelectedPeriod(String(slot.period));
+    loadStudents(slot.classroom_id);
+    setStatusMap({});
+  };
 
   // --------------------------
   // SUBMIT ATTENDANCE
@@ -126,6 +132,7 @@ export default function AttendancePage() {
       await api.post("/attendance/sessions/", {
         classroom: parseInt(selectedClassroom),
         subject: parseInt(selectedSubject),
+        period: selectedPeriod,
         attendance_date: today,
         records: records
       });
@@ -161,53 +168,36 @@ export default function AttendancePage() {
     }));
   };
 
+  const todayName = DAY_NAMES[new Date().getDay()];
+
   return (
     <div className="p-6 max-w-5xl mx-auto">
       <h1 className="text-2xl font-bold mb-6">Record Attendance</h1>
 
-      {/* CLASSROOM SELECT */}
+      {/* TODAY'S TIMETABLE SLOT SELECT */}
       <div className="mb-6">
         <label className="block font-semibold mb-2 text-gray-700">
-          Select Classroom
+          Today's Schedule ({todayName.charAt(0).toUpperCase() + todayName.slice(1)})
         </label>
-
-        <select
-          className="p-3 border rounded-lg w-full bg-white"
-          value={selectedClassroom}
-          onChange={(e) => setSelectedClassroom(e.target.value)}
-        >
-          <option value="">-- Select Classroom --</option>
-
-          {classrooms.map((cls) => (
-            <option key={cls.class_id} value={cls.class_id}>
-              {cls.name}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* SUBJECT SELECT */}
-      {selectedClassroom && (
-        <div className="mb-6">
-          <label className="block font-semibold mb-2 text-gray-700">
-            Select Subject
-          </label>
-
+        {todaySlots.length === 0 ? (
+          <p className="text-gray-500 text-sm p-3 bg-gray-50 rounded-lg border">
+            No classes scheduled for you today. Contact your administrator if this is incorrect.
+          </p>
+        ) : (
           <select
             className="p-3 border rounded-lg w-full bg-white"
-            value={selectedSubject}
-            onChange={(e) => setSelectedSubject(e.target.value)}
+            value={selectedSlotIndex}
+            onChange={(e) => handleSlotSelect(e.target.value === "" ? "" : parseInt(e.target.value))}
           >
-            <option value="">-- Select Subject --</option>
-
-            {subjects.map((subjectId) => (
-              <option key={subjectId} value={subjectId}>
-                {subjectMap[subjectId] || `Subject ${subjectId}`}
+            <option value="">-- Select your period --</option>
+            {todaySlots.map((slot, i) => (
+              <option key={i} value={i}>
+                Period {slot.period} — {slot.subject} ({slot.classroom})
               </option>
             ))}
           </select>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* STUDENTS TABLE */}
       {selectedClassroom && selectedSubject && (

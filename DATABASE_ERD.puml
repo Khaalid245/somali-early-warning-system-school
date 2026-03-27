@@ -1,0 +1,423 @@
+@startuml School_Early_Warning_System_ERD
+
+' ============================================
+' ENTITY RELATIONSHIP DIAGRAM
+' School Early Warning Support System
+' ============================================
+
+!define PRIMARY_KEY <b><color:#FF6B6B>PK</color></b>
+!define FOREIGN_KEY <b><color:#4ECDC4>FK</color></b>
+!define UNIQUE <b><color:#FFE66D>U</color></b>
+!define INDEX <b><color:#95E1D3>IDX</color></b>
+
+skinparam linetype ortho
+skinparam backgroundColor #FAFAFA
+skinparam roundcorner 10
+skinparam shadowing false
+
+' ============================================
+' USERS & AUTHENTICATION
+' ============================================
+
+entity "User" as user {
+  PRIMARY_KEY id : INTEGER
+  --
+  UNIQUE email : VARCHAR(254)
+  name : VARCHAR(255)
+  role : VARCHAR(20) <<ENUM>>
+  phone : VARCHAR(50) [NULL]
+  profile_image : VARCHAR(100) [NULL]
+  biography : TEXT [NULL]
+  --
+  is_staff : BOOLEAN
+  is_active : BOOLEAN
+  --
+  two_factor_enabled : BOOLEAN
+  two_factor_secret : VARCHAR(32) [NULL]
+  --
+  date_joined : DATETIME
+  updated_at : DATETIME
+  --
+  <<Roles>>
+  admin | teacher | form_master
+}
+
+' ============================================
+' STUDENTS & CLASSROOMS
+' ============================================
+
+entity "Student" as student {
+  PRIMARY_KEY student_id : INTEGER
+  --
+  UNIQUE admission_number : VARCHAR(50)
+  full_name : VARCHAR(255)
+  gender : VARCHAR(10) <<ENUM>>
+  --
+  parent_name : VARCHAR(255) [NULL]
+  parent_email : VARCHAR(254) [NULL]
+  parent_phone : VARCHAR(20) [NULL]
+  --
+  status : VARCHAR(20) <<ENUM>>
+  is_active : BOOLEAN
+  --
+  created_at : DATETIME
+  updated_at : DATETIME
+  --
+  <<Gender>>
+  male | female
+  --
+  <<Status>>
+  active | transferred
+  graduated | suspended
+}
+
+entity "Classroom" as classroom {
+  PRIMARY_KEY class_id : INTEGER
+  --
+  name : VARCHAR(50)
+  academic_year : VARCHAR(20)
+  FOREIGN_KEY form_master_id : INTEGER [NULL]
+  --
+  is_active : BOOLEAN
+  created_at : DATETIME
+  updated_at : DATETIME
+  --
+  UNIQUE (name, academic_year)
+}
+
+entity "StudentEnrollment" as enrollment {
+  PRIMARY_KEY enrollment_id : INTEGER
+  --
+  FOREIGN_KEY student_id : INTEGER
+  FOREIGN_KEY classroom_id : INTEGER
+  academic_year : VARCHAR(20)
+  --
+  enrollment_date : DATE
+  is_active : BOOLEAN
+  --
+  UNIQUE (student_id, academic_year)
+}
+
+' ============================================
+' ACADEMICS
+' ============================================
+
+entity "Subject" as subject {
+  PRIMARY_KEY subject_id : INTEGER
+  --
+  UNIQUE name : VARCHAR(100)
+  UNIQUE code : VARCHAR(20) [NULL]
+  --
+  created_at : DATETIME
+}
+
+entity "TeachingAssignment" as assignment {
+  PRIMARY_KEY assignment_id : INTEGER
+  --
+  FOREIGN_KEY teacher_id : INTEGER
+  FOREIGN_KEY subject_id : INTEGER
+  FOREIGN_KEY classroom_id : INTEGER
+  --
+  is_active : BOOLEAN
+  created_at : DATETIME
+  --
+  UNIQUE (teacher_id, subject_id, classroom_id)
+}
+
+' ============================================
+' ATTENDANCE TRACKING
+' ============================================
+
+entity "AttendanceSession" as session {
+  PRIMARY_KEY session_id : INTEGER
+  --
+  FOREIGN_KEY classroom_id : INTEGER
+  FOREIGN_KEY subject_id : INTEGER
+  FOREIGN_KEY teacher_id : INTEGER
+  --
+  INDEX attendance_date : DATE
+  --
+  created_at : DATETIME
+  updated_at : DATETIME
+  --
+  UNIQUE (classroom_id, subject_id, attendance_date)
+  INDEX (classroom_id, subject_id)
+}
+
+entity "AttendanceRecord" as record {
+  PRIMARY_KEY record_id : INTEGER
+  --
+  FOREIGN_KEY session_id : INTEGER
+  INDEX FOREIGN_KEY student_id : INTEGER
+  --
+  INDEX status : VARCHAR(10) <<ENUM>>
+  remarks : TEXT [NULL]
+  --
+  created_at : DATETIME
+  --
+  UNIQUE (session_id, student_id)
+  --
+  <<Status>>
+  present | absent | late | excused
+}
+
+' ============================================
+' RISK ASSESSMENT
+' ============================================
+
+entity "StudentRiskProfile" as risk_profile {
+  PRIMARY_KEY student_id : INTEGER <<OneToOne>>
+  --
+  INDEX risk_score : DECIMAL(6,2)
+  INDEX risk_level : VARCHAR(20) <<ENUM>>
+  --
+  last_calculated : DATETIME
+  created_at : DATETIME
+  --
+  <<Risk Levels>>
+  low (0-29) | medium (30-54)
+  high (55-74) | critical (75+)
+}
+
+entity "SubjectRiskInsight" as risk_insight {
+  FOREIGN_KEY student_id : INTEGER
+  FOREIGN_KEY subject_id : INTEGER
+  --
+  total_sessions : INTEGER
+  absence_count : INTEGER
+  late_count : INTEGER
+  absence_rate : DECIMAL(5,2)
+  --
+  last_calculated : DATETIME
+  created_at : DATETIME
+  --
+  UNIQUE (student_id, subject_id)
+  INDEX student_id
+  INDEX subject_id
+}
+
+' ============================================
+' ALERTS
+' ============================================
+
+entity "Alert" as alert {
+  PRIMARY_KEY alert_id : INTEGER
+  --
+  INDEX FOREIGN_KEY student_id : INTEGER
+  FOREIGN_KEY subject_id : INTEGER [NULL]
+  INDEX FOREIGN_KEY assigned_to : INTEGER [NULL]
+  --
+  alert_type : VARCHAR(20) <<ENUM>>
+  INDEX risk_level : VARCHAR(20) <<ENUM>>
+  INDEX status : VARCHAR(20) <<ENUM>>
+  --
+  escalated_to_admin : BOOLEAN
+  --
+  alert_date : DATETIME
+  updated_at : DATETIME
+  --
+  <<Alert Types>>
+  attendance | behavior | academic
+  --
+  <<Status>>
+  active | under_review | escalated
+  resolved | dismissed
+}
+
+' ============================================
+' INTERVENTIONS
+' ============================================
+
+entity "InterventionCase" as case {
+  PRIMARY_KEY case_id : INTEGER
+  --
+  FOREIGN_KEY student_id : INTEGER
+  FOREIGN_KEY alert_id : INTEGER [NULL]
+  INDEX FOREIGN_KEY assigned_to : INTEGER [NULL]
+  --
+  INDEX status : VARCHAR(30) <<ENUM>>
+  progress_status : VARCHAR(20) <<ENUM>>
+  --
+  follow_up_date : DATE [NULL]
+  meeting_date : DATE [NULL]
+  --
+  outcome_notes : TEXT [NULL]
+  resolution_notes : TEXT [NULL]
+  escalation_reason : TEXT [NULL]
+  meeting_notes : TEXT [NULL]
+  --
+  version : INTEGER
+  --
+  created_at : DATETIME
+  updated_at : DATETIME
+  --
+  <<Status>>
+  open | in_progress | awaiting_parent
+  escalated_to_admin | closed
+  --
+  <<Progress>>
+  no_contact | contacted | improving
+  not_improving | resolved
+}
+
+entity "InterventionMeeting" as meeting {
+  FOREIGN_KEY student_id : INTEGER
+  FOREIGN_KEY created_by : INTEGER
+  --
+  meeting_date : DATE
+  absence_reason : TEXT
+  root_cause : VARCHAR(20) <<ENUM>>
+  intervention_notes : TEXT
+  action_plan : TEXT
+  --
+  follow_up_date : DATE [NULL]
+  urgency_level : VARCHAR(10) <<ENUM>>
+  status : VARCHAR(20) <<ENUM>>
+  --
+  created_at : DATETIME
+  updated_at : DATETIME
+  --
+  INDEX (student_id, status)
+  INDEX status
+  INDEX urgency_level
+  --
+  <<Root Cause>>
+  health | family | academic
+  financial | behavioral | other
+  --
+  <<Urgency>>
+  low | medium | high
+  --
+  <<Status>>
+  open | monitoring | improving
+  not_improving | escalated | closed
+}
+
+entity "ProgressUpdate" as progress {
+  FOREIGN_KEY meeting_id : INTEGER
+  FOREIGN_KEY created_by : INTEGER
+  --
+  update_text : TEXT
+  --
+  created_at : DATETIME
+}
+
+' ============================================
+' MESSAGING
+' ============================================
+
+entity "Message" as message {
+  FOREIGN_KEY sender_id : INTEGER
+  FOREIGN_KEY recipient_id : INTEGER
+  --
+  subject : VARCHAR(200)
+  message : TEXT
+  --
+  is_read : BOOLEAN
+  created_at : DATETIME
+  read_at : DATETIME [NULL]
+}
+
+' ============================================
+' ARCHIVE TABLES (2+ Years Old Data)
+' ============================================
+
+entity "AttendanceSessionArchive" as session_archive {
+  PRIMARY_KEY session_id : INTEGER
+  --
+  FOREIGN_KEY classroom_id : INTEGER
+  FOREIGN_KEY subject_id : INTEGER
+  FOREIGN_KEY teacher_id : INTEGER
+  --
+  INDEX attendance_date : DATE
+  created_at : DATETIME
+  updated_at : DATETIME
+  archived_at : DATETIME
+}
+
+entity "AttendanceRecordArchive" as record_archive {
+  PRIMARY_KEY record_id : INTEGER
+  --
+  FOREIGN_KEY session_id : INTEGER
+  INDEX FOREIGN_KEY student_id : INTEGER
+  --
+  INDEX status : VARCHAR(10) <<ENUM>>
+  remarks : TEXT [NULL]
+  created_at : DATETIME
+  archived_at : DATETIME
+}
+
+' ============================================
+' RELATIONSHIPS
+' ============================================
+
+' User Relationships
+user ||--o{ classroom : "form_master"
+user ||--o{ assignment : "teacher"
+user ||--o{ session : "teacher"
+user ||--o{ alert : "assigned_to"
+user ||--o{ case : "assigned_to"
+user ||--o{ meeting : "created_by"
+user ||--o{ progress : "created_by"
+user ||--o{ message : "sender"
+user ||--o{ message : "recipient"
+
+' Student Relationships
+student ||--o{ enrollment : "enrolls_in"
+student ||--|| risk_profile : "has_one"
+student ||--o{ risk_insight : "has_many"
+student ||--o{ record : "attendance"
+student ||--o{ alert : "triggers"
+student ||--o{ case : "subject_of"
+student ||--o{ meeting : "participates_in"
+student ||--o{ record_archive : "archived_attendance"
+
+' Classroom Relationships
+classroom ||--o{ enrollment : "contains"
+classroom ||--o{ assignment : "assigned_to"
+classroom ||--o{ session : "held_in"
+classroom ||--o{ session_archive : "archived_sessions"
+
+' Subject Relationships
+subject ||--o{ assignment : "taught_in"
+subject ||--o{ session : "subject_of"
+subject ||--o{ risk_insight : "analyzed_for"
+subject ||--o{ alert : "related_to"
+subject ||--o{ session_archive : "archived_subject"
+
+' Attendance Relationships
+session ||--o{ record : "contains"
+
+' Alert & Intervention Relationships
+alert ||--o{ case : "triggers"
+
+' Intervention Relationships
+meeting ||--o{ progress : "tracks"
+
+' Archive Relationships
+session_archive ||--o{ record_archive : "archived_records"
+
+' ============================================
+' LEGEND
+' ============================================
+
+legend right
+  |= Symbol |= Meaning |
+  | PRIMARY_KEY | Primary Key |
+  | FOREIGN_KEY | Foreign Key |
+  | UNIQUE | Unique Constraint |
+  | INDEX | Database Index |
+  | [NULL] | Nullable Field |
+  | <<ENUM>> | Enumerated Type |
+  | ||--|| | One-to-One |
+  | ||--o{ | One-to-Many |
+  
+  **Database**: MySQL 8.0
+  **ORM**: Django 5.1.4
+  **Total Tables**: 16 (14 active + 2 archive)
+  **Total Relationships**: 30+
+  **Indexes**: 15+ for performance
+  **Unique Constraints**: 8
+endlegend
+
+@enduml

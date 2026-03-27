@@ -1,38 +1,41 @@
-export default function ImmediateAttentionWidget({ students, getRiskBadgeColor }) {
+import { AlertCircle } from 'lucide-react';
+
+export default function ImmediateAttentionWidget({ students, getRiskBadgeColor, onCreateCase }) {
   if (!students || students.length === 0) return null;
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border-2 border-red-200 mb-8">
-      <div className="p-6 border-b border-red-200 bg-red-50">
-        <div className="flex items-center gap-2">
-          <span className="text-2xl">🚨</span>
-          <h3 className="text-lg font-semibold text-red-900">Students Needing Immediate Attention</h3>
+    <div className="bg-white rounded-lg border border-gray-200 shadow-sm mb-8">
+      <div className="px-5 py-3.5 border-b border-gray-100 flex items-center gap-2">
+        <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
+        <div>
+          <p className="text-sm font-semibold text-gray-800">Immediate Attention Required</p>
+          <p className="text-xs text-gray-400 mt-0.5">Critical risk — no active intervention case</p>
         </div>
-        <p className="text-sm text-red-700 mt-1">Critical risk with no recent intervention</p>
+        <span className="ml-auto text-xs text-gray-400">{students.length} student{students.length !== 1 ? 's' : ''}</span>
       </div>
-      <div className="divide-y divide-gray-200">
+      <div className="divide-y divide-gray-100">
         {students.map((student) => (
-          <div key={student.student__student_id} className="p-4 hover:bg-gray-50 transition">
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <div className="flex items-center gap-3 mb-2">
-                  <p className="font-semibold text-gray-900">{student.student__full_name}</p>
-                  <span className={`px-2 py-1 rounded-full text-xs font-semibold ${getRiskBadgeColor(student.risk_level)}`}>
-                    {student.risk_level?.toUpperCase()}
-                  </span>
-                  <span className="px-2 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">
-                    Priority: {student.priority_score}
+          <div key={student.student__student_id} className="px-5 py-3.5 hover:bg-gray-50 transition-colors">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex-1 min-w-0">
+                <div className="flex flex-wrap items-center gap-2 mb-1">
+                  <p className="text-sm font-semibold text-gray-900">{student.student__full_name}</p>
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${getRiskBadgeColor(student.risk_level)}`}>
+                    {student.risk_level?.charAt(0).toUpperCase() + student.risk_level?.slice(1)}
                   </span>
                 </div>
-                <div className="flex gap-4 text-sm text-gray-600">
-                  <span>📍 {student.classroom}</span>
-                  <span>📊 {student.attendance_rate}% attendance</span>
-                  {!student.has_intervention && <span className="text-red-600 font-medium">⚠️ No intervention yet</span>}
-                  {student.days_since_followup > 7 && <span className="text-orange-600 font-medium">⏰ {student.days_since_followup} days overdue</span>}
-                </div>
+                <p className="text-xs text-gray-400 flex flex-wrap gap-2">
+                  {student.classroom && <span>{student.classroom}</span>}
+                  <span>{student.attendance_rate}% attendance</span>
+                  {!student.has_intervention && <span className="text-red-500 font-medium">No case open</span>}
+                  {student.days_since_followup > 7 && <span className="text-orange-500 font-medium">{student.days_since_followup}d overdue</span>}
+                </p>
               </div>
-              <button className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm font-medium">
-                Take Action
+              <button
+                onClick={() => onCreateCase?.(student)}
+                className="shrink-0 px-3 py-1.5 border border-green-300 text-green-700 bg-green-50 hover:bg-green-100 text-xs font-medium rounded-lg transition-colors"
+              >
+                Open Case
               </button>
             </div>
           </div>

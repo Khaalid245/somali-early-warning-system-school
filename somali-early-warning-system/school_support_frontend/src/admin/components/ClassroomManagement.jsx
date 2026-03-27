@@ -113,15 +113,15 @@ export default function ClassroomManagement() {
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
-      <div className="flex items-center justify-between mb-6">
+    <div className="p-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 mb-8">
         <div className="flex items-center gap-3">
-          <School className="w-6 h-6 text-blue-600" />
-          <h2 className="text-xl font-bold text-gray-900">Classroom Management</h2>
+          <School className="w-6 h-6 text-green-600" />
+          <h2 className="text-xl font-semibold text-gray-900">Classroom Management</h2>
         </div>
         <button
           onClick={handleCreate}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+          className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
         >
           <Plus className="w-4 h-4" />
           Create Classroom
@@ -129,13 +129,13 @@ export default function ClassroomManagement() {
       </div>
 
       {/* Filters */}
-      <div className="mb-4">
+      <div className="mb-6">
         <label className="flex items-center gap-2 text-sm text-gray-700">
           <input
             type="checkbox"
             checked={showInactive}
             onChange={(e) => setShowInactive(e.target.checked)}
-            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            className="rounded border-gray-300 text-green-600 focus:ring-green-500"
           />
           Show inactive classrooms
         </label>
@@ -144,19 +144,19 @@ export default function ClassroomManagement() {
       {/* Classrooms Table */}
       <div className="overflow-x-auto">
         <table className="w-full">
-          <thead className="bg-gray-50 border-b-2 border-gray-200">
-            <tr>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Classroom</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Academic Year</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Form Master</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Students</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Status</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Actions</th>
+          <thead>
+            <tr className="border-b border-gray-100">
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Classroom</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Academic Year</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Form Master</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Students</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Status</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200">
+          <tbody>
             {classrooms.map((classroom) => (
-              <tr key={classroom.class_id} className="hover:bg-gray-50 transition">
+              <tr key={classroom.class_id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors" style={{ cursor: 'pointer' }}>
                 <td className="px-4 py-3">
                   <div className="font-medium text-gray-900">{classroom.name}</div>
                 </td>
@@ -178,11 +178,11 @@ export default function ClassroomManagement() {
                 </td>
                 <td className="px-4 py-3">
                   {classroom.is_active ? (
-                    <span className="px-2 py-1 text-xs font-semibold text-green-700 bg-green-100 rounded-full border border-green-300">
+                    <span className="px-2 py-1 text-xs font-medium text-green-700 bg-green-50 rounded border border-green-200">
                       ACTIVE
                     </span>
                   ) : (
-                    <span className="px-2 py-1 text-xs font-semibold text-gray-700 bg-gray-100 rounded-full border border-gray-300">
+                    <span className="px-2 py-1 text-xs font-medium text-gray-700 bg-gray-50 rounded border border-gray-200">
                       INACTIVE
                     </span>
                   )}
@@ -190,7 +190,7 @@ export default function ClassroomManagement() {
                 <td className="px-4 py-3">
                   <button
                     onClick={() => handleEdit(classroom)}
-                    className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition"
+                    className="p-1.5 text-green-600 hover:bg-green-50 rounded transition-colors"
                     title="Edit"
                   >
                     <Edit className="w-4 h-4" />
@@ -213,20 +213,23 @@ export default function ClassroomManagement() {
       {showModal && (
         <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
           <div className="absolute inset-0" onClick={() => setShowModal(false)}></div>
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 transform transition-all relative z-50">
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4 rounded-t-xl">
-              <h3 className="text-xl font-bold text-white">Create Classroom</h3>
-              <p className="text-blue-100 text-sm mt-1">Add a new classroom to the system</p>
+          <div className="bg-white rounded-lg max-w-md w-full mx-4 relative z-50" style={{ boxShadow: '0 10px 25px rgba(0,0,0,0.15)' }}>
+            <div className="bg-green-600 px-6 py-4 rounded-t-lg">
+              <h3 className="text-xl font-semibold text-white">Create Classroom</h3>
+              <p className="text-green-50 text-sm mt-1">Add a new classroom to the system</p>
             </div>
             
             <form onSubmit={handleSubmit} className="p-6 space-y-5">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Classroom Name</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Classroom Name</label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg transition-all focus:outline-none focus:border-green-600"
+                  style={{ boxShadow: 'none' }}
+                  onFocus={(e) => e.target.style.boxShadow = '0 0 0 2px #DCFCE7'}
+                  onBlur={(e) => e.target.style.boxShadow = 'none'}
                   placeholder="e.g., Grade 10A"
                   required
                 />
@@ -234,12 +237,15 @@ export default function ClassroomManagement() {
 
               {modalMode === 'create' && (
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Academic Year</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Academic Year</label>
                   <input
                     type="text"
                     value={formData.academic_year}
                     onChange={(e) => setFormData({ ...formData, academic_year: e.target.value })}
-                    className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg transition-all focus:outline-none focus:border-green-600"
+                    style={{ boxShadow: 'none' }}
+                    onFocus={(e) => e.target.style.boxShadow = '0 0 0 2px #DCFCE7'}
+                    onBlur={(e) => e.target.style.boxShadow = 'none'}
                     placeholder="e.g., 2026"
                     required
                   />
@@ -247,11 +253,14 @@ export default function ClassroomManagement() {
               )}
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Form Master</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Form Master</label>
                 <select
                   value={formData.form_master_id}
                   onChange={(e) => setFormData({ ...formData, form_master_id: e.target.value })}
-                  className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg transition-all focus:outline-none focus:border-green-600"
+                  style={{ boxShadow: 'none' }}
+                  onFocus={(e) => e.target.style.boxShadow = '0 0 0 2px #DCFCE7'}
+                  onBlur={(e) => e.target.style.boxShadow = 'none'}
                 >
                   <option value="">Unassigned</option>
                   {formMasters.map((fm) => (
@@ -260,8 +269,7 @@ export default function ClassroomManagement() {
                     </option>
                   ))}
                 </select>
-                <p className="text-xs text-gray-500 mt-2 flex items-center gap-1">
-                  <span>ℹ️</span>
+                <p className="text-xs text-gray-500 mt-2">
                   Each form master can only be assigned to one classroom
                 </p>
               </div>
@@ -269,14 +277,14 @@ export default function ClassroomManagement() {
               <div className="flex gap-3 pt-4 border-t border-gray-100">
                 <button
                   type="submit"
-                  className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-lg hover:from-blue-700 hover:to-blue-800 transition shadow-lg hover:shadow-xl"
+                  className="flex-[1.2] px-6 py-3 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-colors"
                 >
-                  {modalMode === 'create' ? '✓ Create Classroom' : '✓ Update Classroom'}
+                  {modalMode === 'create' ? 'Create Classroom' : 'Update Classroom'}
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="flex-1 px-6 py-3 bg-gray-100 text-gray-700 font-semibold rounded-lg hover:bg-gray-200 transition"
+                  className="flex-1 px-6 py-3 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200 transition-colors"
                 >
                   Cancel
                 </button>

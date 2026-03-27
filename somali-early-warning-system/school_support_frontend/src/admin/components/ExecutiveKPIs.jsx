@@ -1,4 +1,4 @@
-import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Users, Bell, FileText, AlertCircle, CheckCircle } from 'lucide-react';
 
 export default function ExecutiveKPIs({ data }) {
   const kpis = data?.executive_kpis || {};
@@ -7,94 +7,100 @@ export default function ExecutiveKPIs({ data }) {
     {
       title: 'Total Students',
       value: kpis.total_students || 0,
-      subtitle: 'Active enrollment',
+      subtitle: 'Active enrolment',
       trend: null,
-      color: 'blue'
+      color: 'neutral',
+      icon: Users
     },
     {
       title: 'Active Alerts',
       value: kpis.active_alerts || 0,
       subtitle: 'Requiring attention',
       trend: kpis.alert_trend,
+      inverse: true,
       color: 'yellow',
-      inverse: true
+      icon: Bell
     },
     {
-      title: 'High Risk Alerts',
+      title: 'Students at High Risk',
       value: kpis.high_risk_alerts || 0,
-      subtitle: 'Critical priority',
+      subtitle: 'High or critical level',
       trend: null,
-      color: 'red'
+      color: 'red',
+      icon: AlertCircle
     },
     {
       title: 'Open Cases',
       value: kpis.open_cases || 0,
       subtitle: 'In progress',
       trend: kpis.case_trend,
+      inverse: true,
       color: 'orange',
-      inverse: true
+      icon: FileText
     },
     {
-      title: 'Escalated Cases',
+      title: 'Escalated to Admin',
       value: kpis.escalated_cases || 0,
-      subtitle: 'Admin action needed',
+      subtitle: 'Needs your action',
       trend: null,
-      color: 'purple'
+      color: 'red',
+      icon: AlertCircle
     },
     {
       title: 'Resolved This Month',
       value: kpis.resolved_this_month || 0,
       subtitle: 'Successfully closed',
       trend: null,
-      color: 'green'
+      color: 'green',
+      icon: CheckCircle
     }
   ];
 
   const getTrendIcon = (trend, inverse = false) => {
-    if (!trend || trend === 0) return <Minus className="w-4 h-4" />;
-    const isPositive = inverse ? trend < 0 : trend > 0;
-    return isPositive ? 
-      <TrendingUp className="w-4 h-4" /> : 
-      <TrendingDown className="w-4 h-4" />;
+    if (!trend || trend === 0) return <Minus className="w-3 h-3" />;
+    const isGood = inverse ? trend < 0 : trend > 0;
+    return isGood ? <TrendingDown className="w-3 h-3" /> : <TrendingUp className="w-3 h-3" />;
   };
 
   const getTrendColor = (trend, inverse = false) => {
-    if (!trend || trend === 0) return 'text-gray-500';
-    const isPositive = inverse ? trend < 0 : trend > 0;
-    return isPositive ? 'text-green-600' : 'text-red-600';
+    if (!trend || trend === 0) return 'text-gray-400';
+    const isGood = inverse ? trend < 0 : trend > 0;
+    return isGood ? 'text-green-600' : 'text-red-500';
   };
 
-  const getColorClasses = (color) => {
-    const colors = {
-      blue: 'bg-blue-50 border-blue-200',
-      yellow: 'bg-yellow-50 border-yellow-200',
-      red: 'bg-red-50 border-red-200',
-      orange: 'bg-orange-50 border-orange-200',
-      purple: 'bg-purple-50 border-purple-200',
-      green: 'bg-green-50 border-green-200'
-    };
-    return colors[color] || colors.blue;
+  const colorMap = {
+    neutral: { border: 'border-gray-200', icon: 'text-gray-500', value: 'text-gray-900' },
+    yellow:  { border: 'border-amber-200', icon: 'text-amber-500', value: 'text-gray-900' },
+    red:     { border: 'border-red-200',   icon: 'text-red-500',   value: 'text-gray-900' },
+    orange:  { border: 'border-orange-200',icon: 'text-orange-500',value: 'text-gray-900' },
+    green:   { border: 'border-green-200', icon: 'text-green-600', value: 'text-gray-900' },
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-      {cards.map((card, idx) => (
-        <div
-          key={idx}
-          className={`${getColorClasses(card.color)} border-2 rounded-lg p-4 transition-all hover:shadow-md`}
-        >
-          <div className="text-sm font-medium text-gray-600 mb-1">{card.title}</div>
-          <div className="text-3xl font-bold text-gray-900 mb-2">{card.value.toLocaleString()}</div>
-          <div className="text-xs text-gray-500 mb-2">{card.subtitle}</div>
-          
-          {card.trend !== null && card.trend !== undefined && (
-            <div className={`flex items-center gap-1 text-xs font-medium ${getTrendColor(card.trend, card.inverse)}`}>
-              {getTrendIcon(card.trend, card.inverse)}
-              <span>{Math.abs(card.trend)}% vs last month</span>
+    <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+      {cards.map((card, idx) => {
+        const c = colorMap[card.color] || colorMap.neutral;
+        const Icon = card.icon;
+        return (
+          <div
+            key={idx}
+            className={`bg-white border ${c.border} rounded-lg p-4`}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs text-gray-500 font-medium leading-tight">{card.title}</span>
+              <Icon className={`w-4 h-4 flex-shrink-0 ${c.icon}`} />
             </div>
-          )}
-        </div>
-      ))}
+            <div className={`text-2xl font-semibold ${c.value} mb-1`}>{card.value.toLocaleString()}</div>
+            <div className="text-xs text-gray-400">{card.subtitle}</div>
+            {card.trend !== null && card.trend !== undefined && (
+              <div className={`flex items-center gap-1 mt-2 text-xs ${getTrendColor(card.trend, card.inverse)}`}>
+                {getTrendIcon(card.trend, card.inverse)}
+                <span>{Math.abs(card.trend)}% vs last month</span>
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

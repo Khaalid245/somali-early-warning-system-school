@@ -5,6 +5,7 @@ import api from "../api/apiClient";
 import Sidebar from "../components/Sidebar";
 import Navbar from "../components/Navbar";
 import { showToast } from "../utils/toast";
+import { Edit3, CheckCircle, Clock, XCircle, FileText } from 'lucide-react';
 
 export default function EditAttendance() {
   const { user, logout } = useContext(AuthContext);
@@ -116,27 +117,30 @@ export default function EditAttendance() {
       <div className="flex-1 overflow-auto">
         <Navbar user={user} dashboardData={{}} />
 
-        <div className="p-8">
+        <div className="p-4 md:p-8">
           <div className="mb-6">
-            <h1 className="text-3xl font-bold text-gray-800">✏️ Edit Attendance</h1>
-            <p className="text-gray-600 mt-1">Select class, then choose session to edit</p>
+            <h1 className="text-2xl md:text-3xl font-semibold text-gray-800 flex items-center gap-2">
+              <Edit3 className="w-7 h-7 text-green-600" />
+              Edit Attendance
+            </h1>
+            <p className="text-sm md:text-base text-gray-600 mt-1">Select class, then choose session to edit</p>
           </div>
 
           {/* Class Selection */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-            <h2 className="text-xl font-bold text-gray-800 mb-4">Step 1: Select Class</h2>
+          <div className="bg-white rounded-lg border border-gray-200 p-4 md:p-6 mb-6" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+            <h2 className="text-lg md:text-xl font-semibold text-gray-800 mb-4">Step 1: Select Class</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {classes.map((cls) => (
                 <button
                   key={cls.class_id}
                   onClick={() => loadSessionsForClass(cls.class_id)}
-                  className={`p-4 rounded-lg border-2 text-left transition ${
+                  className={`p-4 rounded-lg border-2 text-left transition-colors ${
                     selectedClass === cls.class_id
-                      ? 'border-blue-600 bg-blue-50'
-                      : 'border-gray-200 hover:border-blue-300'
+                      ? 'border-green-500 bg-green-50'
+                      : 'border-gray-200 hover:border-green-300 hover:bg-green-50'
                   }`}
                 >
-                  <p className="font-bold text-gray-800">{cls.class_name}</p>
+                  <p className="font-semibold text-gray-800">{cls.class_name}</p>
                   <p className="text-sm text-gray-600">{cls.subject}</p>
                 </button>
               ))}
@@ -145,25 +149,25 @@ export default function EditAttendance() {
 
           {/* Session Selection */}
           {selectedClass && sessions.length > 0 && (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-              <h2 className="text-xl font-bold text-gray-800 mb-4">Step 2: Select Session to Edit</h2>
+            <div className="bg-white rounded-lg border border-gray-200 p-4 md:p-6 mb-6" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+              <h2 className="text-lg md:text-xl font-semibold text-gray-800 mb-4">Step 2: Select Session to Edit</h2>
             <div className="space-y-3">
               {sessions.map(session => (
                 <button
                   key={session.session_id}
                   onClick={() => loadSessionDetails(session.session_id)}
-                  className={`w-full p-4 rounded-lg border-2 text-left transition ${
+                  className={`w-full p-3 md:p-4 rounded-lg border-2 text-left transition-colors ${
                     selectedSession?.session_id === session.session_id
-                      ? 'border-blue-600 bg-blue-50'
-                      : 'border-gray-200 hover:border-blue-300'
+                      ? 'border-green-500 bg-green-50'
+                      : 'border-gray-200 hover:border-green-300 hover:bg-green-50'
                   }`}
                 >
-                  <div className="flex justify-between items-center">
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
                     <div>
-                      <p className="font-bold text-gray-800">{session.classroom_name} - {session.subject_name}</p>
-                      <p className="text-sm text-gray-600">{session.attendance_date}</p>
+                      <p className="font-semibold text-gray-800 text-sm md:text-base">{session.classroom_name} - {session.subject_name}</p>
+                      <p className="text-xs md:text-sm text-gray-600">{session.attendance_date}</p>
                     </div>
-                    <span className="text-sm text-gray-500">{session.records?.length || 0} students</span>
+                    <span className="text-xs md:text-sm text-gray-500">{session.records?.length || 0} students</span>
                   </div>
                 </button>
               ))}
@@ -173,55 +177,57 @@ export default function EditAttendance() {
 
           {/* Edit Records */}
           {selectedSession && records.length > 0 && (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h2 className="text-xl font-bold text-gray-800 mb-4">Edit Student Attendance</h2>
+            <div className="bg-white rounded-lg border border-gray-200 p-4 md:p-6" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+              <h2 className="text-xl font-semibold text-gray-800 mb-4">Edit Student Attendance</h2>
               <div className="space-y-4">
                 {records.map(record => (
-                  <div key={record.student} className="p-4 border border-gray-200 rounded-lg">
-                    <div className="flex justify-between items-center">
-                      <p className="font-semibold text-gray-800">{record.student_name}</p>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => setStatus(record.student, "present")}
-                          className={`px-4 py-2 rounded-lg text-sm font-medium ${
-                            statusMap[record.student] === "present"
-                              ? "bg-green-600 text-white"
-                              : "bg-green-50 text-green-700 hover:bg-green-100"
-                          }`}
-                        >
-                          ✓ Present
-                        </button>
-                        <button
-                          onClick={() => setStatus(record.student, "late")}
-                          className={`px-4 py-2 rounded-lg text-sm font-medium ${
-                            statusMap[record.student] === "late"
-                              ? "bg-yellow-500 text-white"
-                              : "bg-yellow-50 text-yellow-700 hover:bg-yellow-100"
-                          }`}
-                        >
-                          ⏰ Late
-                        </button>
-                        <button
-                          onClick={() => setStatus(record.student, "absent")}
-                          className={`px-4 py-2 rounded-lg text-sm font-medium ${
-                            statusMap[record.student] === "absent"
-                              ? "bg-red-600 text-white"
-                              : "bg-red-50 text-red-700 hover:bg-red-100"
-                          }`}
-                        >
-                          ✗ Absent
-                        </button>
-                        <button
-                          onClick={() => setStatus(record.student, "excused")}
-                          className={`px-4 py-2 rounded-lg text-sm font-medium ${
-                            statusMap[record.student] === "excused"
-                              ? "bg-blue-600 text-white"
-                              : "bg-blue-50 text-blue-700 hover:bg-blue-100"
-                          }`}
-                        >
-                          📝 Excused
-                        </button>
-                      </div>
+                  <div key={record.student} className="p-3 md:p-4 border border-gray-200 rounded-lg">
+                    <p className="font-semibold text-gray-800 mb-3">{record.student_name}</p>
+                    <div className="grid grid-cols-2 md:flex md:flex-wrap gap-3">
+                      <button
+                        onClick={() => setStatus(record.student, "present")}
+                        className={`px-3 py-2 rounded-lg text-xs md:text-sm font-medium transition-colors flex items-center justify-center gap-1 ${
+                          statusMap[record.student] === "present"
+                            ? "bg-green-600 text-white"
+                            : "bg-transparent border border-green-400 text-green-700 hover:bg-green-50"
+                        }`}
+                      >
+                        <CheckCircle className="w-3 h-3" />
+                        Present
+                      </button>
+                      <button
+                        onClick={() => setStatus(record.student, "late")}
+                        className={`px-3 py-2 rounded-lg text-xs md:text-sm font-medium transition-colors flex items-center justify-center gap-1 ${
+                          statusMap[record.student] === "late"
+                            ? "bg-yellow-500 text-white"
+                            : "bg-transparent border border-yellow-400 text-yellow-700 hover:bg-yellow-50"
+                        }`}
+                      >
+                        <Clock className="w-3 h-3" />
+                        Late
+                      </button>
+                      <button
+                        onClick={() => setStatus(record.student, "absent")}
+                        className={`px-3 py-2 rounded-lg text-xs md:text-sm font-medium transition-colors flex items-center justify-center gap-1 ${
+                          statusMap[record.student] === "absent"
+                            ? "bg-red-600 text-white"
+                            : "bg-transparent border border-red-400 text-red-600 hover:bg-red-50"
+                        }`}
+                      >
+                        <XCircle className="w-3 h-3" />
+                        Absent
+                      </button>
+                      <button
+                        onClick={() => setStatus(record.student, "excused")}
+                        className={`px-3 py-2 rounded-lg text-xs md:text-sm font-medium transition-colors flex items-center justify-center gap-1 ${
+                          statusMap[record.student] === "excused"
+                            ? "bg-gray-600 text-white"
+                            : "bg-gray-50 border border-gray-300 text-gray-700 hover:bg-gray-100"
+                        }`}
+                      >
+                        <FileText className="w-3 h-3" />
+                        Excused
+                      </button>
                     </div>
                     {statusMap[record.student] === "excused" && (
                       <input
@@ -229,26 +235,27 @@ export default function EditAttendance() {
                         placeholder="Reason for excuse..."
                         value={remarksMap[record.student] || ''}
                         onChange={(e) => setRemarksMap(prev => ({ ...prev, [record.student]: e.target.value }))}
-                        className="mt-2 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="mt-2 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
                       />
                     )}
                   </div>
                 ))}
               </div>
 
-              <div className="mt-6 flex gap-3 justify-end">
+              <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-end">
                 <button
                   onClick={() => navigate("/teacher")}
-                  className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition font-medium"
+                  className="w-full sm:w-auto px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors font-medium"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={updateAttendance}
                   disabled={loading}
-                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold disabled:opacity-50"
+                  className="w-full sm:w-auto px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  {loading ? "Updating..." : "✓ Update Attendance"}
+                  <CheckCircle className="w-4 h-4" />
+                  {loading ? "Updating..." : "Update Attendance"}
                 </button>
               </div>
             </div>

@@ -16,7 +16,7 @@ export default function NotificationBell({ user }) {
 
   const loadNotifications = async () => {
     try {
-      const res = await api.get('/cases/?status=escalated_to_admin&page_size=10');
+      const res = await api.get('/interventions/?status=escalated_to_admin&page_size=10');
       const cases = res.data.results || [];
       setNotifications(cases);
       setUnreadCount(cases.length);

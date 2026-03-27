@@ -1,180 +1,161 @@
 import { useState } from 'react';
-import { X } from 'lucide-react';
-import api from '../../api/apiClient';
-import { showToast } from '../../utils/toast';
+import { X, User, AlertTriangle, Calendar } from 'lucide-react';
 
-export default function CreateCaseModal({ student, onClose, onSuccess }) {
-  const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    description: '',
-    intervention_type: 'counseling',
-    priority: 'medium',
-    follow_up_date: '',
-  });
+const URGENCY = [
+  { value: 'low',    label: 'Low',    active: 'bg-green-600 text-white border-green-600',   idle: 'text-green-700 border-green-200 hover:bg-green-50' },
+  { value: 'medium', label: 'Medium', active: 'bg-yellow-500 text-white border-yellow-500', idle: 'text-yellow-700 border-yellow-200 hover:bg-yellow-50' },
+  { value: 'high',   label: 'High',   active: 'bg-red-600 text-white border-red-600',       idle: 'text-red-700 border-red-200 hover:bg-red-50' },
+];
 
-  const handleSubmit = async (e) => {
+export default function CreateCaseModal({ student, onConfirm, onClose, isSubmitting }) {
+  const [observation, setObservation] = useState('');
+  const [urgency,     setUrgency]     = useState('medium');
+  const [followUp,    setFollowUp]    = useState('');
+  const [error,       setError]       = useState('');
+
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const minDate = tomorrow.toISOString().split('T')[0];
+
+  const handleSubmit = (e) => {
     e.preventDefault();
-    
-    if (!formData.description.trim()) {
-      showToast.error('Description is required');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      await api.post('/interventions/', {
-        student: student.student__student_id,
-        description: formData.description,
-        intervention_type: formData.intervention_type,
-        priority: formData.priority,
-        follow_up_date: formData.follow_up_date || null,
-        status: 'open',
-      });
-      
-      showToast.success('Intervention case created successfully');
-      onSuccess?.();
-      onClose();
-    } catch (error) {
-      showToast.error(error.response?.data?.error || 'Failed to create case');
-    } finally {
-      setLoading(false);
-    }
+    if (!observation.trim()) { setError('Please describe your initial observation.'); return; }
+    setError('');
+    onConfirm({ observation: observation.trim(), urgency, followUp });
   };
 
+  const rLevel = student.risk_level?.toLowerCase();
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-xl w-full max-w-lg shadow-2xl"
+        onClick={e => e.stopPropagation()}
+      >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200">
-          <div>
-            <h2 className="text-lg sm:text-xl font-bold text-gray-900">Create Intervention Case</h2>
-            <p className="text-xs sm:text-sm text-gray-600 mt-1">
-              Student: {student?.student__full_name} (ID: {student?.student__student_id})
-            </p>
-          </div>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <h2 className="text-base font-semibold text-gray-900">Create Intervention Case</h2>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition flex-shrink-0"
+            className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 transition-colors"
           >
-            <X className="w-5 h-5 text-gray-500" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
+        {/* Student info */}
+        <div className="mx-6 mt-5 p-4 bg-gray-50 rounded-lg border border-gray-100">
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-full bg-green-50 flex items-center justify-center shrink-0">
+              <User className="w-4 h-4 text-green-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-gray-900 text-sm">{student.student__full_name}</p>
+              {student.classroom && student.classroom !== 'Not Enrolled' && (
+                <p className="text-xs text-gray-500 mt-0.5">{student.classroom}</p>
+              )}
+              <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2">
+                {student.absent_count > 0 && (
+                  <span className="flex items-center gap-1 text-xs text-red-600 font-medium">
+                    <AlertTriangle className="w-3 h-3" />
+                    {student.absent_count} absences
+                  </span>
+                )}
+                {student.attendance_rate !== undefined && (
+                  <span className={`text-xs font-medium ${
+                    student.attendance_rate >= 75 ? 'text-green-600' :
+                    student.attendance_rate >= 50 ? 'text-yellow-600' : 'text-red-600'
+                  }`}>
+                    {student.attendance_rate}% attendance
+                  </span>
+                )}
+              </div>
+            </div>
+            <span className={`shrink-0 px-2 py-0.5 rounded text-xs font-semibold ${
+              rLevel === 'critical' ? 'bg-red-100 text-red-700' :
+              rLevel === 'high'     ? 'bg-red-50 text-red-600' :
+              rLevel === 'medium'   ? 'bg-yellow-100 text-yellow-700' :
+                                      'bg-green-100 text-green-700'
+            }`}>
+              {student.risk_level?.charAt(0).toUpperCase() + student.risk_level?.slice(1)}
+            </span>
+          </div>
+        </div>
+
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4">
-          {/* Student Info Card */}
-          <div className="bg-gray-50 rounded-lg p-3 sm:p-4 border border-gray-200">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-xs sm:text-sm">
-              <div>
-                <span className="text-gray-600">Risk Level:</span>
-                <span className={`ml-2 px-2 py-1 rounded-full text-xs font-semibold ${
-                  student?.risk_level === 'critical' ? 'bg-red-100 text-red-700' :
-                  student?.risk_level === 'high' ? 'bg-orange-100 text-orange-700' :
-                  'bg-yellow-100 text-yellow-700'
-                }`}>
-                  {student?.risk_level?.toUpperCase()}
-                </span>
-              </div>
-              <div>
-                <span className="text-gray-600">Attendance Rate:</span>
-                <span className="ml-2 font-semibold">{student?.attendance_rate}%</span>
-              </div>
-              <div>
-                <span className="text-gray-600">Days Missed:</span>
-                <span className="ml-2 font-semibold text-red-600">{student?.absent_count}</span>
-              </div>
-              <div>
-                <span className="text-gray-600">Classroom:</span>
-                <span className="ml-2 font-semibold">{student?.classroom}</span>
-              </div>
+        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-5">
+
+          {/* Observation */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Initial Observation <span className="text-red-500">*</span>
+            </label>
+            <textarea
+              value={observation}
+              onChange={e => { setObservation(e.target.value); setError(''); }}
+              rows={4}
+              placeholder="Describe what you observed — attendance pattern, student behaviour, context from teachers, any known circumstances…"
+              className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none placeholder-gray-400"
+            />
+            {error && <p className="text-xs text-red-500 mt-1.5">{error}</p>}
+          </div>
+
+          {/* Urgency */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Urgency Level
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              {URGENCY.map(opt => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setUrgency(opt.value)}
+                  className={`py-2 text-sm font-medium rounded-lg border transition-colors ${
+                    urgency === opt.value ? opt.active : `bg-white ${opt.idle}`
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
             </div>
           </div>
 
-          {/* Description */}
+          {/* Follow-up date */}
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Case Description <span className="text-red-500">*</span>
-            </label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              rows={4}
-              maxLength={2000}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="Describe the concerns and reasons for intervention..."
-              required
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              {formData.description.length}/2000 characters
-            </p>
-          </div>
-
-          {/* Intervention Type */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Intervention Type
-            </label>
-            <select
-              value={formData.intervention_type}
-              onChange={(e) => setFormData({ ...formData, intervention_type: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="counseling">Counseling</option>
-              <option value="academic_support">Academic Support</option>
-              <option value="behavioral">Behavioral Intervention</option>
-              <option value="attendance">Attendance Monitoring</option>
-              <option value="parent_meeting">Parent Meeting</option>
-              <option value="other">Other</option>
-            </select>
-          </div>
-
-          {/* Priority */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Priority Level
-            </label>
-            <select
-              value={formData.priority}
-              onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="low">Low</option>
-              <option value="medium">Medium</option>
-              <option value="high">High</option>
-              <option value="urgent">Urgent</option>
-            </select>
-          </div>
-
-          {/* Follow-up Date */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Follow-up Date (Optional)
+            <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1.5">
+              <Calendar className="w-3.5 h-3.5 text-gray-400" />
+              Follow-up Date
+              <span className="text-xs text-gray-400 font-normal">(optional)</span>
             </label>
             <input
               type="date"
-              value={formData.follow_up_date}
-              onChange={(e) => setFormData({ ...formData, follow_up_date: e.target.value })}
-              min={new Date().toISOString().split('T')[0]}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              value={followUp}
+              min={minDate}
+              onChange={e => setFollowUp(e.target.value)}
+              className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
             />
           </div>
 
           {/* Actions */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3 pt-4 border-t border-gray-200">
+          <div className="flex gap-3 pt-1">
             <button
               type="button"
               onClick={onClose}
-              className="w-full sm:w-auto px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition"
-              disabled={loading}
+              disabled={isSubmitting}
+              className="flex-1 py-2.5 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
-              disabled={loading}
-              className="w-full sm:w-auto px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={isSubmitting}
+              className="flex-1 py-2.5 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
             >
-              {loading ? 'Creating...' : 'Create Case'}
+              {isSubmitting ? 'Creating…' : 'Create Case'}
             </button>
           </div>
         </form>

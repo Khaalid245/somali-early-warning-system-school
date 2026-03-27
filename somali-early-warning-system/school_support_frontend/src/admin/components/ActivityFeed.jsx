@@ -1,73 +1,55 @@
-import { Activity, FileText, AlertTriangle, CheckCircle, Clock } from 'lucide-react';
+import { FileText, AlertTriangle, CheckCircle, Clock } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 export default function ActivityFeed({ activities }) {
-  const getActivityIcon = (type) => {
+  const getConfig = (type) => {
     switch (type) {
-      case 'case_created':
-        return { icon: FileText, color: 'text-blue-600', bg: 'bg-blue-100' };
-      case 'case_escalated':
-        return { icon: AlertTriangle, color: 'text-red-600', bg: 'bg-red-100' };
-      case 'case_closed':
-        return { icon: CheckCircle, color: 'text-green-600', bg: 'bg-green-100' };
-      default:
-        return { icon: Activity, color: 'text-gray-600', bg: 'bg-gray-100' };
+      case 'case_created':   return { icon: FileText,      color: 'text-blue-500',  bg: 'bg-blue-50' };
+      case 'case_escalated': return { icon: AlertTriangle, color: 'text-red-500',   bg: 'bg-red-50' };
+      case 'case_closed':    return { icon: CheckCircle,   color: 'text-green-600', bg: 'bg-green-50' };
+      default:               return { icon: Clock,         color: 'text-gray-400',  bg: 'bg-gray-50' };
     }
   };
 
-  const formatTimestamp = (timestamp) => {
-    try {
-      return formatDistanceToNow(new Date(timestamp), { addSuffix: true });
-    } catch {
-      return 'Recently';
-    }
+  const formatTime = (ts) => {
+    try { return formatDistanceToNow(new Date(ts), { addSuffix: true }); }
+    catch { return 'Recently'; }
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <Activity className="w-6 h-6 text-gray-600" />
-          <h2 className="text-xl font-bold text-gray-900">System Activity Feed</h2>
-        </div>
-        <div className="text-sm text-gray-600">Last 7 days</div>
+    <div className="bg-white border border-gray-200 rounded-lg p-4">
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-sm font-medium text-gray-900">Recent activity</p>
+        <span className="text-xs text-gray-400">Last 7 days</span>
       </div>
 
       {activities.length === 0 ? (
-        <div className="text-center py-12 text-gray-500">
-          <Clock className="w-12 h-12 mx-auto mb-3 text-gray-400" />
-          <p className="text-lg font-medium">No recent activity</p>
+        <div className="text-center py-8 text-gray-400">
+          <Clock className="w-8 h-8 mx-auto mb-2 opacity-50" />
+          <p className="text-sm">No recent activity</p>
         </div>
       ) : (
-        <div className="space-y-4 max-h-96 overflow-y-auto">
+        <div className="space-y-2 max-h-80 overflow-y-auto">
           {activities.map((activity, idx) => {
-            const config = getActivityIcon(activity.type);
-            const Icon = config.icon;
-
+            const { icon: Icon, color, bg } = getConfig(activity.type);
             return (
               <div
                 key={idx}
-                className="flex items-start gap-4 p-4 rounded-lg border border-gray-200 hover:bg-gray-50 transition"
+                className="flex items-start gap-3 p-3 rounded-md hover:bg-gray-50 transition"
               >
-                <div className={`${config.bg} p-2 rounded-full`}>
-                  <Icon className={`w-5 h-5 ${config.color}`} />
+                <div className={`${bg} p-1.5 rounded-md flex-shrink-0`}>
+                  <Icon className={`w-4 h-4 ${color}`} />
                 </div>
-                
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900">{activity.description}</p>
-                  <div className="flex items-center gap-3 mt-1">
-                    <span className="text-xs text-gray-500">by {activity.user}</span>
-                    <span className="text-xs text-gray-400">•</span>
-                    <span className="text-xs text-gray-500">{formatTimestamp(activity.timestamp)}</span>
-                  </div>
+                  <p className="text-sm text-gray-800">{activity.description}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {activity.user} · {formatTime(activity.timestamp)}
+                  </p>
                 </div>
-
                 {activity.case_id && (
-                  <div className="flex-shrink-0">
-                    <span className="px-2 py-1 text-xs font-mono font-semibold text-blue-600 bg-blue-50 rounded border border-blue-200">
-                      #{activity.case_id}
-                    </span>
-                  </div>
+                  <span className="text-xs font-mono text-gray-400 flex-shrink-0">
+                    #{activity.case_id}
+                  </span>
                 )}
               </div>
             );

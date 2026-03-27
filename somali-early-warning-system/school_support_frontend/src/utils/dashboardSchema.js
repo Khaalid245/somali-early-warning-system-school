@@ -73,7 +73,7 @@ export const teacherDashboardSchema = z.object({
   })).optional().default([]),
   
   action_items: z.array(z.any()).optional().default([]),
-  weekly_attendance_summary: z.record(z.any()).optional().default({}),
+  weekly_attendance_summary: z.union([z.record(z.any()), z.array(z.any())]).optional().default([]),
   time_range_info: z.object({
     current_range: z.string(),
     start_date: z.string(),

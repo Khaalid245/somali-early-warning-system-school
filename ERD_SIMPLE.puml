@@ -1,0 +1,223 @@
+@startuml School_ERD
+
+skinparam linetype ortho
+skinparam backgroundColor white
+skinparam roundcorner 5
+skinparam shadowing false
+skinparam defaultFontSize 12
+
+entity "User" as user {
+  * id : INTEGER <<PK>>
+  --
+  * email : VARCHAR(254) <<UNIQUE>>
+  * name : VARCHAR(255)
+  * role : VARCHAR(20)
+  phone : VARCHAR(50)
+  profile_image : VARCHAR(100)
+  biography : TEXT
+  is_staff : BOOLEAN
+  is_active : BOOLEAN
+  two_factor_enabled : BOOLEAN
+  two_factor_secret : VARCHAR(32)
+  date_joined : DATETIME
+  updated_at : DATETIME
+}
+
+entity "Student" as student {
+  * student_id : INTEGER <<PK>>
+  --
+  * admission_number : VARCHAR(50) <<UNIQUE>>
+  * full_name : VARCHAR(255)
+  * gender : VARCHAR(10)
+  parent_name : VARCHAR(255)
+  parent_email : VARCHAR(254)
+  parent_phone : VARCHAR(20)
+  status : VARCHAR(20)
+  is_active : BOOLEAN
+  created_at : DATETIME
+  updated_at : DATETIME
+}
+
+entity "Classroom" as classroom {
+  * class_id : INTEGER <<PK>>
+  --
+  * name : VARCHAR(50)
+  * academic_year : VARCHAR(20)
+  form_master_id : INTEGER <<FK>>
+  is_active : BOOLEAN
+  created_at : DATETIME
+  updated_at : DATETIME
+}
+
+entity "StudentEnrollment" as enrollment {
+  * enrollment_id : INTEGER <<PK>>
+  --
+  * student_id : INTEGER <<FK>>
+  * classroom_id : INTEGER <<FK>>
+  * academic_year : VARCHAR(20)
+  enrollment_date : DATE
+  is_active : BOOLEAN
+}
+
+entity "Subject" as subject {
+  * subject_id : INTEGER <<PK>>
+  --
+  * name : VARCHAR(100) <<UNIQUE>>
+  code : VARCHAR(20) <<UNIQUE>>
+  created_at : DATETIME
+}
+
+entity "TeachingAssignment" as assignment {
+  * assignment_id : INTEGER <<PK>>
+  --
+  * teacher_id : INTEGER <<FK>>
+  * subject_id : INTEGER <<FK>>
+  * classroom_id : INTEGER <<FK>>
+  is_active : BOOLEAN
+  created_at : DATETIME
+}
+
+entity "AttendanceSession" as session {
+  * session_id : INTEGER <<PK>>
+  --
+  * classroom_id : INTEGER <<FK>>
+  * subject_id : INTEGER <<FK>>
+  * teacher_id : INTEGER <<FK>>
+  * attendance_date : DATE
+  created_at : DATETIME
+  updated_at : DATETIME
+}
+
+entity "AttendanceRecord" as record {
+  * record_id : INTEGER <<PK>>
+  --
+  * session_id : INTEGER <<FK>>
+  * student_id : INTEGER <<FK>>
+  * status : VARCHAR(10)
+  remarks : TEXT
+  created_at : DATETIME
+}
+
+entity "StudentRiskProfile" as risk {
+  * student_id : INTEGER <<PK,FK>>
+  --
+  * risk_score : DECIMAL(6,2)
+  * risk_level : VARCHAR(20)
+  last_calculated : DATETIME
+  created_at : DATETIME
+}
+
+entity "SubjectRiskInsight" as insight {
+  * student_id : INTEGER <<FK>>
+  * subject_id : INTEGER <<FK>>
+  --
+  total_sessions : INTEGER
+  absence_count : INTEGER
+  late_count : INTEGER
+  absence_rate : DECIMAL(5,2)
+  last_calculated : DATETIME
+  created_at : DATETIME
+}
+
+entity "Alert" as alert {
+  * alert_id : INTEGER <<PK>>
+  --
+  * student_id : INTEGER <<FK>>
+  subject_id : INTEGER <<FK>>
+  assigned_to : INTEGER <<FK>>
+  * alert_type : VARCHAR(20)
+  * risk_level : VARCHAR(20)
+  * status : VARCHAR(20)
+  escalated_to_admin : BOOLEAN
+  alert_date : DATETIME
+  updated_at : DATETIME
+}
+
+entity "InterventionCase" as case {
+  * case_id : INTEGER <<PK>>
+  --
+  * student_id : INTEGER <<FK>>
+  alert_id : INTEGER <<FK>>
+  assigned_to : INTEGER <<FK>>
+  * status : VARCHAR(30)
+  progress_status : VARCHAR(20)
+  follow_up_date : DATE
+  meeting_date : DATE
+  outcome_notes : TEXT
+  resolution_notes : TEXT
+  escalation_reason : TEXT
+  meeting_notes : TEXT
+  version : INTEGER
+  created_at : DATETIME
+  updated_at : DATETIME
+}
+
+entity "InterventionMeeting" as meeting {
+  * student_id : INTEGER <<FK>>
+  * created_by : INTEGER <<FK>>
+  --
+  * meeting_date : DATE
+  * absence_reason : TEXT
+  * root_cause : VARCHAR(20)
+  * intervention_notes : TEXT
+  * action_plan : TEXT
+  follow_up_date : DATE
+  urgency_level : VARCHAR(10)
+  status : VARCHAR(20)
+  created_at : DATETIME
+  updated_at : DATETIME
+}
+
+entity "ProgressUpdate" as progress {
+  * meeting_id : INTEGER <<FK>>
+  * created_by : INTEGER <<FK>>
+  --
+  * update_text : TEXT
+  created_at : DATETIME
+}
+
+entity "Message" as message {
+  * sender_id : INTEGER <<FK>>
+  * recipient_id : INTEGER <<FK>>
+  --
+  * subject : VARCHAR(200)
+  * message : TEXT
+  is_read : BOOLEAN
+  created_at : DATETIME
+  read_at : DATETIME
+}
+
+user ||--o{ classroom : "form_master"
+user ||--o{ assignment : "teacher"
+user ||--o{ session : "teacher"
+user ||--o{ alert : "assigned_to"
+user ||--o{ case : "assigned_to"
+user ||--o{ meeting : "created_by"
+user ||--o{ progress : "created_by"
+user ||--o{ message : "sender"
+user ||--o{ message : "recipient"
+
+student ||--o{ enrollment : ""
+student ||--|| risk : ""
+student ||--o{ insight : ""
+student ||--o{ record : ""
+student ||--o{ alert : ""
+student ||--o{ case : ""
+student ||--o{ meeting : ""
+
+classroom ||--o{ enrollment : ""
+classroom ||--o{ assignment : ""
+classroom ||--o{ session : ""
+
+subject ||--o{ assignment : ""
+subject ||--o{ session : ""
+subject ||--o{ insight : ""
+subject ||--o{ alert : ""
+
+session ||--o{ record : ""
+
+alert ||--o{ case : ""
+
+meeting ||--o{ progress : ""
+
+@enduml

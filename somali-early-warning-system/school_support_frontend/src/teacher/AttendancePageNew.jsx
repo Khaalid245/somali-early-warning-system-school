@@ -20,6 +20,7 @@ export default function AttendancePage() {
 
   const [selectedClassroom, setSelectedClassroom] = useState("");
   const [selectedSubject, setSelectedSubject] = useState("");
+  const [selectedPeriod, setSelectedPeriod] = useState("1");
   const [statusMap, setStatusMap] = useState({});
   const [remarksMap, setRemarksMap] = useState({});
   const [loading, setLoading] = useState(false);
@@ -129,6 +130,7 @@ export default function AttendancePage() {
       await api.post("/attendance/sessions/", {
         classroom: parseInt(selectedClassroom),
         subject: parseInt(selectedSubject),
+        period: selectedPeriod,
         attendance_date: today,
         records: records
       });
@@ -193,7 +195,7 @@ export default function AttendancePage() {
           </div>
 
           {/* Selection Cards */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 mb-6">
             {/* Classroom Selection */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
               <label className="block text-sm font-semibold text-gray-700 mb-3">
@@ -230,6 +232,27 @@ export default function AttendancePage() {
                     {subjectMap[subjectId] || `Subject ${subjectId}`}
                   </option>
                 ))}
+              </select>
+            </div>
+
+            {/* Period Selection */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+              <label className="block text-sm font-semibold text-gray-700 mb-3">
+                🕐 Select Period
+              </label>
+              <select
+                className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-sm sm:text-base"
+                value={selectedPeriod}
+                onChange={(e) => setSelectedPeriod(e.target.value)}
+              >
+                <option value="1">Period 1</option>
+                <option value="2">Period 2</option>
+                <option value="3">Period 3</option>
+                <option value="4">Period 4</option>
+                <option value="5">Period 5</option>
+                <option value="6">Period 6</option>
+                <option value="morning">Morning Session</option>
+                <option value="afternoon">Afternoon Session</option>
               </select>
             </div>
           </div>

@@ -1,13 +1,17 @@
-import { useEffect, useState, useContext } from "react";
+import { useEffect, useState, useContext, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import api from "../api/apiClient";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from "recharts";
+import { Bell, FileText, AlertTriangle, AlertOctagon, Users, GraduationCap } from "lucide-react";
 import Sidebar from "../components/Sidebar";
 import Navbar from "../components/Navbar";
 import { CardSkeleton, ChartSkeleton, TableSkeleton } from "../components/LoadingSkeleton";
 import { showToast } from "../utils/toast";
 import CreateCaseModal from "./components/CreateCaseModal";
+import AIInsightsPanel from "./AIInsightsPanel";
+import BulkAnalysisPanel from "./BulkAnalysisPanel";
+import WeeklyReportPanel from "./WeeklyReportPanel";
 
 export default function FormMasterDashboard() {
   const { user, logout } = useContext(AuthContext);
@@ -51,32 +55,32 @@ export default function FormMasterDashboard() {
 
   const getRiskBadgeColor = (level) => {
     const colors = {
-      low: 'bg-gray-100 text-gray-700',
-      medium: 'bg-yellow-100 text-yellow-700',
-      high: 'bg-orange-100 text-orange-700',
-      critical: 'bg-red-100 text-red-700'
+      low: 'bg-gray-50 text-gray-700 border border-gray-200',
+      medium: 'bg-yellow-50 text-yellow-700 border border-yellow-200',
+      high: 'bg-orange-50 text-orange-700 border border-orange-200',
+      critical: 'bg-red-50 text-red-700 border border-red-200'
     };
     return colors[level?.toLowerCase()] || colors.medium;
   };
 
   const getAlertStatusBadgeColor = (status) => {
     const colors = {
-      active: 'bg-blue-100 text-blue-700',
-      under_review: 'bg-yellow-100 text-yellow-700',
-      escalated: 'bg-red-100 text-red-700',
-      resolved: 'bg-green-100 text-green-700',
-      dismissed: 'bg-gray-100 text-gray-700'
+      active: 'bg-green-50 text-green-700 border border-green-200',
+      under_review: 'bg-yellow-50 text-yellow-700 border border-yellow-200',
+      escalated: 'bg-red-50 text-red-700 border border-red-200',
+      resolved: 'bg-green-50 text-green-700 border border-green-200',
+      dismissed: 'bg-gray-50 text-gray-700 border border-gray-200'
     };
     return colors[status] || colors.active;
   };
 
   const getCaseStatusBadgeColor = (status) => {
     const colors = {
-      open: 'bg-blue-100 text-blue-700',
-      in_progress: 'bg-yellow-100 text-yellow-700',
-      awaiting_parent: 'bg-purple-100 text-purple-700',
-      escalated_to_admin: 'bg-red-100 text-red-700',
-      closed: 'bg-green-100 text-green-700'
+      open: 'bg-green-50 text-green-700 border border-green-200',
+      in_progress: 'bg-yellow-50 text-yellow-700 border border-yellow-200',
+      awaiting_parent: 'bg-purple-50 text-purple-700 border border-purple-200',
+      escalated_to_admin: 'bg-red-50 text-red-700 border border-red-200',
+      closed: 'bg-gray-50 text-gray-700 border border-gray-200'
     };
     return colors[status] || colors.open;
   };
@@ -122,14 +126,19 @@ export default function FormMasterDashboard() {
     setSelectedStudent(null);
   };
 
-  const handleTabClick = (tab) => {
+  const handleTabClick = useCallback((tab) => {
+    console.log('🎯 Dashboard handleTabClick called with:', tab);
+    console.log('📊 Current activeTab:', activeTab);
     setActiveTab(tab);
-  };
+    console.log('✅ activeTab updated to:', tab);
+    // Force re-render by updating a dummy state
+    setLastUpdated(new Date());
+  }, [activeTab]);
 
   if (loading) {
     return (
       <div className="flex flex-col md:flex-row h-screen bg-gray-50 overflow-hidden">
-        <Sidebar user={user} onLogout={logout} onTabChange={setActiveTab} />
+        <Sidebar key="loading" user={user} onLogout={logout} onTabChange={handleTabClick} />
         <div className="flex-1 flex flex-col overflow-hidden">
           <Navbar user={user} dashboardData={{}} />
           <div className="flex-1 overflow-y-auto">
@@ -152,7 +161,7 @@ export default function FormMasterDashboard() {
       <div className="flex h-screen items-center justify-center bg-gray-50">
         <div className="text-center">
           <p className="text-red-600 mb-4">Failed to load dashboard</p>
-          <button onClick={loadDashboard} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+          <button onClick={loadDashboard} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium">
             Retry
           </button>
         </div>
@@ -162,19 +171,20 @@ export default function FormMasterDashboard() {
 
   return (
     <div className="flex flex-col md:flex-row h-screen bg-gray-50 overflow-hidden">
-      <Sidebar user={user} onLogout={logout} onTabChange={handleTabClick} />
+      <Sidebar key="loaded" user={user} onLogout={logout} onTabChange={handleTabClick} />
 
       <div className="flex-1 flex flex-col overflow-hidden">
         <Navbar user={user} dashboardData={dashboardData} />
 
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto" data-active-tab={activeTab}>
           <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-3 sm:py-4 md:py-6">
+          
           {activeTab === "overview" && (
             <>
           <div className="flex flex-col gap-2 mb-4 sm:mb-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <div className="min-w-0">
-                <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 truncate">Classroom Risk Control Center</h1>
+                <h1 className="text-lg sm:text-xl md:text-2xl font-semibold text-gray-900 truncate">Student Support Center</h1>
                 <p className="text-xs sm:text-sm text-gray-600 truncate">Monitor and manage student interventions</p>
               </div>
               <div className="text-xs text-gray-500 flex items-center gap-2 flex-shrink-0">
@@ -186,10 +196,10 @@ export default function FormMasterDashboard() {
 
           {/* KPI Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+            <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
               <div className="flex items-center justify-between mb-2 sm:mb-3">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-orange-50 flex items-center justify-center flex-shrink-0">
-                  <span className="text-xl sm:text-2xl">🔔</span>
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-green-50 flex items-center justify-center flex-shrink-0">
+                  <Bell className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" />
                 </div>
                 {dashboardData.alert_change_percent !== undefined && (
                   <span className={`text-xs sm:text-sm font-semibold ${getTrendColor(dashboardData.alert_trend_direction, true)}`}>
@@ -198,13 +208,13 @@ export default function FormMasterDashboard() {
                 )}
               </div>
               <p className="text-gray-600 text-xs mb-1">Assigned Alerts</p>
-              <p className="text-xl sm:text-2xl font-bold text-gray-900">{dashboardData.assigned_alerts || 0}</p>
+              <p className="text-xl sm:text-2xl font-semibold text-gray-900">{dashboardData.assigned_alerts || 0}</p>
             </div>
 
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+            <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
               <div className="flex items-center justify-between mb-2 sm:mb-3">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
-                  <span className="text-xl sm:text-2xl">📋</span>
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-green-50 flex items-center justify-center flex-shrink-0">
+                  <FileText className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" />
                 </div>
                 {dashboardData.case_change_percent !== undefined && (
                   <span className={`text-xs sm:text-sm font-semibold ${getTrendColor(dashboardData.case_trend_direction, true)}`}>
@@ -213,33 +223,33 @@ export default function FormMasterDashboard() {
                 )}
               </div>
               <p className="text-gray-600 text-xs mb-1">Open Cases</p>
-              <p className="text-xl sm:text-2xl font-bold text-gray-900">{dashboardData.open_cases || 0}</p>
+              <p className="text-xl sm:text-2xl font-semibold text-gray-900">{dashboardData.open_cases || 0}</p>
             </div>
 
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+            <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
               <div className="flex items-center justify-between mb-2 sm:mb-3">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-red-50 flex items-center justify-center flex-shrink-0">
-                  <span className="text-xl sm:text-2xl">⚠️</span>
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-orange-50 flex items-center justify-center flex-shrink-0">
+                  <AlertTriangle className="w-5 h-5 sm:w-6 sm:h-6 text-orange-600" />
                 </div>
               </div>
               <p className="text-gray-600 text-xs mb-1">High Risk Students</p>
-              <p className="text-xl sm:text-2xl font-bold text-gray-900">{dashboardData.high_risk_count || 0}</p>
+              <p className="text-xl sm:text-2xl font-semibold text-gray-900">{dashboardData.high_risk_count || 0}</p>
             </div>
 
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+            <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
               <div className="flex items-center justify-between mb-2 sm:mb-3">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-purple-50 flex items-center justify-center flex-shrink-0">
-                  <span className="text-xl sm:text-2xl">🚨</span>
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-red-50 flex items-center justify-center flex-shrink-0">
+                  <AlertOctagon className="w-5 h-5 sm:w-6 sm:h-6 text-red-600" />
                 </div>
               </div>
               <p className="text-gray-600 text-xs mb-1">Escalated Cases</p>
-              <p className="text-xl sm:text-2xl font-bold text-gray-900">{dashboardData.escalated_cases || 0}</p>
+              <p className="text-xl sm:text-2xl font-semibold text-gray-900">{dashboardData.escalated_cases || 0}</p>
             </div>
           </div>
 
           {/* High-Risk Students Table */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-4 sm:mb-6">
-            <div className="p-3 sm:p-4 border-b border-gray-200">
+          <div className="bg-white rounded-lg border border-gray-200 mb-4 sm:mb-6" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+            <div className="p-3 sm:p-4 border-b border-gray-100">
               <h3 className="text-sm sm:text-base font-semibold text-gray-800">High-Risk Students - Detailed Attendance</h3>
               <p className="text-xs text-gray-500 mt-1">Students requiring immediate intervention</p>
             </div>
@@ -293,7 +303,7 @@ export default function FormMasterDashboard() {
                       <td className="px-6 py-4 text-right">
                         <button 
                           onClick={() => handleCreateCase(student)}
-                          className="px-3 py-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition text-sm font-medium"
+                          className="px-3 py-1.5 text-green-600 hover:bg-green-50 rounded-lg transition text-sm font-medium"
                         >
                           Create Case
                         </button>
@@ -339,7 +349,7 @@ export default function FormMasterDashboard() {
                     </div>
                     <button 
                       onClick={() => handleCreateCase(student)}
-                      className="w-full px-3 py-1.5 text-sm text-blue-600 bg-blue-50 hover:bg-blue-100 rounded transition"
+                      className="w-full px-3 py-1.5 text-sm text-green-600 bg-green-50 hover:bg-green-100 rounded transition font-medium"
                     >
                       Create Case
                     </button>
@@ -354,8 +364,8 @@ export default function FormMasterDashboard() {
 
           {/* Classroom Statistics */}
           {dashboardData.classroom_stats?.length > 0 && (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-4 sm:mb-6">
-              <div className="p-3 sm:p-4 border-b border-gray-200">
+            <div className="bg-white rounded-lg border border-gray-200 mb-4 sm:mb-6" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+              <div className="p-3 sm:p-4 border-b border-gray-100">
                 <h3 className="text-sm sm:text-base font-semibold text-gray-800">My Classrooms - Attendance Overview (Last 30 Days)</h3>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 p-3 sm:p-4">
@@ -397,8 +407,8 @@ export default function FormMasterDashboard() {
           )}
 
           {/* Intervention Cases */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-4 sm:mb-6">
-            <div className="p-3 sm:p-4 border-b border-gray-200">
+          <div className="bg-white rounded-lg border border-gray-200 mb-4 sm:mb-6" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+            <div className="p-3 sm:p-4 border-b border-gray-100">
               <h3 className="text-sm sm:text-base font-semibold text-gray-800">Intervention Cases</h3>
             </div>
             {dashboardData.pending_cases?.length > 0 ? (
@@ -472,9 +482,15 @@ export default function FormMasterDashboard() {
             </>
           )}
 
+          {activeTab === "ai-insights" && <AIInsightsPanel aiInsights={dashboardData.ai_insights || []} classroomSummary={dashboardData.classroom_summary || null} />}
+
+          {activeTab === "bulk-analysis" && <BulkAnalysisPanel />}
+
+          {activeTab === "weekly-report" && <WeeklyReportPanel />}
+
           {activeTab === "alerts" && (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-              <div className="p-3 sm:p-4 border-b border-gray-200">
+            <div className="bg-white rounded-lg border border-gray-200" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+              <div className="p-3 sm:p-4 border-b border-gray-100">
                 <h3 className="text-sm sm:text-base font-semibold text-gray-800">Assigned Alerts</h3>
               </div>
             {dashboardData.urgent_alerts?.length > 0 ? (
@@ -539,8 +555,8 @@ export default function FormMasterDashboard() {
           )}
 
           {activeTab === "cases" && (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-              <div className="p-3 sm:p-4 border-b border-gray-200">
+            <div className="bg-white rounded-lg border border-gray-200" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+              <div className="p-3 sm:p-4 border-b border-gray-100">
                 <h3 className="text-sm sm:text-base font-semibold text-gray-800">Intervention Cases</h3>
               </div>
               {dashboardData.pending_cases?.length > 0 ? (
@@ -613,8 +629,8 @@ export default function FormMasterDashboard() {
           )}
 
           {activeTab === "students" && (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-              <div className="p-3 sm:p-4 border-b border-gray-200">
+            <div className="bg-white rounded-lg border border-gray-200" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+              <div className="p-3 sm:p-4 border-b border-gray-100">
                 <h3 className="text-sm sm:text-base font-semibold text-gray-800">High-Risk Students</h3>
               </div>
               {dashboardData.high_risk_students?.length > 0 ? (

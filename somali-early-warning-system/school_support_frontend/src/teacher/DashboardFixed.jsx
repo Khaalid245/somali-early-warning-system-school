@@ -11,10 +11,9 @@ import EmptyState from "../components/EmptyState";
 import TablePagination from "../components/TablePagination";
 import OfflineIndicator from "../components/OfflineIndicator";
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts.jsx";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, CheckCircle, MessageSquare, AlertTriangle, Bell, Users, BookOpen, ClipboardList, CheckSquare, TrendingUp } from "lucide-react";
 import { validateDashboardData } from "../utils/dashboardSchema";
-import { VirtualAlertList, VirtualStudentList } from "../components/VirtualList";
-import QuickMessage from "../components/QuickMessage";
+import { VirtualAlertList } from "../components/VirtualList";
 
 export default function TeacherDashboard() {
   const { user, logout } = useContext(AuthContext);
@@ -36,55 +35,25 @@ export default function TeacherDashboard() {
   const [escalationReason, setEscalationReason] = useState("");
   const [escalating, setEscalating] = useState(false);
   
-  // Messaging
-  const [showMessage, setShowMessage] = useState(false);
-  const [messageRecipient, setMessageRecipient] = useState(null);
+  // Issue 13 fix: removed unused showMessage/messageRecipient state — QuickMessage modal
+  // was wired up but had no trigger button. Messages go via /teacher/messages route instead.
   
-  // FIX 1: Backend pagination state
-  const [backendPage, setBackendPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  
-  // FIX 2: Debouncing ref
-  const debounceTimer = useRef(null);
-
-  // FIX 2: Debounced load function (moved before hooks that use it)
-  const loadDashboard = useCallback(async (page = 1) => {
-    // Clear existing timer
-    if (debounceTimer.current) {
-      clearTimeout(debounceTimer.current);
-    }
-    
-    // Debounce: wait 300ms before executing
-    debounceTimer.current = setTimeout(async () => {
-      try {
-        // FIX 1: Use backend pagination
-        const res = await api.get(`/dashboard/?page=${page}&page_size=20`);
-        
-        // FIX 3: Validate response with Zod
-        const validation = validateDashboardData(res.data);
-        if (!validation.success) {
-          console.error('Invalid dashboard data:', validation.error);
-          showToast.error('Received invalid data from server');
-          return;
-        }
-        
-        setDashboardData(validation.data);
-        setBackendPage(page);
-        
-        // Extract pagination metadata if available
-        if (validation.data.pagination) {
-          const totalItems = validation.data.pagination.total_students || 0;
-          setTotalPages(Math.ceil(totalItems / 20));
-        }
-        
-        setLastUpdated(new Date());
-      } catch (err) {
-        console.error("Failed to load dashboard", err);
-        showToast.error(getUserFriendlyError(err) || operationErrors.loadDashboard);
-      } finally {
-        setLoading(false);
+  // Issue 9 fix: single stable load function, no debounce timer, no backendPage dependency
+  const loadDashboard = useCallback(async () => {
+    try {
+      const res = await api.get('/dashboard/');
+      const validation = validateDashboardData(res.data);
+      if (!validation.success) {
+        showToast.error('Received invalid data from server');
+        return;
       }
-    }, 300); // 300ms debounce
+      setDashboardData(validation.data);
+      setLastUpdated(new Date());
+    } catch (err) {
+      showToast.error(getUserFriendlyError(err) || operationErrors.loadDashboard);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   // CSV Export function
@@ -107,16 +76,7 @@ export default function TeacherDashboard() {
     showToast.success(`Exported ${data.length} records to CSV`);
   };
 
-  const getFormMasterId = async () => {
-    try {
-      const res = await api.get('/users/?role=form_master&page_size=1');
-      const formMasters = res.data.results || [];
-      return formMasters.length > 0 ? formMasters[0].id : null;
-    } catch (err) {
-      console.error('Failed to get form master', err);
-      return null;
-    }
-  };
+  // Issue 10 fix: removed unused getFormMasterId dead code
 
   const handleEscalate = async () => {
     if (!escalationReason.trim()) {
@@ -125,19 +85,26 @@ export default function TeacherDashboard() {
     }
     setEscalating(true);
     try {
-      await api.post('/cases/', {
-        student: selectedStudent.student__student_id,
-        case_type: 'attendance',
-        description: escalationReason,
-        priority: selectedStudent.risk_level === 'critical' ? 'high' : 'medium'
+      // Teachers cannot create intervention cases (backend 403).
+      // Correct flow: send a message to the form master flagging the student.
+      const fmRes = await api.get('/messages/form-masters/');
+      const formMasters = fmRes.data;
+      if (!formMasters || formMasters.length === 0) {
+        showToast.error('No form master found. Please contact your administrator.');
+        return;
+      }
+      const formMaster = formMasters[0];
+      await api.post('/messages/', {
+        recipient: formMaster.id,
+        subject: `Escalation: ${selectedStudent.student__full_name} (${selectedStudent.risk_level?.toUpperCase()})`,
+        message: `Student: ${selectedStudent.student__full_name} (ID: ${selectedStudent.student__student_id})\nRisk Level: ${selectedStudent.risk_level?.toUpperCase()}\nRisk Score: ${selectedStudent.risk_score}\n\nReason for escalation:\n${escalationReason}`,
       });
-      showToast.success(`Student ${selectedStudent.student__full_name} escalated to Form Master`);
+      showToast.success(`Message sent to form master about ${selectedStudent.student__full_name}`);
       setShowEscalateModal(false);
       setEscalationReason('');
       setSelectedStudent(null);
-      loadDashboard(backendPage);
     } catch (err) {
-      showToast.error(getUserFriendlyError(err) || 'Failed to escalate student');
+      showToast.error(getUserFriendlyError(err) || 'Failed to send escalation message');
     } finally {
       setEscalating(false);
     }
@@ -145,19 +112,17 @@ export default function TeacherDashboard() {
 
   // Keyboard shortcuts
   useKeyboardShortcuts({
-    'ctrl+r': { action: () => loadDashboard(backendPage) },
+    'ctrl+r': { action: () => loadDashboard() },
     'ctrl+a': { action: () => navigate('/teacher/attendance') },
     '/': { action: () => document.querySelector('input[type="text"]')?.focus() }
   });
 
+  // Issue 9 fix: single effect, stable interval, no backendPage dependency causing re-registration
   useEffect(() => {
-    loadDashboard(1);
-    const interval = setInterval(() => loadDashboard(backendPage), 300000); // Auto-refresh every 5 min
-    return () => {
-      clearInterval(interval);
-      if (debounceTimer.current) clearTimeout(debounceTimer.current);
-    };
-  }, [loadDashboard, backendPage]);
+    loadDashboard();
+    const interval = setInterval(loadDashboard, 300000);
+    return () => clearInterval(interval);
+  }, [loadDashboard]);
 
   useEffect(() => {
     localStorage.setItem('teacher_search', searchTerm);
@@ -250,7 +215,7 @@ export default function TeacherDashboard() {
       <div className="flex h-screen items-center justify-center bg-gray-50">
         <div className="text-center">
           <p className="text-red-600 mb-4">Failed to load dashboard</p>
-          <button onClick={() => loadDashboard(1)} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+          <button onClick={() => loadDashboard(1)} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium">
             Retry
           </button>
         </div>
@@ -285,14 +250,14 @@ export default function TeacherDashboard() {
                   </div>
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => loadDashboard(backendPage)}
+                      onClick={() => loadDashboard()}
                       className="flex items-center gap-1 px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-100 rounded-lg transition"
                       disabled={loading}
                     >
                       <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
                       <span>Refresh</span>
                     </button>
-                    <div className="text-xs text-gray-500 flex items-center gap-1">
+                    <div className="text-xs flex items-center gap-1" style={{ color: '#6B7280' }}>
                       <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
                       <span>{getTimeAgo(lastUpdated)}</span>
                     </div>
@@ -304,24 +269,30 @@ export default function TeacherDashboard() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-6 sm:mb-8">
                 <button
                   onClick={() => navigate('/teacher/attendance')}
-                  className="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-xl p-4 sm:p-6 shadow-lg hover:shadow-xl transition text-left"
+                  className="bg-green-50 border border-green-200 rounded-xl p-4 sm:p-6 hover:border-green-400 hover:bg-green-100 transition text-left"
+                  style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}
                 >
                   <div className="flex items-center gap-3 mb-2">
-                    <span className="text-3xl sm:text-4xl">✓</span>
-                    <h3 className="text-lg sm:text-xl font-bold">Record Attendance</h3>
+                    <div className="w-12 h-12 bg-green-50 rounded-full flex items-center justify-center">
+                      <CheckCircle className="w-6 h-6 text-green-600" />
+                    </div>
+                    <h3 className="text-lg sm:text-xl font-semibold text-gray-800">Record Attendance</h3>
                   </div>
-                  <p className="text-xs sm:text-sm text-blue-100">Mark student attendance for today</p>
+                  <p className="text-xs sm:text-sm text-gray-600">Mark student attendance for today</p>
                 </button>
 
                 <button
                   onClick={() => navigate('/teacher/messages')}
-                  className="bg-gradient-to-br from-green-500 to-green-600 text-white rounded-xl p-4 sm:p-6 shadow-lg hover:shadow-xl transition text-left"
+                  className="bg-green-50 border border-green-200 rounded-xl p-4 sm:p-6 hover:border-green-400 hover:bg-green-100 transition text-left"
+                  style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}
                 >
                   <div className="flex items-center gap-3 mb-2">
-                    <span className="text-3xl sm:text-4xl">💬</span>
-                    <h3 className="text-lg sm:text-xl font-bold">Message Form Master</h3>
+                    <div className="w-12 h-12 bg-green-50 rounded-full flex items-center justify-center">
+                      <MessageSquare className="w-6 h-6 text-green-600" />
+                    </div>
+                    <h3 className="text-lg sm:text-xl font-semibold text-gray-800">Message Form Master</h3>
                   </div>
-                  <p className="text-xs sm:text-sm text-green-100">Send a message about student concerns</p>
+                  <p className="text-xs sm:text-sm text-gray-600">Send a message about student concerns</p>
                 </button>
               </div>
 
@@ -331,37 +302,44 @@ export default function TeacherDashboard() {
                   Today's Summary
                 </h2>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="bg-white rounded-xl p-4 sm:p-6 border-2 border-gray-200 shadow-sm">
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-3xl sm:text-4xl">⚠</span>
-                      <div className="text-right">
-                        <p className="text-2xl sm:text-3xl font-bold text-red-600">{dashboardData.today_absent_count || 0}</p>
+                  <div className="bg-white rounded-xl p-4 sm:p-6 border border-gray-200" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+                    <div className="flex items-center gap-4 mb-3">
+                      <div className="w-12 h-12 bg-red-50 rounded-full flex items-center justify-center flex-shrink-0">
+                        <AlertTriangle className="w-6 h-6 text-red-600" />
+                      </div>
+                      <div>
+                        <p className="text-2xl sm:text-3xl font-semibold text-gray-800">{dashboardData.today_absent_count || 0}</p>
+                        {/* Issue 5 fix: honest label — backend counts absence records, not unique students */}
+                        <p className="text-sm text-gray-600">Absence Records Today</p>
                       </div>
                     </div>
-                    <p className="text-sm sm:text-base font-semibold text-gray-900">Students Absent</p>
-                    <p className="text-xs text-gray-500 mt-1">Missing class today</p>
+                    <p className="text-xs text-gray-500">Across all your subjects</p>
                   </div>
 
-                  <div className="bg-white rounded-xl p-4 sm:p-6 border-2 border-gray-200 shadow-sm">
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-3xl sm:text-4xl">🔔</span>
-                      <div className="text-right">
-                        <p className="text-2xl sm:text-3xl font-bold text-orange-600">{dashboardData.active_alerts || 0}</p>
+                  <div className="bg-white rounded-xl p-4 sm:p-6 border border-gray-200" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+                    <div className="flex items-center gap-4 mb-3">
+                      <div className="w-12 h-12 bg-orange-50 rounded-full flex items-center justify-center flex-shrink-0">
+                        <Bell className="w-6 h-6 text-orange-600" />
+                      </div>
+                      <div>
+                        <p className="text-2xl sm:text-3xl font-semibold text-gray-800">{dashboardData.active_alerts || 0}</p>
+                        <p className="text-sm text-gray-600">Active Alerts</p>
                       </div>
                     </div>
-                    <p className="text-sm sm:text-base font-semibold text-gray-900">Active Alerts</p>
-                    <p className="text-xs text-gray-500 mt-1">Students need attention</p>
+                    <p className="text-xs text-gray-500">Students need attention</p>
                   </div>
 
-                  <div className="bg-white rounded-xl p-4 sm:p-6 border-2 border-gray-200 shadow-sm">
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-3xl sm:text-4xl">!</span>
-                      <div className="text-right">
-                        <p className="text-2xl sm:text-3xl font-bold text-red-600">{dashboardData.high_risk_students?.length || 0}</p>
+                  <div className="bg-white rounded-xl p-4 sm:p-6 border border-gray-200" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+                    <div className="flex items-center gap-4 mb-3">
+                      <div className="w-12 h-12 bg-red-50 rounded-full flex items-center justify-center flex-shrink-0">
+                        <Users className="w-6 h-6 text-red-600" />
+                      </div>
+                      <div>
+                        <p className="text-2xl sm:text-3xl font-semibold text-gray-800">{dashboardData.high_risk_students?.length || 0}</p>
+                        <p className="text-sm text-gray-600">High Risk Students</p>
                       </div>
                     </div>
-                    <p className="text-sm sm:text-base font-semibold text-gray-900">High Risk Students</p>
-                    <p className="text-xs text-gray-500 mt-1">Need urgent help</p>
+                    <p className="text-xs text-gray-500">Need urgent help</p>
                   </div>
                 </div>
               </div>
@@ -374,10 +352,10 @@ export default function TeacherDashboard() {
                   Recent Attendance Sessions
                 </h2>
                 {dashboardData.recent_sessions?.length > 0 ? (
-                  <div className="bg-white rounded-xl border-2 border-gray-200 shadow-sm overflow-hidden">
+                  <div className="bg-white rounded-xl border border-gray-200 overflow-hidden" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
                     <div className="overflow-x-auto">
                       <table className="w-full">
-                        <thead className="bg-gray-50">
+                        <thead style={{ backgroundColor: '#F9FAFB' }}>
                           <tr>
                             <th className="text-left px-4 py-3 text-xs font-semibold text-gray-700">Date</th>
                             <th className="text-left px-4 py-3 text-xs font-semibold text-gray-700">Class</th>
@@ -388,12 +366,12 @@ export default function TeacherDashboard() {
                         </thead>
                         <tbody className="divide-y divide-gray-200">
                           {dashboardData.recent_sessions.slice(0, 5).map((session, idx) => (
-                            <tr key={idx} className="hover:bg-gray-50">
-                              <td className="px-4 py-3 text-sm">{new Date(session.date).toLocaleDateString()}</td>
-                              <td className="px-4 py-3 text-sm">{session.classroom}</td>
-                              <td className="px-4 py-3 text-sm">{session.subject}</td>
-                              <td className="px-4 py-3 text-center text-sm font-semibold text-green-600">{session.present}</td>
-                              <td className="px-4 py-3 text-center text-sm font-semibold text-red-600">{session.absent}</td>
+                            <tr key={`session-${session.date}-${session.classroom}-${idx}`} style={{ transition: 'background-color 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F9FAFB'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
+                              <td className="px-4 py-4 text-sm text-gray-800">{new Date(session.date).toLocaleDateString()}</td>
+                              <td className="px-4 py-4 text-sm text-gray-800">{session.classroom}</td>
+                              <td className="px-4 py-4 text-sm text-gray-800">{session.subject}</td>
+                              <td className="px-4 py-4 text-center text-sm font-semibold text-green-600">{session.present}</td>
+                              <td className="px-4 py-4 text-center text-sm font-semibold text-red-600">{session.absent}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -402,7 +380,7 @@ export default function TeacherDashboard() {
                   </div>
                 ) : (
                   <EmptyState
-                    icon="📋"
+                    icon={<ClipboardList className="w-16 h-16 text-gray-400" />}
                     title="No Recent Sessions"
                     message="You haven't recorded any attendance yet. Start by clicking 'Record Attendance' above."
                   />
@@ -416,36 +394,43 @@ export default function TeacherDashboard() {
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="bg-white rounded-xl p-6 border-2 border-gray-200 shadow-sm">
+                    {/* Issue 11 fix: show honest empty state when no sessions recorded this week */}
                     <h3 className="text-sm font-semibold text-gray-700 mb-4">This Week Overview</h3>
-                    <div className="space-y-3">
-                      <div>
-                        <div className="flex justify-between text-sm mb-1">
-                          <span className="text-gray-600">Present</span>
-                          <span className="font-semibold text-green-600">{dashboardData.week_stats?.present || 0}%</span>
+                    {(dashboardData.week_stats?.present || 0) === 0 &&
+                     (dashboardData.week_stats?.late   || 0) === 0 &&
+                     (dashboardData.week_stats?.absent || 0) === 0 ? (
+                      <p className="text-sm text-gray-400 text-center py-4">No attendance recorded this week</p>
+                    ) : (
+                      <div className="space-y-3">
+                        <div>
+                          <div className="flex justify-between text-sm mb-1">
+                            <span className="text-gray-600">Present</span>
+                            <span className="font-semibold text-green-600">{dashboardData.week_stats?.present || 0}%</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div className="bg-green-500 h-2 rounded-full" style={{width: `${dashboardData.week_stats?.present || 0}%`}}></div>
+                          </div>
                         </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div className="bg-green-500 h-2 rounded-full" style={{width: `${dashboardData.week_stats?.present || 0}%`}}></div>
+                        <div>
+                          <div className="flex justify-between text-sm mb-1">
+                            <span className="text-gray-600">Late</span>
+                            <span className="font-semibold text-yellow-600">{dashboardData.week_stats?.late || 0}%</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div className="bg-yellow-500 h-2 rounded-full" style={{width: `${dashboardData.week_stats?.late || 0}%`}}></div>
+                          </div>
+                        </div>
+                        <div>
+                          <div className="flex justify-between text-sm mb-1">
+                            <span className="text-gray-600">Absent</span>
+                            <span className="font-semibold text-red-600">{dashboardData.week_stats?.absent || 0}%</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div className="bg-red-500 h-2 rounded-full" style={{width: `${dashboardData.week_stats?.absent || 0}%`}}></div>
+                          </div>
                         </div>
                       </div>
-                      <div>
-                        <div className="flex justify-between text-sm mb-1">
-                          <span className="text-gray-600">Late</span>
-                          <span className="font-semibold text-yellow-600">{dashboardData.week_stats?.late || 0}%</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div className="bg-yellow-500 h-2 rounded-full" style={{width: `${dashboardData.week_stats?.late || 0}%`}}></div>
-                        </div>
-                      </div>
-                      <div>
-                        <div className="flex justify-between text-sm mb-1">
-                          <span className="text-gray-600">Absent</span>
-                          <span className="font-semibold text-red-600">{dashboardData.week_stats?.absent || 0}%</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div className="bg-red-500 h-2 rounded-full" style={{width: `${dashboardData.week_stats?.absent || 0}%`}}></div>
-                        </div>
-                      </div>
-                    </div>
+                    )}
                   </div>
                   <div className="bg-white rounded-xl p-6 border-2 border-gray-200 shadow-sm">
                     <h3 className="text-sm font-semibold text-gray-700 mb-4">Trend Comparison</h3>
@@ -462,7 +447,10 @@ export default function TeacherDashboard() {
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-sm text-gray-600">Avg Attendance</span>
-                        <span className="text-sm font-bold text-gray-900">{dashboardData.avg_attendance || 0}%</span>
+                        {/* Issue 4 fix: show dash instead of 0% when no data exists */}
+                        <span className="text-sm font-bold text-gray-900">
+                          {dashboardData.avg_attendance > 0 ? `${dashboardData.avg_attendance}%` : '—'}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -475,7 +463,7 @@ export default function TeacherDashboard() {
                 {dashboardData.my_classes?.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {dashboardData.my_classes.map((cls) => (
-                      <div key={cls.assignment_id} className="bg-white rounded-xl p-4 sm:p-6 border-2 border-gray-200 shadow-sm hover:border-blue-400 transition">
+                      <div key={cls.assignment_id} className="bg-white rounded-xl p-4 sm:p-6 border-2 border-gray-200 shadow-sm hover:border-green-400 transition">
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex-1 min-w-0">
                             <p className="text-base sm:text-lg font-bold text-gray-900 mb-1 truncate">{cls.classroom__name}</p>
@@ -483,7 +471,7 @@ export default function TeacherDashboard() {
                           </div>
                           <button
                             onClick={() => navigate('/teacher/attendance', { state: { classroom: cls.classroom__name, subject: cls.subject__name } })}
-                            className="px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-xs sm:text-sm font-medium whitespace-nowrap"
+                            className="px-3 sm:px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-xs sm:text-sm font-medium whitespace-nowrap"
                           >
                             Take Attendance
                           </button>
@@ -493,7 +481,7 @@ export default function TeacherDashboard() {
                   </div>
                 ) : (
                   <EmptyState
-                    icon="📚"
+                    icon={<BookOpen className="w-16 h-16 text-gray-400" />}
                     title="No Classes Assigned"
                     message="You don't have any classes assigned yet. Please contact your administrator to get class assignments."
                   />
@@ -509,7 +497,10 @@ export default function TeacherDashboard() {
                   {dashboardData.urgent_alerts?.length > 0 && (
                     <button
                       onClick={() => setActiveTab('alerts')}
-                      className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                      className="text-sm font-medium transition-colors"
+                      style={{ color: '#15803D' }}
+                      onMouseEnter={(e) => e.currentTarget.style.color = '#166534'}
+                      onMouseLeave={(e) => e.currentTarget.style.color = '#15803D'}
                     >
                       View All →
                     </button>
@@ -541,7 +532,7 @@ export default function TeacherDashboard() {
                   </div>
                 ) : (
                   <EmptyState
-                    icon="✓"
+                    icon={<CheckSquare className="w-16 h-16 text-gray-400" />}
                     title="No Active Alerts"
                     message="Great! There are no active alerts at this time. All students are being monitored effectively."
                   />
@@ -557,7 +548,10 @@ export default function TeacherDashboard() {
                   {dashboardData.high_risk_students?.length > 0 && (
                     <button
                       onClick={() => setActiveTab('students')}
-                      className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                      className="text-sm font-medium transition-colors"
+                      style={{ color: '#15803D' }}
+                      onMouseEnter={(e) => e.currentTarget.style.color = '#166534'}
+                      onMouseLeave={(e) => e.currentTarget.style.color = '#15803D'}
                     >
                       View All →
                     </button>
@@ -566,7 +560,7 @@ export default function TeacherDashboard() {
                 {dashboardData.high_risk_students?.length > 0 ? (
                   <div className="space-y-3">
                     {dashboardData.high_risk_students.slice(0, 5).map((student, idx) => (
-                      <div key={idx} className="bg-white rounded-xl p-4 border-2 border-gray-200 shadow-sm hover:border-red-400 transition">
+                      <div key={`overview-student-${student.student__student_id || idx}`} className="bg-white rounded-xl p-4 border-2 border-gray-200 shadow-sm hover:border-red-400 transition">
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-2 flex-wrap">
@@ -587,9 +581,9 @@ export default function TeacherDashboard() {
                               setSelectedStudent(student);
                               setShowEscalateModal(true);
                             }}
-                            className="px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-xs font-medium whitespace-nowrap"
+                            className="px-3 py-1.5 bg-transparent border border-red-400 text-red-600 rounded-lg hover:bg-red-50 transition text-xs font-medium whitespace-nowrap"
                           >
-                            Escalate
+                            Message FM
                           </button>
                         </div>
                       </div>
@@ -597,7 +591,7 @@ export default function TeacherDashboard() {
                   </div>
                 ) : (
                   <EmptyState
-                    icon="✓"
+                    icon={<TrendingUp className="w-16 h-16 text-gray-400" />}
                     title="No High-Risk Students"
                     message="Excellent! All students are performing well. Keep up the great work!"
                   />
@@ -608,24 +602,30 @@ export default function TeacherDashboard() {
 
           {activeTab === "alerts" && (
             <div>
-              <div className="flex items-center justify-between mb-6">
-                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">All Alerts</h1>
+              <div className="mb-6">
+                <h1 className="text-2xl sm:text-3xl font-semibold text-gray-800 flex items-center gap-3">
+                  <Bell className="w-7 h-7 text-orange-600" />
+                  All Alerts
+                </h1>
+                <p className="text-sm text-gray-600 mt-1">Monitor and manage student risk alerts</p>
               </div>
 
               {/* Search and Filter */}
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-4">
+              <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <input
                     type="text"
                     placeholder="Search by student name..."
                     value={searchTerm}
                     onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-                    className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors text-sm"
+                    style={{ backgroundColor: '#FFFFFF', borderColor: '#E5E7EB' }}
                   />
                   <select
                     value={filterRisk}
                     onChange={(e) => { setFilterRisk(e.target.value); setCurrentPage(1); }}
-                    className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors text-sm"
+                    style={{ backgroundColor: '#FFFFFF', borderColor: '#E5E7EB' }}
                   >
                     <option value="">All Risk Levels</option>
                     <option value="critical">Critical</option>
@@ -634,11 +634,14 @@ export default function TeacherDashboard() {
                     <option value="low">Low</option>
                   </select>
                 </div>
-                <div className="flex items-center justify-between mt-2">
+                <div className="flex items-center justify-between mt-3">
                   {(searchTerm || filterRisk) && (
                     <button
                       onClick={() => { setSearchTerm(''); setFilterRisk(''); setCurrentPage(1); }}
-                      className="text-sm text-blue-600 hover:text-blue-800"
+                      className="text-sm font-medium transition-colors"
+                      style={{ color: '#16A34A' }}
+                      onMouseEnter={(e) => e.currentTarget.style.color = '#15803D'}
+                      onMouseLeave={(e) => e.currentTarget.style.color = '#16A34A'}
                     >
                       Clear Filters
                     </button>
@@ -650,7 +653,10 @@ export default function TeacherDashboard() {
                       Type: a.alert_type,
                       Subject: a.subject__name
                     })), 'alerts')}
-                    className="ml-auto px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium"
+                    className="ml-auto px-3 py-1.5 rounded-lg transition-colors text-xs font-medium"
+                    style={{ backgroundColor: '#16A34A', color: '#FFFFFF' }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#15803D'}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#16A34A'}
                   >
                     📥 Export CSV
                   </button>
@@ -664,22 +670,60 @@ export default function TeacherDashboard() {
                     <VirtualAlertList alerts={filteredAlerts} />
                   ) : (
                     <>
-                      <div className="space-y-3">
+                      <div className="space-y-4">
                         {paginatedAlerts.map((alert) => (
-                          <div key={alert.alert_id} className="bg-white rounded-xl p-4 sm:p-6 border-2 border-gray-200 shadow-sm">
-                            <div className="flex items-center gap-2 mb-3 flex-wrap">
-                              <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                                alert.risk_level?.toLowerCase() === 'critical' ? 'bg-red-100 text-red-700' :
-                                alert.risk_level?.toLowerCase() === 'high' ? 'bg-orange-100 text-orange-700' :
-                                alert.risk_level?.toLowerCase() === 'medium' ? 'bg-yellow-100 text-yellow-700' :
-                                'bg-gray-100 text-gray-700'
-                              }`}>
-                                {alert.risk_level?.toUpperCase()}
-                              </span>
-                              <span className="text-sm text-gray-500">{alert.alert_type}</span>
+                          <div 
+                            key={alert.alert_id} 
+                            className="bg-white rounded-lg p-4 sm:p-5 border border-gray-200 transition-all" 
+                            style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor = '#F9FAFB';
+                              e.currentTarget.style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)';
+                            }} 
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = 'transparent';
+                              e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+                            }}
+                          >
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-3 flex-wrap">
+                                  <span 
+                                    className="px-3 py-1 rounded-full text-xs font-semibold border"
+                                    style={{
+                                      backgroundColor: alert.risk_level?.toLowerCase() === 'critical' ? '#FEF2F2' :
+                                                       alert.risk_level?.toLowerCase() === 'high' ? '#FFF7ED' :
+                                                       alert.risk_level?.toLowerCase() === 'medium' ? '#FEFCE8' :
+                                                       '#F9FAFB',
+                                      color: alert.risk_level?.toLowerCase() === 'critical' ? '#DC2626' :
+                                             alert.risk_level?.toLowerCase() === 'high' ? '#EA580C' :
+                                             alert.risk_level?.toLowerCase() === 'medium' ? '#CA8A04' :
+                                             '#6B7280',
+                                      borderColor: alert.risk_level?.toLowerCase() === 'critical' ? '#FECACA' :
+                                                   alert.risk_level?.toLowerCase() === 'high' ? '#FED7AA' :
+                                                   alert.risk_level?.toLowerCase() === 'medium' ? '#FEF08A' :
+                                                   '#E5E7EB'
+                                    }}
+                                  >
+                                    {alert.risk_level?.toUpperCase()}
+                                  </span>
+                                  <span className="text-xs text-gray-500 capitalize">{alert.alert_type}</span>
+                                </div>
+                                <p className="text-base font-semibold text-gray-800 mb-1">{alert.student__full_name}</p>
+                                <p className="text-sm text-gray-600">{alert.subject__name}</p>
+                              </div>
+                              {/* Issue 3 fix: Review Alert now navigates to messages page to contact form master */}
+                              <button
+                                onClick={() => navigate('/teacher/messages')}
+                                className="px-3 py-1.5 rounded-lg transition-colors text-xs font-medium whitespace-nowrap flex items-center gap-1.5"
+                                style={{ backgroundColor: '#16A34A', color: '#FFFFFF' }}
+                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#15803D'}
+                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#16A34A'}
+                              >
+                                <AlertTriangle className="w-3.5 h-3.5" />
+                                Review Alert
+                              </button>
                             </div>
-                            <p className="text-lg font-bold text-gray-900 mb-1">{alert.student__full_name}</p>
-                            <p className="text-sm text-gray-600">{alert.subject__name}</p>
                           </div>
                         ))}
                       </div>
@@ -695,7 +739,7 @@ export default function TeacherDashboard() {
                 </>
               ) : (
                 <EmptyState
-                  icon="🔔"
+                  icon={<Bell className="w-16 h-16 text-gray-400" />}
                   title={searchTerm || filterRisk ? "No Alerts Found" : "No Active Alerts"}
                   message={searchTerm || filterRisk 
                     ? "No alerts match your search criteria. Try adjusting your filters."
@@ -709,24 +753,30 @@ export default function TeacherDashboard() {
 
           {activeTab === "students" && (
             <div>
-              <div className="flex items-center justify-between mb-6">
-                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">High Risk Students</h1>
+              <div className="mb-6">
+                <h1 className="text-2xl sm:text-3xl font-semibold text-gray-800 flex items-center gap-3">
+                  <Users className="w-7 h-7 text-red-600" />
+                  High Risk Students
+                </h1>
+                <p className="text-sm text-gray-600 mt-1">Students requiring immediate attention and intervention</p>
               </div>
 
               {/* Search and Filter */}
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-4">
+              <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <input
                     type="text"
                     placeholder="Search by name or ID..."
                     value={searchTerm}
                     onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-                    className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors text-sm"
+                    style={{ backgroundColor: '#FFFFFF', borderColor: '#E5E7EB' }}
                   />
                   <select
                     value={filterRisk}
                     onChange={(e) => { setFilterRisk(e.target.value); setCurrentPage(1); }}
-                    className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors text-sm"
+                    style={{ backgroundColor: '#FFFFFF', borderColor: '#E5E7EB' }}
                   >
                     <option value="">All Risk Levels</option>
                     <option value="critical">Critical</option>
@@ -734,11 +784,14 @@ export default function TeacherDashboard() {
                     <option value="medium">Medium</option>
                   </select>
                 </div>
-                <div className="flex items-center justify-between mt-2">
+                <div className="flex items-center justify-between mt-3">
                   {(searchTerm || filterRisk) && (
                     <button
                       onClick={() => { setSearchTerm(''); setFilterRisk(''); setCurrentPage(1); }}
-                      className="text-sm text-blue-600 hover:text-blue-800"
+                      className="text-sm font-medium transition-colors"
+                      style={{ color: '#16A34A' }}
+                      onMouseEnter={(e) => e.currentTarget.style.color = '#15803D'}
+                      onMouseLeave={(e) => e.currentTarget.style.color = '#16A34A'}
                     >
                       Clear Filters
                     </button>
@@ -751,7 +804,10 @@ export default function TeacherDashboard() {
                       Score: s.risk_score,
                       Admission: s.student__admission_number
                     })), 'high_risk_students')}
-                    className="ml-auto px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium"
+                    className="ml-auto px-3 py-1.5 rounded-lg transition-colors text-xs font-medium"
+                    style={{ backgroundColor: '#16A34A', color: '#FFFFFF' }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#15803D'}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#16A34A'}
                   >
                     📥 Export CSV
                   </button>
@@ -760,30 +816,72 @@ export default function TeacherDashboard() {
 
               {paginatedStudents.length > 0 ? (
                 <>
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                     {paginatedStudents.map((student, idx) => (
-                      <div key={idx} className="bg-white rounded-xl p-4 sm:p-6 border-2 border-gray-200 shadow-sm">
-                        <div className="flex items-center gap-2 mb-3 flex-wrap">
-                          <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                            student.risk_level?.toLowerCase() === 'critical' ? 'bg-red-100 text-red-700' :
-                            student.risk_level?.toLowerCase() === 'high' ? 'bg-orange-100 text-orange-700' :
-                            'bg-yellow-100 text-yellow-700'
-                          }`}>
-                            {student.risk_level?.toUpperCase()}
-                          </span>
-                          <span className="text-sm text-gray-500">Risk Score: {student.risk_score}</span>
+                      <div 
+                        key={`student-${student.student__student_id || idx}`} 
+                        className="bg-white rounded-lg p-4 sm:p-5 border border-gray-200 transition-all"
+                        style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = '#F9FAFB';
+                          e.currentTarget.style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)';
+                        }} 
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 'transparent';
+                          e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+                        }}
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-3 flex-wrap">
+                              <span 
+                                className="px-3 py-1 rounded-full text-xs font-semibold border"
+                                style={{
+                                  backgroundColor: student.risk_level?.toLowerCase() === 'critical' ? '#FEF2F2' :
+                                                   student.risk_level?.toLowerCase() === 'high' ? '#FFF7ED' :
+                                                   '#FEFCE8',
+                                  color: student.risk_level?.toLowerCase() === 'critical' ? '#DC2626' :
+                                         student.risk_level?.toLowerCase() === 'high' ? '#EA580C' :
+                                         '#CA8A04',
+                                  borderColor: student.risk_level?.toLowerCase() === 'critical' ? '#FECACA' :
+                                               student.risk_level?.toLowerCase() === 'high' ? '#FED7AA' :
+                                               '#FEF08A'
+                                }}
+                              >
+                                {student.risk_level?.toUpperCase()}
+                              </span>
+                              <span className="text-xs" style={{ color: '#6B7280', fontSize: '13px' }}>Risk Score: {student.risk_score}</span>
+                            </div>
+                            <p className="text-base font-semibold text-gray-800 mb-1">{student.student__full_name}</p>
+                            <p className="text-sm text-gray-600">ID: {student.student__student_id} | Admission #: {student.student__admission_number}</p>
+                          </div>
+                          <div className="flex flex-col gap-2">
+                            <button
+                              onClick={() => {
+                                setSelectedStudent(student);
+                                setShowEscalateModal(true);
+                              }}
+                              className="px-3 py-1.5 rounded-lg transition-colors text-xs font-medium whitespace-nowrap flex items-center gap-1.5"
+                              style={{ backgroundColor: 'transparent', color: '#EF4444', border: '1px solid #EF4444' }}
+                              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#FEF2F2'}
+                              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                            >
+                              <AlertTriangle className="w-3.5 h-3.5" />
+                              Message FM
+                            </button>
+                            {/* Issue 2 fix: View Details navigates to attendance history for this student */}
+                            <button
+                              onClick={() => navigate(`/teacher/attendance-history/${student.student__student_id}`)}
+                              className="px-3 py-1.5 rounded-lg transition-colors text-xs font-medium whitespace-nowrap flex items-center gap-1.5"
+                              style={{ backgroundColor: '#16A34A', color: '#FFFFFF' }}
+                              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#15803D'}
+                              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#16A34A'}
+                            >
+                              <Users className="w-3.5 h-3.5" />
+                              View Details
+                            </button>
+                          </div>
                         </div>
-                        <p className="text-lg font-bold text-gray-900 mb-1">{student.student__full_name}</p>
-                        <p className="text-sm text-gray-600 mb-3">ID: {student.student__student_id} | Admission: {student.student__admission_number}</p>
-                        <button
-                          onClick={() => {
-                            setSelectedStudent(student);
-                            setShowEscalateModal(true);
-                          }}
-                          className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm font-medium"
-                        >
-                          Escalate to Form Master
-                        </button>
                       </div>
                     ))}
                   </div>
@@ -797,7 +895,7 @@ export default function TeacherDashboard() {
                 </>
               ) : (
                 <EmptyState
-                  icon="⚠️"
+                  icon={<AlertTriangle className="w-16 h-16 text-gray-400" />}
                   title={searchTerm || filterRisk ? "No Students Found" : "No High-Risk Students"}
                   message={searchTerm || filterRisk 
                     ? "No students match your search criteria. Try adjusting your filters."
@@ -815,7 +913,7 @@ export default function TeacherDashboard() {
       {showEscalateModal && selectedStudent && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl max-w-md w-full p-6">
-            <h3 className="text-xl font-bold text-gray-900 mb-4">Escalate to Form Master</h3>
+            <h3 className="text-xl font-bold text-gray-900 mb-4">Message Form Master</h3>
             <div className="mb-4">
               <p className="text-sm text-gray-600 mb-2">Student: <span className="font-semibold text-gray-900">{selectedStudent.student__full_name}</span></p>
               <p className="text-sm text-gray-600 mb-2">Risk Level: <span className={`font-semibold ${
@@ -823,12 +921,12 @@ export default function TeacherDashboard() {
               }`}>{selectedStudent.risk_level?.toUpperCase()}</span></p>
             </div>
             <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Reason for Escalation *</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Message to Form Master *</label>
               <textarea
                 value={escalationReason}
                 onChange={(e) => setEscalationReason(e.target.value)}
-                placeholder="Describe the concerns and why this student needs intervention..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                placeholder="Describe your concerns about this student..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
                 rows="4"
               />
             </div>
@@ -849,22 +947,14 @@ export default function TeacherDashboard() {
                 disabled={escalating || !escalationReason.trim()}
                 className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {escalating ? 'Escalating...' : 'Escalate'}
+                {escalating ? 'Sending...' : 'Send Message'}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Message Modal */}
-      {showMessage && messageRecipient && (
-        <QuickMessage
-          recipientId={messageRecipient.id}
-          recipientName={messageRecipient.name}
-          recipientRole={messageRecipient.role}
-          onClose={() => setShowMessage(false)}
-        />
-      )}
+      {/* Message Modal removed — teachers use /teacher/messages route directly */}
     </div>
   );
 }

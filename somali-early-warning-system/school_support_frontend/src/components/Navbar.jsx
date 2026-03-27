@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Bell, Search, User as UserIcon, Users, BookOpen } from 'lucide-react';
 import NotificationBell from "./NotificationBell";
 
 export default function Navbar({ user, dashboardData, searchQuery, onSearchChange, searchResults, showSearchResults, onCloseSearch }) {
@@ -22,7 +23,7 @@ export default function Navbar({ user, dashboardData, searchQuery, onSearchChang
       <div className="flex items-center justify-between gap-2 sm:gap-4">
         {/* Page Title */}
         <div className="min-w-0 flex-1">
-          <h2 className="text-lg sm:text-2xl font-bold text-gray-800 truncate">Dashboard</h2>
+          <h2 className="text-lg sm:text-2xl font-semibold text-gray-800 truncate">Dashboard</h2>
           <p className="text-xs sm:text-sm text-gray-600 hidden sm:block">
             {new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
           </p>
@@ -39,9 +40,9 @@ export default function Navbar({ user, dashboardData, searchQuery, onSearchChang
               value={searchQuery || ""}
               onChange={(e) => onSearchChange?.(e.target.value)}
               onFocus={() => searchResults?.length > 0 && onSearchChange?.(searchQuery)}
-              className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-48 xl:w-64 text-sm"
+              className="pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 w-48 xl:w-64 text-sm"
             />
-            <span className="absolute left-3 top-2.5 text-gray-400">🔍</span>
+            <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
             
             {/* Search Results Dropdown */}
             {showSearchResults && searchResults?.length > 0 && (
@@ -57,7 +58,7 @@ export default function Navbar({ user, dashboardData, searchQuery, onSearchChang
                       {result.type === 'student' ? (
                         <div>
                           <div className="flex items-center gap-2">
-                            <span className="text-blue-600">👤</span>
+                            <Users className="w-4 h-4 text-blue-600" />
                             <p className="text-sm font-semibold text-gray-800">{result.full_name}</p>
                           </div>
                           <p className="text-xs text-gray-500 ml-6">Student ID: {result.student_id}</p>
@@ -65,7 +66,7 @@ export default function Navbar({ user, dashboardData, searchQuery, onSearchChang
                       ) : (
                         <div>
                           <div className="flex items-center gap-2">
-                            <span className="text-green-600">📚</span>
+                            <BookOpen className="w-4 h-4 text-green-600" />
                             <p className="text-sm font-semibold text-gray-800">{result.name}</p>
                           </div>
                           <p className="text-xs text-gray-500 ml-6">Grade {result.grade_level}</p>
@@ -129,7 +130,7 @@ export default function Navbar({ user, dashboardData, searchQuery, onSearchChang
               }}
               className="flex items-center gap-1 sm:gap-2 p-1 sm:p-2 hover:bg-gray-100 rounded-lg transition"
             >
-              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-semibold text-sm">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-green-600 flex items-center justify-center text-white font-semibold text-sm">
                 {user?.name?.charAt(0) || "T"}
               </div>
               <span className="text-xs sm:text-sm font-medium text-gray-700 hidden md:block truncate max-w-24">{user?.name || "Teacher"}</span>

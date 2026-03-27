@@ -1,0 +1,63 @@
+@startuml UseCase_Simple
+
+left to right direction
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam defaultFontSize 14
+
+actor Administrator as admin
+actor Teacher as teacher
+actor "Form Master" as fm
+
+rectangle "School Early Warning System" {
+  
+  ' Core System Functions
+  (Setup System) as setup
+  (Record Attendance) as attend
+  (Monitor Risks) as risk
+  (Manage Interventions) as intervene
+  (Communicate) as msg
+  (View Dashboard) as dash
+  
+}
+
+' Administrator - Sets up the system
+admin --> setup
+admin --> dash
+
+' Teacher - Records attendance daily
+teacher --> attend
+teacher --> msg
+teacher --> dash
+
+' Form Master - Handles at-risk students
+fm --> risk
+fm --> intervene
+fm --> msg
+fm --> dash
+
+' Automated System Flow
+attend ..> risk : auto
+risk ..> intervene : escalate
+
+note bottom of setup
+  Admin creates users, classrooms,
+  enrolls students, assigns teachers
+end note
+
+note bottom of attend
+  Teacher marks present/absent/late
+  System calculates risk automatically
+end note
+
+note bottom of risk
+  Form Master views alerts and
+  student risk profiles
+end note
+
+note bottom of intervene
+  Form Master creates cases,
+  documents meetings, tracks progress
+end note
+
+@enduml

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { LogOut } from 'lucide-react';
+import { LogOut, LayoutDashboard, Bell, FileText, Users, CalendarCheck, Settings, Shield, BarChart3, User, BookOpen, MessageSquare, CheckSquare, TrendingUp, AlertCircle, GraduationCap, Brain, Database, Calendar, LineChart, School } from 'lucide-react';
 
 export default function Sidebar({ user, onLogout, onTabChange }) {
   const navigate = useNavigate();
@@ -29,37 +29,43 @@ export default function Sidebar({ user, onLogout, onTabChange }) {
   }, [collapsed]);
 
   const menuItems = user?.role === 'admin' ? [
-    { icon: "🏛️", label: "Dashboard", path: "/admin", badge: null, isRoute: true },
-    { icon: "🔔", label: "Alerts", path: "alerts", badge: null, isRoute: false },
-    { icon: "📋", label: "Cases", path: "cases", badge: null, isRoute: false },
-    { icon: "👥", label: "Students", path: "students", badge: null, isRoute: false },
-    { icon: "⚙️", label: "Governance", path: "governance", badge: null, isRoute: false },
-    { icon: "🛡️", label: "Audit Logs", path: "audit", badge: null, isRoute: false },
-    { icon: "📊", label: "Reports", path: "reports", badge: null, isRoute: false },
-    { icon: "👤", label: "My Profile", path: "settings", badge: null, isRoute: false, description: "Profile & 2FA", tabName: "profile" },
-    { icon: "🔧", label: "System Settings", path: "settings", badge: null, isRoute: false, description: "School & Security", tabName: "settings" },
+    { icon: LayoutDashboard, label: "Dashboard", path: "/admin", badge: null, isRoute: true },
+    { icon: Bell, label: "Alerts", path: "alerts", badge: null, isRoute: false },
+    { icon: FileText, label: "Cases", path: "cases", badge: null, isRoute: false },
+    { icon: Users, label: "Students", path: "students", badge: null, isRoute: false },
+    { icon: CalendarCheck, label: "Timetable", path: "timetable", badge: null, isRoute: false, description: "Period Scheduling" },
+    { icon: Settings, label: "Governance", path: "governance", badge: null, isRoute: false },
+    { icon: Shield, label: "Audit Logs", path: "audit", badge: null, isRoute: false },
+    { icon: BarChart3, label: "Reports", path: "reports", badge: null, isRoute: false },
+    { icon: User, label: "My Profile", path: "settings", badge: null, isRoute: false, description: "Profile & 2FA", tabName: "profile" },
+    { icon: Settings, label: "System Settings", path: "settings", badge: null, isRoute: false, description: "School & Security", tabName: "settings" },
   ] : user?.role === 'form_master' ? [
-    { icon: "📊", label: "Dashboard", path: "/form-master", badge: null, isRoute: true },
-    { icon: "📝", label: "Interventions", path: "/form-master/interventions", badge: null, isRoute: true },
-    { icon: "💬", label: "Messages", path: "/form-master/messages", badge: null, isRoute: true },
-    { icon: "🔔", label: "Alerts", path: "alerts", badge: null, isRoute: false },
-    { icon: "📋", label: "Cases", path: "cases", badge: null, isRoute: false },
-    { icon: "⚠️", label: "High Risk", path: "students", badge: null, isRoute: false },
-    { icon: "📈", label: "Progression", path: "progression", badge: null, isRoute: false },
-    { icon: "📅", label: "Daily Monitor", path: "daily-monitor", badge: null, isRoute: false },
-    { icon: "👤", label: "Profile", path: "/form-master/profile", badge: null, isRoute: true },
-    { icon: "⚙️", label: "Settings", path: "/form-master/settings", badge: null, isRoute: true },
+    { icon: LayoutDashboard, label: "Dashboard", path: "/form-master", badge: null, isRoute: true },
+    { icon: School, label: "My Class", path: "/form-master/my-class", badge: null, isRoute: true, description: "Roster & Attendance History" },
+    { icon: Brain, label: "AI Insights", path: "ai-insights", badge: null, isRoute: false, description: "Risk Analysis & Recommendations" },
+    { icon: Database, label: "Bulk Analysis", path: "bulk-analysis", badge: null, isRoute: false, description: "Analyze All Students" },
+    { icon: Calendar, label: "Weekly Report", path: "weekly-report", badge: null, isRoute: false, description: "Summary & Trends" },
+    { icon: LineChart, label: "Progress Tracking", path: "progress-tracking", badge: null, isRoute: false, description: "Student Improvement" },
+    { icon: FileText, label: "Interventions", path: "/form-master/interventions", badge: null, isRoute: true },
+    { icon: MessageSquare, label: "Messages", path: "/form-master/messages", badge: null, isRoute: true },
+    { icon: Bell, label: "Alerts", path: "alerts", badge: null, isRoute: false },
+    { icon: FileText, label: "Cases", path: "cases", badge: null, isRoute: false },
+    { icon: AlertCircle, label: "High Risk", path: "students", badge: null, isRoute: false },
+    { icon: CalendarCheck, label: "Daily Monitor", path: "daily-monitor", badge: null, isRoute: false },
+    { icon: User, label: "Profile", path: "/form-master/profile", badge: null, isRoute: true },
+    { icon: Settings, label: "Settings", path: "/form-master/settings", badge: null, isRoute: true },
   ] : [
-    { icon: "📊", label: "Dashboard", path: "/teacher", badge: null, isRoute: true },
-    { icon: "✓", label: "Take Attendance", path: "/teacher/attendance", badge: null, isRoute: true },
-    { icon: "✏️", label: "Edit Attendance", path: "/teacher/edit-attendance", badge: null, isRoute: true },
-    { icon: "📈", label: "Attendance Tracking", path: "/teacher/attendance-tracking", badge: null, isRoute: true },
-    { icon: "💬", label: "Messages", path: "/teacher/messages", badge: null, isRoute: true },
-    { icon: "🔔", label: "Alerts", path: "alerts", badge: null, isRoute: false },
-    { icon: "👥", label: "Students", path: "students", badge: null, isRoute: false },
-    { icon: "📚", label: "My Classes", path: "/teacher/classes", badge: null, isRoute: true },
-    { icon: "👤", label: "Profile", path: "/teacher/profile", badge: null, isRoute: true },
-    { icon: "⚙️", label: "Settings", path: "/teacher/settings", badge: null, isRoute: true },
+    { icon: LayoutDashboard, label: "Dashboard", path: "/teacher", badge: null, isRoute: true },
+    { icon: CalendarCheck, label: "My Schedule", path: "/teacher/schedule", badge: null, isRoute: true, description: "Weekly timetable" },
+    { icon: CheckSquare, label: "Take Attendance", path: "/teacher/attendance", badge: null, isRoute: true },
+    { icon: FileText, label: "Edit Attendance", path: "/teacher/edit-attendance", badge: null, isRoute: true },
+    { icon: BarChart3, label: "Attendance Tracking", path: "/teacher/attendance-tracking", badge: null, isRoute: true },
+    { icon: MessageSquare, label: "Messages", path: "/teacher/messages", badge: null, isRoute: true },
+    { icon: Bell, label: "Alerts", path: "alerts", badge: null, isRoute: false },
+    { icon: Users, label: "Students", path: "students", badge: null, isRoute: false },
+    { icon: BookOpen, label: "My Classes", path: "/teacher/classes", badge: null, isRoute: true },
+    { icon: User, label: "Profile", path: "/teacher/profile", badge: null, isRoute: true },
+    { icon: Settings, label: "Settings", path: "/teacher/settings", badge: null, isRoute: true },
   ];
 
   const isActive = (path) => location.pathname === path;
@@ -70,17 +76,14 @@ export default function Sidebar({ user, onLogout, onTabChange }) {
 
   const handleMenuClick = (item) => {
     const basePath = user?.role === 'admin' ? '/admin' : user?.role === 'form_master' ? '/form-master' : '/teacher';
-    
     if (item.isRoute) {
       navigate(item.path);
       if (item.path === basePath) {
         onTabChange?.('overview');
       }
     } else {
-      // For tab-based navigation, change tab first then navigate
       const tabToActivate = item.tabName || item.path;
       onTabChange?.(tabToActivate);
-      // Only navigate if not already on the base path
       if (location.pathname !== basePath) {
         navigate(basePath);
       }
@@ -110,10 +113,15 @@ export default function Sidebar({ user, onLogout, onTabChange }) {
         <div className="p-3 sm:p-4 border-b border-gray-200 flex items-center justify-between">
           {!collapsed && (
             <div className="min-w-0">
-              <h1 className="text-base sm:text-lg font-bold text-gray-800 truncate">Somali EWS</h1>
+              <p className="text-base font-bold text-green-600">AlifMonitor</p>
               <p className="text-xs text-gray-500">
                 {user?.role === 'admin' ? 'Administrator' : user?.role === 'form_master' ? 'Form Master' : 'Teacher'}
               </p>
+            </div>
+          )}
+          {collapsed && (
+            <div className="flex items-center justify-center w-full">
+              <span className="text-xs font-bold text-green-600">AM</span>
             </div>
           )}
           <button
@@ -125,19 +133,21 @@ export default function Sidebar({ user, onLogout, onTabChange }) {
         </div>
 
         {/* Menu Items */}
-        <nav className="flex-1 p-2 sm:p-3 overflow-y-auto">
+        <nav className="flex-1 p-2 sm:p-3 overflow-y-auto scrollbar-none" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
           {menuItems.map((item, index) => (
             <button
               key={`${item.path}-${index}`}
               onClick={() => handleMenuClick(item)}
               className={`w-full flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2 sm:py-3 rounded-lg mb-1 sm:mb-2 transition ${
                 isActive(item.path)
-                  ? "bg-blue-50 text-blue-700 font-semibold"
+                  ? "bg-green-100 text-green-700 font-medium"
                   : "text-gray-700 hover:bg-gray-50"
               }`}
               title={item.description || item.label}
             >
-              <span className="text-lg sm:text-xl flex-shrink-0">{item.icon}</span>
+              <span className="text-lg sm:text-xl flex-shrink-0">
+                <item.icon className="w-5 h-5" />
+              </span>
               {!collapsed && (
                 <>
                   <div className="flex-1 text-left">
@@ -162,7 +172,7 @@ export default function Sidebar({ user, onLogout, onTabChange }) {
           <div className={`flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3 ${
             collapsed ? "justify-center" : ""
           }`}>
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-semibold flex-shrink-0 text-sm sm:text-base">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-green-600 flex items-center justify-center text-white font-semibold flex-shrink-0 text-sm sm:text-base">
               {user?.name?.charAt(0) || "T"}
             </div>
             {!collapsed && (
@@ -188,7 +198,7 @@ export default function Sidebar({ user, onLogout, onTabChange }) {
       {isMobile && collapsed && (
         <button
           onClick={() => setCollapsed(false)}
-          className="fixed bottom-4 right-4 w-12 h-12 bg-blue-600 text-white rounded-full shadow-lg z-50 flex items-center justify-center md:hidden"
+          className="fixed bottom-4 right-4 w-12 h-12 bg-green-600 text-white rounded-full shadow-lg z-50 flex items-center justify-center md:hidden"
         >
           <span className="text-2xl">☰</span>
         </button>

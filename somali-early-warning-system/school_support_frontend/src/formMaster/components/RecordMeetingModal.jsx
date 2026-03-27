@@ -49,14 +49,14 @@ export default function RecordMeetingModal({ student, students = [], onClose, on
   const currentStudent = student || students.find(s => s.student_id === selectedStudent);
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-white border-b px-4 sm:px-6 py-3 sm:py-4 flex justify-between items-center">
+    <div className="fixed inset-0 flex items-center justify-center z-50 p-2 sm:p-4">
+      <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto" style={{ boxShadow: '0 10px 25px rgba(0,0,0,0.15)' }}>
+        <div className="sticky top-0 bg-white border-b border-gray-100 px-4 sm:px-6 py-3 sm:py-4 flex justify-between items-center">
           <h2 className="text-lg sm:text-xl font-semibold text-gray-800">
             Record Intervention Meeting
           </h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700 text-xl">
-            ✕
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl font-light leading-none">
+            ×
           </button>
         </div>
 
@@ -76,7 +76,7 @@ export default function RecordMeetingModal({ student, students = [], onClose, on
                   required
                   value={selectedStudent}
                   onChange={(e) => setSelectedStudent(e.target.value)}
-                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
                 >
                   <option value="">-- Choose Student --</option>
                   {students.map((s) => (
@@ -91,7 +91,7 @@ export default function RecordMeetingModal({ student, students = [], onClose, on
 
           {/* Student Info */}
           {currentStudent && (
-            <div className="bg-blue-50 p-4 rounded-lg">
+            <div className="bg-green-50 border border-green-200 p-4 rounded-lg">
               <p className="text-sm text-gray-600">Student</p>
               <p className="font-semibold text-gray-800">{currentStudent.full_name}</p>
               <p className="text-sm text-gray-500">ID: {currentStudent.student_id}</p>
@@ -108,7 +108,7 @@ export default function RecordMeetingModal({ student, students = [], onClose, on
               required
               value={formData.meeting_date}
               onChange={(e) => setFormData({ ...formData, meeting_date: e.target.value })}
-              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
             />
           </div>
 
@@ -123,7 +123,7 @@ export default function RecordMeetingModal({ student, students = [], onClose, on
               value={formData.absence_reason}
               onChange={(e) => setFormData({ ...formData, absence_reason: e.target.value })}
               placeholder="Document what the student said about their absence..."
-              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
             />
           </div>
 
@@ -136,7 +136,7 @@ export default function RecordMeetingModal({ student, students = [], onClose, on
               required
               value={formData.root_cause}
               onChange={(e) => setFormData({ ...formData, root_cause: e.target.value })}
-              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
             >
               <option value="health">Health Issue</option>
               <option value="family">Family Issue</option>
@@ -158,7 +158,7 @@ export default function RecordMeetingModal({ student, students = [], onClose, on
               value={formData.intervention_notes}
               onChange={(e) => setFormData({ ...formData, intervention_notes: e.target.value })}
               placeholder="Detailed notes about the discussion and observations..."
-              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
             />
           </div>
 
@@ -173,7 +173,7 @@ export default function RecordMeetingModal({ student, students = [], onClose, on
               value={formData.action_plan}
               onChange={(e) => setFormData({ ...formData, action_plan: e.target.value })}
               placeholder="Define specific actions and next steps..."
-              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
             />
           </div>
 
@@ -188,7 +188,7 @@ export default function RecordMeetingModal({ student, students = [], onClose, on
                 value={formData.follow_up_date}
                 onChange={(e) => setFormData({ ...formData, follow_up_date: e.target.value })}
                 min={new Date().toISOString().split('T')[0]}
-                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
               />
             </div>
 
@@ -200,7 +200,7 @@ export default function RecordMeetingModal({ student, students = [], onClose, on
                 required
                 value={formData.urgency_level}
                 onChange={(e) => setFormData({ ...formData, urgency_level: e.target.value })}
-                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
               >
                 <option value="low">Low</option>
                 <option value="medium">Medium</option>
@@ -210,18 +210,18 @@ export default function RecordMeetingModal({ student, students = [], onClose, on
           </div>
 
           {/* Actions */}
-          <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t">
+          <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t border-gray-100">
             <button
               type="button"
               onClick={onClose}
-              className="w-full sm:w-auto px-6 py-2 border rounded-lg hover:bg-gray-50"
+              className="w-full sm:w-auto px-6 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors font-medium text-gray-700"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="w-full sm:w-auto px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              className="w-full sm:w-auto px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
             >
               {loading ? 'Recording...' : 'Record Meeting'}
             </button>

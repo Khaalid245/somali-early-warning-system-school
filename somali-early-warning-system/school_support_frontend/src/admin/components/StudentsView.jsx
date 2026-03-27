@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { User, AlertTriangle, Calendar, FileText, ChevronDown, ChevronRight } from 'lucide-react';
+import { Users, BookOpen, ChevronDown, ChevronRight, GraduationCap } from 'lucide-react';
 import api from '../../api/apiClient';
 import { showToast } from '../../utils/toast';
 
@@ -63,17 +63,24 @@ export default function StudentsView() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Students by Classroom</h2>
-          <p className="text-gray-600">View students grouped by their classrooms</p>
+      <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+            <BookOpen className="w-6 h-6 text-green-600" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-semibold text-gray-900">Students by Classroom</h2>
+            <p className="text-sm text-gray-600">View students grouped by their classrooms</p>
+          </div>
         </div>
-        <div className="text-sm text-gray-600">{classrooms.length} classrooms</div>
+        <div className="px-4 py-2 bg-green-50 rounded-lg border border-green-200">
+          <span className="text-sm font-medium text-green-700">{classrooms.length} classrooms</span>
+        </div>
       </div>
 
       <div className="space-y-4">
         {classrooms.map((classroom) => (
-          <div key={classroom.class_id} className="bg-white rounded-lg shadow overflow-hidden">
+          <div key={classroom.class_id} className="bg-white rounded-lg overflow-hidden" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
             {/* Classroom Header */}
             <button
               onClick={() => setExpandedClass(expandedClass === classroom.class_id ? null : classroom.class_id)}
@@ -84,47 +91,57 @@ export default function StudentsView() {
                   <ChevronDown className="w-5 h-5 text-gray-600" /> : 
                   <ChevronRight className="w-5 h-5 text-gray-600" />
                 }
+                <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                  <BookOpen className="w-5 h-5 text-green-600" />
+                </div>
                 <div className="text-left">
-                  <h3 className="text-lg font-bold text-gray-900">{classroom.name}</h3>
+                  <h3 className="text-lg font-semibold text-gray-900">{classroom.name}</h3>
                   <p className="text-sm text-gray-600">
                     {classroom.students.length} students · Form Master: {classroom.form_master?.name || 'Unassigned'}
                   </p>
                 </div>
               </div>
-              <div className="text-sm text-gray-500">{classroom.academic_year}</div>
+              <div className="px-3 py-1 bg-gray-100 rounded-lg">
+                <span className="text-sm font-medium text-gray-700">{classroom.academic_year}</span>
+              </div>
             </button>
 
             {/* Students Table */}
             {expandedClass === classroom.class_id && (
-              <div className="border-t">
+              <div className="border-t border-gray-100">
                 {classroom.students.length === 0 ? (
-                  <div className="px-6 py-8 text-center text-gray-500">No students in this classroom</div>
+                  <div className="px-6 py-8 text-center text-gray-500">
+                    <GraduationCap className="w-10 h-10 mx-auto mb-2 text-gray-400" />
+                    <p className="text-sm">No students in this classroom</p>
+                  </div>
                 ) : (
                   <table className="w-full">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">Student ID</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">Name</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">Gender</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">Status</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wide">Student ID</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wide">Name</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wide">Gender</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wide">Status</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y">
+                    <tbody>
                       {classroom.students.map((student) => (
-                        <tr key={student.student_id} className="hover:bg-gray-50">
-                          <td className="px-4 py-3 text-sm font-mono">{student.admission_number}</td>
-                          <td className="px-4 py-3">
+                        <tr key={student.student_id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                          <td className="px-4 py-4 text-sm font-mono font-medium text-gray-900">{student.admission_number}</td>
+                          <td className="px-4 py-4">
                             <div className="flex items-center gap-2">
-                              <User className="w-4 h-4 text-gray-400" />
-                              <span className="font-medium">{student.full_name}</span>
+                              <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                                <Users className="w-4 h-4 text-green-600" />
+                              </div>
+                              <span className="font-medium text-gray-900">{student.full_name}</span>
                             </div>
                           </td>
-                          <td className="px-4 py-3">
+                          <td className="px-4 py-4">
                             <span className="text-sm text-gray-700 capitalize">{student.gender}</span>
                           </td>
-                          <td className="px-4 py-3">
-                            <span className={`px-2 py-1 text-xs rounded-full ${
-                              student.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                          <td className="px-4 py-4">
+                            <span className={`px-3 py-1 text-xs font-medium rounded-full ${
+                              student.is_active ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-gray-50 text-gray-800 border border-gray-200'
                             }`}>
                               {student.status}
                             </span>

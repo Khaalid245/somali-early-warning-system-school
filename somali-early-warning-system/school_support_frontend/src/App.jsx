@@ -7,6 +7,7 @@ import SessionTimeout from './components/SessionTimeout';
 
 import Login from "./auth/Login";
 import ProtectedRoute from "./auth/ProtectedRoute";
+import ResetPassword from "./auth/ResetPassword";
 
 // Teacher pages
 import TeacherDashboard from "./teacher/DashboardFixed";
@@ -18,13 +19,19 @@ import AttendanceHistory from "./teacher/AttendanceHistory";
 import ProfilePage from "./teacher/ProfilePage";
 import SettingsPage from "./teacher/SettingsPage";
 import MyClasses from "./teacher/MyClasses";
+import TeacherSchedule from "./teacher/TeacherSchedule";
 import MySubjects from "./teacher/Mysubjects";
 import MessagesPage from "./teacher/MessagesPage";
 
 // Form Master pages
-import FormMasterDashboard from "./formMaster/DashboardEnhanced";
+import FormMasterDashboard from "./formMaster/DashboardClean";
 import InterventionsPage from "./formMaster/InterventionsPage";
 import FormMasterMessagesPage from "./formMaster/MessagesPage";
+import FormMasterProfilePage from "./formMaster/ProfilePage";
+import FormMasterSettingsPage from "./formMaster/SettingsPage";
+import MyClassPage from "./formMaster/MyClassPage";
+import StudentDetailPage from "./formMaster/StudentDetailPage";
+import AlertsPage from "./formMaster/AlertsPage";
 import StudentAttendanceReport from "./pages/StudentAttendanceReport";
 
 // Admin pages
@@ -57,6 +64,7 @@ function App() {
 
         {/* LOGIN */}
         <Route path="/login" element={<Login />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
 
         {/* DASHBOARD REDIRECT */}
         <Route
@@ -161,6 +169,15 @@ function App() {
         />
 
         <Route
+          path="/teacher/schedule"
+          element={
+            <ProtectedRoute role="teacher">
+              <TeacherSchedule />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
           path="/teacher/subjects"
           element={
             <ProtectedRoute role="teacher">
@@ -220,7 +237,7 @@ function App() {
           path="/form-master/settings"
           element={
             <ProtectedRoute role="form_master">
-              <SettingsPage />
+              <FormMasterSettingsPage />
             </ProtectedRoute>
           }
         />
@@ -229,7 +246,34 @@ function App() {
           path="/form-master/profile"
           element={
             <ProtectedRoute role="form_master">
-              <ProfilePage />
+              <FormMasterProfilePage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/form-master/my-class"
+          element={
+            <ProtectedRoute role="form_master">
+              <MyClassPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/form-master/student/:studentId"
+          element={
+            <ProtectedRoute role="form_master">
+              <StudentDetailPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/form-master/alerts"
+          element={
+            <ProtectedRoute role="form_master">
+              <AlertsPage />
             </ProtectedRoute>
           }
         />

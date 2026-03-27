@@ -6,11 +6,22 @@ export default function InterventionProgressTracker({ meeting, onClose, onUpdate
   const [progressText, setProgressText] = useState('');
   const [newStatus, setNewStatus] = useState(meeting?.status || 'open');
   const [loading, setLoading] = useState(false);
-  const [history, setHistory] = useState([]);
+  const [history, setHistory] = useState(meeting?.progress_updates || []);
+
+  // Re-fetch meeting detail to get fresh progress_updates after each update
+  const refreshHistory = async () => {
+    try {
+      const res = await interventionMeetingApi.getMeeting(meeting.id);
+      setHistory(res.data.progress_updates || []);
+    } catch {
+      // silently ignore — stale history is better than a crash
+    }
+  };
 
   useEffect(() => {
     if (meeting) {
       setHistory(meeting.progress_updates || []);
+      setNewStatus(meeting.status || 'open');
     }
   }, [meeting]);
 
@@ -36,7 +47,8 @@ export default function InterventionProgressTracker({ meeting, onClose, onUpdate
 
       showToast.success('Progress updated successfully');
       setProgressText('');
-      onUpdate?.();
+      await refreshHistory();   // re-fetch history inside modal immediately
+      onUpdate?.();             // reload parent list
     } catch (error) {
       showToast.error(error.response?.data?.error || 'Failed to update progress');
     } finally {
@@ -66,8 +78,8 @@ export default function InterventionProgressTracker({ meeting, onClose, onUpdate
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 flex items-center justify-center z-50 p-2 sm:p-4">
+      <div className="bg-white rounded-lg shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto border border-gray-200">
         {/* Header */}
         <div className="sticky top-0 bg-white border-b px-4 sm:px-6 py-3 sm:py-4 flex justify-between items-center">
           <div>

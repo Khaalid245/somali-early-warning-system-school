@@ -25,25 +25,18 @@ export default function InterventionManagement({ students = [] }) {
   const loadData = async () => {
     setLoading(true);
     try {
-      console.log('Loading intervention data...');
       const [meetingsRes, statsRes, recurringRes] = await Promise.all([
         interventionMeetingApi.listMeetings(filters),
         interventionMeetingApi.getDashboardStats(),
         interventionMeetingApi.getRecurringAbsences(),
       ]);
 
-      console.log('Meetings response:', meetingsRes.data);
-      console.log('Stats response:', statsRes.data);
-      
       const meetingsData = Array.isArray(meetingsRes.data) ? meetingsRes.data : (meetingsRes.data.results || []);
-      console.log('Meetings array:', meetingsData);
       
       setMeetings(meetingsData);
       setStats(statsRes.data);
       setRecurringStudents(recurringRes.data.recurring_students || []);
-    } catch (error) {
-      console.error('Load error:', error);
-      console.error('Error response:', error.response?.data);
+    } catch {
       showToast.error('Failed to load intervention data');
       setMeetings([]);
       setStats(null);
@@ -70,29 +63,35 @@ export default function InterventionManagement({ students = [] }) {
 
   const getStatusColor = (status) => {
     const colors = {
-      open: 'bg-blue-100 text-blue-800',
-      monitoring: 'bg-yellow-100 text-yellow-800',
-      improving: 'bg-green-100 text-green-800',
-      not_improving: 'bg-red-100 text-red-800',
-      escalated: 'bg-purple-100 text-purple-800',
-      closed: 'bg-gray-100 text-gray-800',
+      open: 'bg-green-50 text-green-800 border border-green-200',
+      monitoring: 'bg-yellow-50 text-yellow-800 border border-yellow-200',
+      improving: 'bg-green-50 text-green-800 border border-green-200',
+      not_improving: 'bg-red-50 text-red-800 border border-red-200',
+      escalated: 'border border-red-300',
+      closed: 'bg-gray-50 text-gray-800 border border-gray-200',
     };
-    return colors[status] || 'bg-gray-100 text-gray-800';
+    const baseStyle = colors[status] || 'bg-gray-50 text-gray-800 border border-gray-200';
+    return status === 'escalated' ? `${baseStyle}` : baseStyle;
   };
+
+  const getEscalatedStyle = () => ({
+    background: '#FEF2F2',
+    color: '#DC2626',
+  });
 
   const getUrgencyBadge = (urgency) => {
     const colors = {
-      low: 'bg-green-100 text-green-800',
-      medium: 'bg-yellow-100 text-yellow-800',
-      high: 'bg-red-100 text-red-800',
+      low: 'bg-gray-50 text-gray-800 border border-gray-200',
+      medium: 'bg-yellow-50 text-yellow-800 border border-yellow-200',
+      high: 'bg-red-50 text-red-800 border border-red-200',
     };
-    return colors[urgency] || 'bg-gray-100 text-gray-800';
+    return colors[urgency] || 'bg-gray-50 text-gray-800 border border-gray-200';
   };
 
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
       </div>
     );
   }
@@ -101,24 +100,24 @@ export default function InterventionManagement({ students = [] }) {
     <div className="space-y-4">
       {/* Statistics Cards */}
       {stats && (
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          <div className="bg-white p-3 rounded-lg shadow">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          <div className="bg-white p-3 sm:p-4 rounded-lg shadow">
             <p className="text-xs text-gray-600">Total Meetings</p>
-            <p className="text-xl sm:text-2xl font-bold text-gray-800">{stats.total_meetings}</p>
+            <p className="text-xl sm:text-2xl font-semibold text-gray-800">{stats.total_meetings}</p>
           </div>
-          <div className="bg-white p-3 rounded-lg shadow">
+          <div className="bg-white p-3 sm:p-4 rounded-lg shadow">
             <p className="text-xs text-gray-600">Active Cases</p>
-            <p className="text-xl sm:text-2xl font-bold text-blue-600">
+            <p className={`text-xl sm:text-2xl font-semibold ${(stats.by_status.open + stats.by_status.monitoring) === 0 ? 'text-gray-400' : 'text-green-600'}`}>
               {stats.by_status.open + stats.by_status.monitoring}
             </p>
           </div>
-          <div className="bg-white p-3 rounded-lg shadow">
+          <div className="bg-white p-3 sm:p-4 rounded-lg shadow">
             <p className="text-xs text-gray-600">High Urgency</p>
-            <p className="text-xl sm:text-2xl font-bold text-red-600">{stats.high_urgency}</p>
+            <p className={`text-xl sm:text-2xl font-semibold ${stats.high_urgency === 0 ? 'text-gray-400' : 'text-red-600'}`}>{stats.high_urgency}</p>
           </div>
-          <div className="bg-white p-3 rounded-lg shadow">
+          <div className="bg-white p-3 sm:p-4 rounded-lg shadow">
             <p className="text-xs text-gray-600">Overdue Follow-ups</p>
-            <p className="text-xl sm:text-2xl font-bold text-orange-600">{stats.overdue_followups}</p>
+            <p className={`text-xl sm:text-2xl font-semibold ${stats.overdue_followups === 0 ? 'text-gray-400' : 'text-orange-600'}`}>{stats.overdue_followups}</p>
           </div>
         </div>
       )}
@@ -157,7 +156,7 @@ export default function InterventionManagement({ students = [] }) {
             <select
               value={filters.status}
               onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-              className="flex-1 px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
             >
               <option value="">All Statuses</option>
               <option value="open">Open</option>
@@ -171,7 +170,7 @@ export default function InterventionManagement({ students = [] }) {
             <select
               value={filters.urgency}
               onChange={(e) => setFilters({ ...filters, urgency: e.target.value })}
-              className="flex-1 px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
             >
               <option value="">All Urgency Levels</option>
               <option value="high">High</option>
@@ -182,7 +181,7 @@ export default function InterventionManagement({ students = [] }) {
 
           <button
             onClick={() => setShowRecordModal(true)}
-            className="w-full sm:w-auto px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 whitespace-nowrap"
+            className="w-full sm:w-auto px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium whitespace-nowrap"
           >
             + Record New Meeting
           </button>
@@ -193,16 +192,16 @@ export default function InterventionManagement({ students = [] }) {
       <div className="hidden lg:block bg-white rounded-lg shadow overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+            <thead style={{ background: '#F9FAFB' }}>
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Student</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Root Cause</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Urgency</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Follow-up</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Progress</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Student</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Date</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Root Cause</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Urgency</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Follow-up</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Progress</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -214,7 +213,7 @@ export default function InterventionManagement({ students = [] }) {
                 </tr>
               ) : (
                 meetings.map((meeting) => (
-                  <tr key={meeting.id} className="hover:bg-gray-50">
+                  <tr key={meeting.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4">
                       <div>
                         <p className="font-medium text-gray-800">{meeting.student_name}</p>
@@ -227,7 +226,10 @@ export default function InterventionManagement({ students = [] }) {
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-700">{meeting.root_cause?.replace('_', ' ')}</td>
                     <td className="px-6 py-4">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(meeting.status)}`}>
+                      <span 
+                        className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(meeting.status)}`}
+                        style={meeting.status === 'escalated' ? getEscalatedStyle() : {}}
+                      >
                         {meeting.status?.replace('_', ' ')}
                       </span>
                     </td>
@@ -240,7 +242,7 @@ export default function InterventionManagement({ students = [] }) {
                       {meeting.follow_up_date ? (
                         <span className={meeting.is_overdue ? 'text-red-600 font-medium' : 'text-gray-700'}>
                           {new Date(meeting.follow_up_date).toLocaleDateString()}
-                          {meeting.is_overdue && ' ⚠️'}
+                          {meeting.is_overdue && ' (Overdue)'}
                         </span>
                       ) : (
                         <span className="text-gray-400">Not set</span>
@@ -250,7 +252,7 @@ export default function InterventionManagement({ students = [] }) {
                     <td className="px-6 py-4">
                       <button
                         onClick={() => handleViewProgress(meeting)}
-                        className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                        className="text-green-600 hover:text-green-700 text-sm font-medium underline"
                       >
                         Track Progress →
                       </button>
@@ -290,7 +292,10 @@ export default function InterventionManagement({ students = [] }) {
                 </div>
                 <div>
                   <p className="text-gray-500">Status</p>
-                  <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(meeting.status)}`}>
+                  <span 
+                    className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(meeting.status)}`}
+                    style={meeting.status === 'escalated' ? getEscalatedStyle() : {}}
+                  >
                     {meeting.status?.replace('_', ' ')}
                   </span>
                 </div>
@@ -303,7 +308,7 @@ export default function InterventionManagement({ students = [] }) {
                   {meeting.follow_up_date ? (
                     <p className={`text-xs ${meeting.is_overdue ? 'text-red-600 font-medium' : 'text-gray-700'}`}>
                       {new Date(meeting.follow_up_date).toLocaleDateString()}
-                      {meeting.is_overdue && ' ⚠️'}
+                      {meeting.is_overdue && ' (Overdue)'}
                     </p>
                   ) : (
                     <p className="text-gray-400 text-xs">Not set</p>
@@ -315,7 +320,7 @@ export default function InterventionManagement({ students = [] }) {
                 <p className="text-xs text-gray-600">{meeting.progress_count} update(s)</p>
                 <button
                   onClick={() => handleViewProgress(meeting)}
-                  className="text-blue-600 hover:text-blue-800 text-xs font-medium"
+                  className="text-green-600 hover:text-green-700 text-xs font-medium underline"
                 >
                   Track Progress →
                 </button>

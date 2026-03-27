@@ -1,320 +1,233 @@
 import { useEffect, useState } from 'react';
 import api from '../../api/apiClient';
 import { showToast } from '../../utils/toast';
-import { RefreshCw, AlertCircle, Clock, CheckCircle, Phone, Mail } from 'lucide-react';
+import {
+  TrendingUp, CheckCircle, XCircle, Clock,
+  AlertTriangle, RefreshCw,
+} from 'lucide-react';
+
+const STATUS_BADGE = {
+  present:      'bg-green-100 text-green-700',
+  absent:       'bg-red-100 text-red-700',
+  late:         'bg-yellow-100 text-yellow-700',
+  not_recorded: 'bg-gray-100 text-gray-500',
+};
+
+const label = (s) => s === 'not_recorded' ? 'Not recorded' : s.charAt(0).toUpperCase() + s.slice(1);
 
 export default function DailyMonitor() {
+  const [data, setData]       = useState(null);
   const [loading, setLoading] = useState(true);
-  const [dailyData, setDailyData] = useState(null);
-  const [lastUpdated, setLastUpdated] = useState(new Date());
-  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [date, setDate]       = useState(new Date().toISOString().split('T')[0]);
 
-  useEffect(() => {
-    loadDailyData();
-    
-    if (autoRefresh) {
-      const interval = setInterval(() => {
-        loadDailyData();
-      }, 60000); // Refresh every minute
-      return () => clearInterval(interval);
-    }
-  }, [autoRefresh]);
+  useEffect(() => { load(date); }, [date]);
 
-  const loadDailyData = async () => {
+  const load = async (d) => {
+    setLoading(true);
     try {
-      const today = new Date().toISOString().split('T')[0];
-      const dashboardRes = await api.get('/dashboard/');
-      
-      const dashboardData = dashboardRes.data;
-      const allStudents = dashboardData.high_risk_students || [];
-
-      // Calculate today's stats from dashboard data
-      const absentStudents = allStudents.filter(s => s.absent_count > 0).slice(0, 10);
-      const totalStudents = allStudents.length;
-      const avgAttendance = totalStudents > 0 
-        ? (allStudents.reduce((sum, s) => sum + s.attendance_rate, 0) / totalStudents).toFixed(1)
-        : 0;
-
-      setDailyData({
-        totalRecords: totalStudents,
-        presentCount: Math.round(totalStudents * (avgAttendance / 100)),
-        absentCount: absentStudents.length,
-        lateCount: allStudents.filter(s => s.late_count > 0).length,
-        attendanceRate: avgAttendance,
-        absentStudents: absentStudents.map(s => ({
-          student_id: s.student__student_id,
-          student_name: s.student__full_name,
-          classroom: s.classroom,
-          days_missed: s.absent_count
-        })),
-        lateStudents: allStudents.filter(s => s.late_count > 0).slice(0, 10).map(s => ({
-          student_id: s.student__student_id,
-          student_name: s.student__full_name,
-          classroom: s.classroom,
-          late_count: s.late_count
-        })),
-        todayAlerts: dashboardData.urgent_alerts?.slice(0, 5) || []
-      });
-      setLastUpdated(new Date());
-    } catch (err) {
-      showToast.error('Failed to load daily data');
-      console.error(err);
+      const res = await api.get(`/attendance/daily-monitor/?date=${d}`);
+      setData(res.data);
+    } catch {
+      showToast.error('Failed to load daily monitor');
     } finally {
       setLoading(false);
     }
   };
 
-  const getTimeAgo = (date) => {
-    const seconds = Math.floor((new Date() - date) / 1000);
-    if (seconds < 60) return 'Just now';
-    const minutes = Math.floor(seconds / 60);
-    return `${minutes} min ago`;
-  };
+  if (loading) return (
+    <div className="flex items-center justify-center h-64">
+      <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-green-600" />
+    </div>
+  );
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
+  // ── Derived counts ────────────────────────────────────────────────────────
+  const total    = data?.total_students ?? 0;
+  const sessions = data?.subject_summaries ?? [];
+  const breakdown = data?.student_breakdown ?? [];
+  const fullDayAbsent = data?.full_day_absent_students ?? [];
+
+  // Aggregate across all sessions for summary cards
+  const totalPresent = sessions.reduce((s, x) => s + x.present_count, 0);
+  const totalAbsent  = sessions.reduce((s, x) => s + x.absent_count,  0);
+  const totalLate    = sessions.reduce((s, x) => s + x.late_count,    0);
+  const totalRecords = totalPresent + totalAbsent + totalLate;
+  const rate = totalRecords > 0 ? ((totalPresent / totalRecords) * 100).toFixed(1) : '—';
+
+  // Students with any absence or late today (for "Needs Attention")
+  const needsAttention = breakdown.filter(s =>
+    s.subjects.some(sub => sub.status === 'absent' || sub.status === 'late')
+  );
+
+  const displayDate = new Date(date + 'T00:00:00').toLocaleDateString('en-GB', {
+    weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
+  });
 
   return (
     <div className="space-y-4">
-      {/* Header with Auto-Refresh */}
+
+      {/* ── Header ─────────────────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div className="min-w-0">
-          <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 truncate">Daily Monitor</h2>
-          <p className="text-xs sm:text-sm text-gray-600 truncate">Real-time attendance tracking for {new Date().toLocaleDateString()}</p>
+        <div>
+          <h2 className="text-xl font-bold text-gray-900">Daily Attendance Monitor</h2>
+          <p className="text-sm text-gray-500">
+            {data?.classroom ?? '—'} · {total} students · {displayDate}
+          </p>
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <label className="flex items-center gap-1 text-xs text-gray-600">
-            <input
-              type="checkbox"
-              checked={autoRefresh}
-              onChange={(e) => setAutoRefresh(e.target.checked)}
-              className="rounded"
-            />
-            Auto-refresh
-          </label>
+        <div className="flex items-center gap-2">
+          <input
+            type="date"
+            value={date}
+            onChange={e => setDate(e.target.value)}
+            className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+          />
           <button
-            onClick={loadDailyData}
-            className="flex items-center gap-1 px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-100 rounded-lg transition"
+            onClick={() => load(date)}
+            className="flex items-center gap-1 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition"
           >
-            <RefreshCw className="w-3 h-3" />
-            <span>Refresh</span>
+            <RefreshCw className="w-4 h-4" />
           </button>
-          <div className="text-xs text-gray-500 flex items-center gap-1">
-            <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-            <span className="whitespace-nowrap">{getTimeAgo(lastUpdated)}</span>
-          </div>
         </div>
       </div>
 
-      {/* Today's Snapshot Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3">
-          <div className="flex items-center gap-2 mb-1">
-            <CheckCircle className="w-6 h-6 sm:w-8 sm:h-8 text-green-600 flex-shrink-0" />
-            <div className="min-w-0">
-              <p className="text-xs text-gray-600">Present</p>
-              <p className="text-xl sm:text-2xl font-bold text-gray-900">{dailyData?.presentCount}</p>
+      {/* ── Summary Cards ──────────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {[
+          { icon: TrendingUp,   label: 'Attendance Rate', value: `${rate}%`,       color: 'text-yellow-600' },
+          { icon: CheckCircle,  label: 'Present',         value: totalPresent,      color: 'text-green-600'  },
+          { icon: XCircle,      label: 'Absent',          value: totalAbsent,       color: 'text-red-600'    },
+          { icon: Clock,        label: 'Late',            value: totalLate,         color: 'text-yellow-500' },
+        ].map(({ icon: Icon, label: lbl, value, color }) => (
+          <div key={lbl} className="bg-white border border-gray-200 rounded-lg shadow-sm p-3 flex items-center gap-3">
+            <Icon className={`w-5 h-5 flex-shrink-0 ${color}`} />
+            <div>
+              <p className="text-xs text-gray-500">{lbl}</p>
+              <p className="text-xl font-bold text-gray-900">{value}</p>
             </div>
           </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3">
-          <div className="flex items-center gap-2 mb-1">
-            <AlertCircle className="w-6 h-6 sm:w-8 sm:h-8 text-red-600 flex-shrink-0" />
-            <div className="min-w-0">
-              <p className="text-xs text-gray-600">Absent</p>
-              <p className="text-xl sm:text-2xl font-bold text-gray-900">{dailyData?.absentCount}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3">
-          <div className="flex items-center gap-2 mb-1">
-            <Clock className="w-6 h-6 sm:w-8 sm:h-8 text-yellow-600 flex-shrink-0" />
-            <div className="min-w-0">
-              <p className="text-xs text-gray-600">Late</p>
-              <p className="text-xl sm:text-2xl font-bold text-gray-900">{dailyData?.lateCount}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-2xl sm:text-3xl flex-shrink-0">📊</span>
-            <div className="min-w-0">
-              <p className="text-xs text-gray-600">Attendance Rate</p>
-              <p className="text-xl sm:text-2xl font-bold text-gray-900">{dailyData?.attendanceRate}%</p>
-            </div>
-          </div>
-        </div>
+        ))}
       </div>
 
-      {/* Students Absent Today */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-        <div className="p-3 sm:p-4 border-b border-gray-200">
-          <h3 className="text-sm sm:text-base font-semibold text-gray-800">Students Absent Today</h3>
-          <p className="text-xs text-gray-500">Requires immediate follow-up</p>
+      {/* ── Alert Banner ───────────────────────────────────────────────── */}
+      {fullDayAbsent.length > 0 && (
+        <div className="flex items-start gap-2 bg-yellow-50 border border-yellow-200 rounded-lg px-4 py-3 text-sm text-yellow-800">
+          <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0 text-yellow-600" />
+          <span>
+            <span className="font-semibold">{fullDayAbsent.length} student{fullDayAbsent.length > 1 ? 's' : ''} absent all day: </span>
+            {fullDayAbsent.map(s => s.student_name).join(', ')}
+          </span>
         </div>
-        {dailyData?.absentStudents.length > 0 ? (
-          <>
-          <div className="hidden md:block overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="text-left px-6 py-4 text-sm font-semibold text-gray-700">Student</th>
-                <th className="text-left px-6 py-4 text-sm font-semibold text-gray-700">Classroom</th>
-                <th className="text-center px-6 py-4 text-sm font-semibold text-gray-700">Days Missed</th>
-                <th className="text-right px-6 py-4 text-sm font-semibold text-gray-700">Quick Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {dailyData.absentStudents.map((student, idx) => (
-                <tr key={idx} className="hover:bg-gray-50">
-                  <td className="px-6 py-4">
-                    <p className="font-medium text-gray-800">{student.student_name}</p>
-                    <p className="text-xs text-gray-500">ID: {student.student_id}</p>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-600">{student.classroom}</td>
-                  <td className="px-6 py-4 text-center">
-                    <span className="text-lg font-bold text-red-600">{student.days_missed} days</span>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <button className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Call Parent">
-                        <Phone className="w-4 h-4" />
-                      </button>
-                      <button className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition" title="Send Email">
-                        <Mail className="w-4 h-4" />
-                      </button>
+      )}
+
+      {/* ── No sessions recorded ───────────────────────────────────────── */}
+      {sessions.length === 0 && (
+        <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-8 text-center text-sm text-gray-500">
+          No attendance sessions recorded for this date.
+        </div>
+      )}
+
+      {sessions.length > 0 && (
+        <>
+          {/* ── Needs Attention ──────────────────────────────────────────── */}
+          <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100">
+              <AlertTriangle className="w-4 h-4 text-yellow-500" />
+              <h3 className="text-sm font-semibold text-gray-800">Needs Attention Today</h3>
+              {needsAttention.length > 0 && (
+                <span className="ml-auto text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-medium">
+                  {needsAttention.length}
+                </span>
+              )}
+            </div>
+            {needsAttention.length === 0 ? (
+              <div className="px-4 py-6 text-center text-sm text-gray-500 flex flex-col items-center gap-2">
+                <CheckCircle className="w-8 h-8 text-green-500" />
+                All students present today
+              </div>
+            ) : (
+              <ul className="divide-y divide-gray-50">
+                {needsAttention.map(s => {
+                  const worstStatus = s.subjects.some(x => x.status === 'absent') ? 'absent' : 'late';
+                  const absentSubjects = s.subjects.filter(x => x.status === 'absent').map(x => x.subject_name);
+                  const lateSubjects  = s.subjects.filter(x => x.status === 'late').map(x => x.subject_name);
+                  const detail = [
+                    absentSubjects.length ? `Absent: ${absentSubjects.join(', ')}` : '',
+                    lateSubjects.length   ? `Late: ${lateSubjects.join(', ')}`     : '',
+                  ].filter(Boolean).join(' · ');
+                  return (
+                    <li key={s.student_id} className="flex items-center justify-between px-4 py-2.5 gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-800">{s.student_name}</p>
+                        {detail && <p className="text-xs text-gray-500 truncate">{detail}</p>}
+                      </div>
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${STATUS_BADGE[worstStatus]}`}>
+                        {label(worstStatus)}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+
+          {/* ── Session Summary ───────────────────────────────────────────── */}
+          <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
+            <div className="px-4 py-3 border-b border-gray-100">
+              <h3 className="text-sm font-semibold text-gray-800">Today's Sessions</h3>
+            </div>
+            <ul className="divide-y divide-gray-50">
+              {sessions.map(s => (
+                <li key={s.session_id} className="flex items-center justify-between px-4 py-3 gap-3">
+                  <p className="text-sm font-medium text-gray-800">{s.subject_name}</p>
+                  <div className="flex items-center gap-3 text-xs text-gray-600">
+                    <span className="text-green-700 font-medium">{s.present_count} present</span>
+                    <span className="text-red-600 font-medium">{s.absent_count} absent</span>
+                    <span className="text-gray-400">{s.attendance_rate}%</span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* ── Class Overview ────────────────────────────────────────────── */}
+          <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
+            <div className="px-4 py-3 border-b border-gray-100">
+              <h3 className="text-sm font-semibold text-gray-800">Class Overview</h3>
+            </div>
+            <ul className="divide-y divide-gray-50">
+              {breakdown.map(s => {
+                // Determine overall status: worst across sessions
+                const statuses = s.subjects.map(x => x.status);
+                const overall = statuses.includes('absent')       ? 'absent'
+                              : statuses.includes('late')         ? 'late'
+                              : statuses.includes('present')      ? 'present'
+                              : 'not_recorded';
+                const Icon = overall === 'present' ? CheckCircle
+                           : overall === 'absent'  ? XCircle
+                           : overall === 'late'    ? Clock
+                           : null;
+                const iconColor = overall === 'present' ? 'text-green-500'
+                                : overall === 'absent'  ? 'text-red-500'
+                                : overall === 'late'    ? 'text-yellow-500'
+                                : 'text-gray-300';
+                return (
+                  <li key={s.student_id} className="flex items-center justify-between px-4 py-2.5 gap-3">
+                    <div className="flex items-center gap-2 min-w-0">
+                      {Icon
+                        ? <Icon className={`w-4 h-4 flex-shrink-0 ${iconColor}`} />
+                        : <span className="w-4 h-4 flex-shrink-0 rounded-full bg-gray-200" />
+                      }
+                      <p className="text-sm text-gray-800">{s.student_name}</p>
                     </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0 ${STATUS_BADGE[overall]}`}>
+                      {label(overall)}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
           </div>
-          {/* Mobile Cards */}
-          <div className="md:hidden">
-            {dailyData.absentStudents.map((student, idx) => (
-              <div key={idx} className="p-3 border-b border-gray-100 last:border-0">
-                <div className="flex justify-between items-start gap-2 mb-2">
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium text-sm text-gray-800 truncate">{student.student_name}</p>
-                    <p className="text-xs text-gray-500">ID: {student.student_id}</p>
-                    <p className="text-xs text-gray-600 mt-0.5">{student.classroom}</p>
-                  </div>
-                  <span className="text-base font-bold text-red-600 flex-shrink-0">{student.days_missed} days</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button className="flex-1 p-2 text-xs text-blue-600 bg-blue-50 hover:bg-blue-100 rounded transition flex items-center justify-center gap-1">
-                    <Phone className="w-3 h-3" />
-                    Call
-                  </button>
-                  <button className="flex-1 p-2 text-xs text-green-600 bg-green-50 hover:bg-green-100 rounded transition flex items-center justify-center gap-1">
-                    <Mail className="w-3 h-3" />
-                    Email
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-          </>
-        ) : (
-          <div className="p-8 text-center text-sm text-gray-500">
-            <CheckCircle className="w-12 h-12 text-green-600 mx-auto mb-3" />
-            <p>Perfect attendance today! 🎉</p>
-          </div>
-        )}
-      </div>
-
-      {/* Students Late Today */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-        <div className="p-3 sm:p-4 border-b border-gray-200">
-          <h3 className="text-sm sm:text-base font-semibold text-gray-800">Students Late Today</h3>
-          <p className="text-xs text-gray-500">Monitor for patterns</p>
-        </div>
-        {dailyData?.lateStudents.length > 0 ? (
-          <>
-          <div className="hidden md:block overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="text-left px-6 py-4 text-sm font-semibold text-gray-700">Student</th>
-                <th className="text-left px-6 py-4 text-sm font-semibold text-gray-700">Classroom</th>
-                <th className="text-center px-6 py-4 text-sm font-semibold text-gray-700">Late Count</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {dailyData.lateStudents.map((student, idx) => (
-                <tr key={idx} className="hover:bg-gray-50">
-                  <td className="px-6 py-4">
-                    <p className="font-medium text-gray-800">{student.student_name}</p>
-                    <p className="text-xs text-gray-500">ID: {student.student_id}</p>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-600">{student.classroom}</td>
-                  <td className="px-6 py-4 text-center">
-                    <span className="text-lg font-bold text-orange-600">{student.late_count} times</span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          </div>
-          {/* Mobile Cards */}
-          <div className="md:hidden">
-            {dailyData.lateStudents.map((student, idx) => (
-              <div key={idx} className="p-3 border-b border-gray-100 last:border-0">
-                <div className="flex justify-between items-start gap-2">
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium text-sm text-gray-800 truncate">{student.student_name}</p>
-                    <p className="text-xs text-gray-500">ID: {student.student_id}</p>
-                    <p className="text-xs text-gray-600 mt-0.5">{student.classroom}</p>
-                  </div>
-                  <span className="text-base font-bold text-orange-600 flex-shrink-0">{student.late_count} times</span>
-                </div>
-              </div>
-            ))}
-          </div>
-          </>
-        ) : (
-          <div className="p-8 text-center text-sm text-gray-500">No late arrivals today</div>
-        )}
-      </div>
-
-      {/* Today's New Alerts */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-        <div className="p-3 sm:p-4 border-b border-gray-200">
-          <h3 className="text-sm sm:text-base font-semibold text-gray-800">New Alerts Today</h3>
-        </div>
-        {dailyData?.todayAlerts.length > 0 ? (
-          <div>
-            {dailyData.todayAlerts.map((alert) => (
-              <div key={alert.alert_id} className="p-3 sm:p-4 border-b border-gray-100 last:border-0 hover:bg-gray-50">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="font-semibold text-sm text-gray-800 truncate">{alert.student__full_name || 'Unknown Student'}</p>
-                    <p className="text-xs text-gray-600">{alert.alert_type?.replace('_', ' ').toUpperCase()}</p>
-                  </div>
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-semibold flex-shrink-0 ${
-                    alert.risk_level === 'critical' ? 'bg-red-100 text-red-700' :
-                    alert.risk_level === 'high' ? 'bg-orange-100 text-orange-700' :
-                    'bg-yellow-100 text-yellow-700'
-                  }`}>
-                    {alert.risk_level?.toUpperCase()}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="p-8 text-center text-sm text-gray-500">No new alerts today</div>
-        )}
-      </div>
+        </>
+      )}
     </div>
   );
 }

@@ -20,9 +20,9 @@ export const interventionMeetingApi = {
     return api.get(`/interventions/meetings/${id}/`);
   },
 
-  // Update meeting
+  // Update meeting (PATCH — partial update only)
   updateMeeting: (id, data) => {
-    return api.put(`/interventions/meetings/${id}/`, data);
+    return api.patch(`/interventions/meetings/${id}/`, data);
   },
 
   // Delete meeting

@@ -1,0 +1,133 @@
+services:
+  db:
+    image: mysql:8.0
+    container_name: school_support_db
+    environment:
+      MYSQL_DATABASE: school_support_db
+      MYSQL_USER: django_user
+      MYSQL_PASSWORD: SchoolSupport123  # TODO: Change this to a stronger password
+      MYSQL_ROOT_PASSWORD: RootPassword123  # TODO: Change this to a stronger password
+    ports:
+      - "3308:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: school_support_redis
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  backend:
+    build: ./school_support_backend
+    container_name: school_support_backend
+    command: sh -c "python manage.py migrate && gunicorn --bind 0.0.0.0:8000 --workers 3 --timeout 120 school_support_backend.wsgi:application"
+    volumes:
+      - ./school_support_backend:/app
+    ports:
+      - "8000:8000"
+    environment:
+      # Database Configuration
+      - DB_NAME=school_support_db
+      - DB_USER=django_user
+      - DB_PASSWORD=SchoolSupport123
+      - DB_HOST=db
+      - DB_PORT=3306
+      
+      # Redis Configuration
+      - REDIS_URL=redis://redis:6379/0
+      
+      # Security Settings - FIXED FOR PRODUCTION
+      - SECRET_KEY=wg!*9h4v4etzwvfk10^&or3d-+3k9c0!)gb6wc#z^n4e^lm#j^
+      - DEBUG=False
+      - ALLOWED_HOSTS=localhost,127.0.0.1,backend,alifmonitor.com,www.alifmonitor.com
+      
+      # CORS Settings - FIXED FOR PRODUCTION
+      - CORS_ALLOWED_ORIGINS=https://alifmonitor.com,https://www.alifmonitor.com
+      
+      # Frontend URL - FIXED FOR PRODUCTION
+      - FRONTEND_URL=https://alifmonitor.com
+      
+      # Email Settings - CONFIGURE THESE FOR YOUR EMAIL
+      - EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
+      - EMAIL_HOST=smtp.gmail.com
+      - EMAIL_PORT=587
+      - EMAIL_USE_TLS=True
+      - EMAIL_HOST_USER=alifmonitor8@gmail.com
+      - EMAIL_HOST_PASSWORD=iayncfqrzxcqjstl
+      - DEFAULT_FROM_EMAIL=noreply@alifmonitor.com
+      
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  scheduler:
+    build: ./school_support_backend
+    container_name: school_support_scheduler
+    command: sh -c "echo '0 11 * * 1-5 python /app/manage.py send_attendance_reminders >> /var/log/reminders.log 2>&1' | crontab - && crond -f"
+    volumes:
+      - ./school_support_backend:/app
+    environment:
+      # Database Configuration
+      - DB_NAME=school_support_db
+      - DB_USER=django_user
+      - DB_PASSWORD=SchoolSupport123
+      - DB_HOST=db
+      - DB_PORT=3306
+      
+      # Redis Configuration
+      - REDIS_URL=redis://redis:6379/0
+      
+      # Security Settings - FIXED FOR PRODUCTION
+      - SECRET_KEY=wg!*9h4v4etzwvfk10^&or3d-+3k9c0!)gb6wc#z^n4e^lm#j^
+      - DEBUG=False
+      - ALLOWED_HOSTS=localhost,127.0.0.1,backend,alifmonitor.com,www.alifmonitor.com
+      
+      # CORS Settings
+      - CORS_ALLOWED_ORIGINS=https://alifmonitor.com,https://www.alifmonitor.com
+      
+      # Frontend URL
+      - FRONTEND_URL=https://alifmonitor.com
+      
+      # Email Settings
+      - EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
+      - EMAIL_HOST=smtp.gmail.com
+      - EMAIL_PORT=587
+      - EMAIL_USE_TLS=True
+      - EMAIL_HOST_USER=alifmonitor8@gmail.com
+      - EMAIL_HOST_PASSWORD=iayncfqrzxcqjstl
+      - DEFAULT_FROM_EMAIL=noreply@alifmonitor.com
+      
+    depends_on:
+      db:
+        condition: service_healthy
+      backend:
+        condition: service_started
+    restart: unless-stopped
+
+  frontend:
+    build: ./school_support_frontend
+    container_name: school_support_frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  mysql_data:

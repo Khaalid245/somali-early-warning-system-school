@@ -7,7 +7,6 @@ import ErrorBoundary from "../components/ErrorBoundary";
 import { showToast } from "../utils/toast";
 
 import ExecutiveKPIs from "./components/ExecutiveKPIs";
-import SystemHealth from "./components/SystemHealth";
 import RiskIntelligence from "./components/RiskIntelligence";
 import EscalationPanel from "./components/EscalationPanel";
 import PerformanceMetrics from "./components/PerformanceMetrics";
@@ -19,6 +18,7 @@ import AuditLogViewer from "./components/AuditLogViewer";
 import ReportsView from "./components/ReportsView";
 import GovernanceView from "./components/GovernanceView";
 import SettingsView from "./components/SettingsView";
+import TimetableManager from "./TimetableManager";
 import QuickMessage from "../components/QuickMessage";
 
 function AdminDashboardContent() {
@@ -114,18 +114,18 @@ function AdminDashboardContent() {
 
   if (loading) {
     return (
-      <div className="flex h-screen bg-gray-50">
+      <div className="flex h-screen bg-slate-50">
         <Sidebar user={user} onLogout={logout} onTabChange={setActiveTab} />
         <div className="flex-1 overflow-auto">
           <Navbar user={user} dashboardData={{}} />
           <div className="p-8">
-            <div className="animate-pulse space-y-6">
-              <div className="grid grid-cols-6 gap-4">
+            <div className="animate-pulse space-y-4 sm:space-y-6">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 sm:gap-4">
                 {[...Array(6)].map((_, i) => (
-                  <div key={i} className="h-32 bg-gray-200 rounded-lg"></div>
+                  <div key={i} className="h-24 sm:h-32 bg-gray-200 rounded-lg"></div>
                 ))}
               </div>
-              <div className="h-64 bg-gray-200 rounded-lg"></div>
+              <div className="h-48 sm:h-64 bg-gray-200 rounded-lg"></div>
             </div>
           </div>
         </div>
@@ -135,12 +135,12 @@ function AdminDashboardContent() {
 
   if (!dashboardData) {
     return (
-      <div className="flex h-screen items-center justify-center bg-gray-50">
+      <div className="flex h-screen items-center justify-center bg-slate-50">
         <div className="text-center">
           <p className="text-red-600 mb-4">Failed to load dashboard</p>
           <button
             onClick={loadDashboard}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
           >
             Retry
           </button>
@@ -164,28 +164,28 @@ function AdminDashboardContent() {
           onCloseSearch={() => setShowSearchResults(false)}
         />
 
-        <div className="p-8 space-y-8">
+        <div className="p-4 sm:p-6 md:p-8 space-y-6 sm:space-y-8">
           {activeTab === "overview" && (
             <>
-              <div className="flex items-center justify-between mb-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 sm:mb-6">
                 <div>
-                  <h1 className="text-3xl font-bold text-gray-900">
+                  <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
                     System Control Center
                   </h1>
-                  <p className="text-gray-600">
+                  <p className="text-sm sm:text-base text-gray-600 mt-1">
                     Enterprise oversight and risk intelligence
                   </p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                   <button
                     onClick={loadDashboard}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                    className="w-full sm:w-auto px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm sm:text-base"
                   >
                     Refresh Data
                   </button>
                   <button
                     onClick={() => handleExportCSV(dashboardData.escalated_cases || [], 'escalated_cases')}
-                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+                    className="w-full sm:w-auto px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm sm:text-base"
                   >
                     Export CSV
                   </button>
@@ -193,7 +193,6 @@ function AdminDashboardContent() {
               </div>
 
               <ExecutiveKPIs data={dashboardData} />
-              <SystemHealth data={dashboardData} />
               <RiskIntelligence data={dashboardData} />
               <EscalationPanel
                 cases={dashboardData.escalated_cases || []}
@@ -227,6 +226,8 @@ function AdminDashboardContent() {
           )}
 
           {activeTab === "governance" && <GovernanceView />}
+
+          {activeTab === "timetable" && <TimetableManager />}
 
           {activeTab === "reports" && (
             <ReportsView />
