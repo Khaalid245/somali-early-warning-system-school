@@ -1,11 +1,22 @@
-import { useContext } from 'react';
+import { useContext, useState, useEffect } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import Sidebar from '../components/Sidebar';
 import Navbar from '../components/Navbar';
 import InterventionManagement from './components/InterventionManagement';
+import api from '../api/apiClient';
 
 export default function InterventionsPage() {
   const { user, logout } = useContext(AuthContext);
+  const [students, setStudents] = useState([]);
+
+  useEffect(() => {
+    api.get('/students/?page_size=200')
+      .then(res => {
+        const data = res.data;
+        setStudents(Array.isArray(data) ? data : (data.results || []));
+      })
+      .catch(() => setStudents([]));
+  }, []);
 
   return (
     <div className="flex flex-col md:flex-row h-screen bg-gray-50 overflow-hidden">
@@ -22,7 +33,7 @@ export default function InterventionsPage() {
                 Record meetings, track progress, and manage student interventions
               </p>
             </div>
-            <InterventionManagement />
+            <InterventionManagement students={students} />
           </div>
         </main>
       </div>
