@@ -1,201 +1,186 @@
 import { Link } from 'react-router-dom';
-import { Shield, Lock, Key, Database, FileText, Users, UserCheck, UserCog } from 'lucide-react';
+import { ArrowLeft, Shield } from 'lucide-react';
 import LandingNav from './components/LandingNav';
 import LandingFooter from './components/LandingFooter';
+
+const clauses = [
+  {
+    number: '1.',
+    title: 'Introduction and Scope',
+    paragraphs: [
+      'This Privacy Policy and End-User Licence Agreement ("Policy") applies to all authorised users of the School Early Warning Support System (AlifMonitor), including administrators, Form Masters, and teachers employed at participating public secondary schools in Mogadishu, Somalia.',
+      'This Policy governs the collection, processing, storage, and sharing of personal data within the system. Users are required to read and understand this Policy in full before accessing the system, as continued use constitutes acceptance of all terms contained herein.',
+      'Users are expressly advised that this system processes sensitive personal data belonging to minors — students under 18 years of age — and that all use of the system must comply with the obligations and restrictions set out in this Policy.',
+    ],
+  },
+  {
+    number: '2.',
+    title: 'Data Collection and Purpose',
+    paragraphs: [
+      'The system collects the following categories of personal data: student identifiers (full name, admission number, classroom assignment), daily attendance records (present, absent, late), automated risk classification scores, intervention case notes and progress records, and parental or guardian contact details where provided by the institution.',
+      'All data is collected exclusively for the purpose of student welfare monitoring and early intervention support within the school environment. The purpose limitation principle strictly applies — data collected through this system may not be used for any commercial, research, political, or administrative purpose beyond its stated educational function.',
+      'Any use of data outside the scope defined in this Policy, without explicit written authorisation from the institution\'s designated data governance authority, constitutes a breach of this Policy and may result in disciplinary or legal action.',
+    ],
+  },
+  {
+    number: '3.',
+    title: "Protection of Minors' Data",
+    paragraphs: [
+      'This system processes personal data belonging to minors — students under 18 years of age enrolled in participating secondary schools. Minors\' data is treated as a priority protected category and is subject to the highest standard of care, confidentiality, and institutional oversight.',
+      'No student data shall be disclosed, transferred, shared, or made accessible to any external party, organisation, or individual without explicit written authorisation from the school\'s designated data governance authority. This prohibition applies regardless of the purpose or the identity of the requesting party.',
+      'This Policy is aligned with the Somalia Data Protection Act, Law No. 005 of 2023, which establishes the legal framework for the protection of personal data of individuals, including minors, within the Federal Republic of Somalia.',
+    ],
+  },
+  {
+    number: '4.',
+    title: 'Role-Based Access and Confidentiality',
+    paragraphs: [
+      'Access to student data within this system is strictly governed by role-based access control (RBAC). Administrators have system-wide access for governance and oversight purposes only. Form Masters may access data exclusively for their assigned classroom. Teachers may access attendance data only for their assigned classes and subjects.',
+      'Users are strictly prohibited from sharing login credentials with any other person, accessing data outside their assigned role permissions, or attempting to view, copy, modify, or extract records beyond their authorised scope. Any such action constitutes a serious breach of this Policy.',
+      'All system users accept a binding confidentiality obligation upon first login and are personally responsible for maintaining the security and confidentiality of their account credentials and any student data they access in the course of their duties.',
+    ],
+  },
+  {
+    number: '5.',
+    title: 'Automated Risk Classification Disclaimer',
+    paragraphs: [
+      'Risk classifications displayed within this system are generated automatically by an algorithm based on predefined attendance thresholds and consecutive absence streak patterns. These scores are indicators only and must not be interpreted as definitive assessments of a student\'s academic standing, character, welfare, or future performance.',
+      'All automated risk classifications must be reviewed, contextualised, and validated by the assigned Form Master before any intervention decision is initiated, recorded, or communicated. No intervention action shall be taken solely on the basis of an automated risk score without professional judgement and contextual review by a qualified member of staff.',
+      'Human oversight is mandatory at every stage of the intervention process. The institution accepts no liability for decisions made in reliance on automated risk scores without the required human review.',
+    ],
+  },
+  {
+    number: '6.',
+    title: 'Data Retention and Deletion',
+    paragraphs: [
+      'Student data collected through this system is retained for the duration of the active academic year plus one additional calendar year, to support continuity of care, institutional reporting, and compliance requirements. Audit logs are retained for a minimum of seven years in accordance with FERPA-aligned institutional compliance standards.',
+      'Following the expiry of the applicable retention period, all associated personal data will be securely and permanently deleted from the system in accordance with data minimisation principles and the requirements of the Somalia Data Protection Act, Law No. 005 of 2023.',
+      'Users or guardians who wish to request a review of data held about a student, or to request correction or deletion of inaccurate data, may submit a formal written request to the school administrator, who is responsible for facilitating access in compliance with applicable data protection law.',
+    ],
+  },
+  {
+    number: '7.',
+    title: 'Data Export and Sharing Restrictions',
+    paragraphs: [
+      'The ability to export student data from this system is restricted exclusively to users holding an administrative role. All data export activities are automatically recorded in the system\'s audit log, which is retained for a minimum of seven years.',
+      'Exported data must remain within the school\'s institutional environment at all times. Exported data must not be shared with external parties, uploaded to personal devices or personal cloud storage, or distributed through unofficial channels without prior written approval from the institution\'s data governance authority.',
+      'Any unauthorised export, sharing, or distribution of student data constitutes a serious breach of this Policy and may result in disciplinary action and referral to the relevant national data protection authority.',
+    ],
+  },
+  {
+    number: '8.',
+    title: 'User Obligations — End-User Licence Agreement (EULA)',
+    paragraphs: [
+      'By accessing this system, all users agree to use it solely for its intended educational and institutional purpose. Users must not attempt to access, copy, modify, delete, or extract any data beyond the permissions granted by their assigned role, and must not attempt to circumvent, disable, or interfere with any security or access control mechanism.',
+      'Any misuse of the system, unauthorised access to student records, improper handling or disclosure of personal data, or violation of any term of this Policy may result in immediate suspension of system access and disciplinary action in accordance with the institution\'s staff conduct policy.',
+      'Where a breach involves the personal data of minors or constitutes a criminal offence under applicable law, the matter may be referred to the relevant legal authorities under the Somalia Data Protection Act, Law No. 005 of 2023. By continuing to use this system, users acknowledge that they have read, understood, and accepted all terms of this Policy in full.',
+    ],
+  },
+  {
+    number: '9.',
+    title: 'Consent and Transparency',
+    paragraphs: [
+      'Informed consent was obtained from all research participants and institutional stakeholders prior to the collection and processing of any personal data during the development and evaluation of this system, in accordance with ethical research standards and the requirements of the Somalia Data Protection Act.',
+      'Students and their guardians are informed of the nature, purpose, and scope of data use through the school\'s institutional communication channels. The institution is responsible for ensuring that students and guardians are kept informed of any material changes to data processing practices.',
+      'Any individual or guardian who wishes to review the data held about a student, to understand how that data is being used, or to withdraw consent for any non-essential data processing, may submit a formal request to the school administrator, who is obligated to respond within a reasonable timeframe.',
+    ],
+  },
+  {
+    number: '10.',
+    title: 'Contact and Complaints',
+    paragraphs: [
+      'Any user who has concerns, questions, or complaints regarding the collection, processing, storage, or handling of personal data within this system should contact the school\'s designated administrator in the first instance. All complaints will be handled in accordance with the institution\'s data governance policy.',
+      'The system operates under the oversight of the institution\'s data governance authority, which is responsible for ensuring compliance with this Policy and with the Somalia Data Protection Act, Law No. 005 of 2023.',
+      'Where a concern cannot be resolved internally, users retain the right to escalate the matter to the relevant national data protection authority. The institution is committed to cooperating fully with any lawful investigation or inquiry.',
+    ],
+  },
+];
 
 export default function PrivacyPolicy() {
   return (
     <div className="min-h-screen bg-white">
       <LandingNav />
 
-      {/* Hero Section */}
-      <section className="bg-green-50 border-b border-gray-200 py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-5xl font-semibold text-gray-900 mb-4">Privacy Policy</h1>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Student data protection and FERPA compliance
-          </p>
-          <p className="text-sm text-gray-500 mt-4">Last Updated: January 2024</p>
+      {/* Hero */}
+      <section className="bg-green-50 border-b border-gray-200">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+          <Link
+            to="/"
+            className="inline-flex items-center gap-2 text-green-600 hover:text-green-700 font-medium mb-8 transition"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Home
+          </Link>
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 bg-green-600 rounded-xl flex items-center justify-center flex-shrink-0 mt-1">
+              <Shield className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h1 className="text-4xl sm:text-5xl font-semibold text-gray-900 mb-3">
+                Privacy Policy &amp; EULA
+              </h1>
+              <p className="text-gray-600 text-lg">
+                School Early Warning Support System — AlifMonitor
+              </p>
+              <p className="text-sm text-gray-500 mt-2">Last Updated: February 2026</p>
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* Content */}
+      {/* Intro notice */}
+      <section className="bg-white border-b border-gray-200">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+          <p className="text-gray-600 leading-relaxed">
+            This Privacy Policy and End-User Licence Agreement sets out the terms under which personal data is
+            collected, processed, and protected within the School Early Warning Support System. It applies to all
+            authorised users of the system and must be read in full before accessing any part of the platform.
+            This document is governed by the{' '}
+            <span className="font-medium text-gray-900">
+              Somalia Data Protection Act, Law No. 005 of 2023
+            </span>
+            , and is aligned with GDPR principles and the AU Data Policy Framework.
+          </p>
+        </div>
+      </section>
+
+      {/* Clauses */}
       <section className="py-16 bg-white">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          
-          {/* Introduction */}
-          <div className="mb-12">
-            <h2 className="text-3xl font-semibold text-gray-900 mb-4">Introduction</h2>
-            <p className="text-lg text-gray-600 leading-relaxed">
-              This Privacy Policy explains how the Early Warning System collects, uses, and protects student education records in compliance with FERPA and applicable data protection laws.
-            </p>
-          </div>
-
-          {/* FERPA Compliance */}
-          <div className="mb-12 bg-green-50 border border-green-200 rounded-xl p-8" style={{boxShadow: '0 1px 3px rgba(0,0,0,0.1)'}}>
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 bg-green-600 rounded-full flex items-center justify-center flex-shrink-0">
-                <Shield className="w-6 h-6 text-white" />
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
+          {clauses.map(({ number, title, paragraphs }) => (
+            <div key={number}>
+              <div className="border-l-4 border-green-600 pl-6 mb-4">
+                <h2 className="text-xl sm:text-2xl font-semibold text-gray-900">
+                  {number} {title}
+                </h2>
               </div>
-              <div>
-                <h3 className="text-2xl font-semibold text-gray-900 mb-2">FERPA Compliance</h3>
-                <p className="text-gray-700">
-                  This system is fully compliant with the Family Educational Rights and Privacy Act (FERPA). We protect student education records and ensure proper access controls.
-                </p>
+              <div className="pl-6 space-y-3">
+                {paragraphs.map((p, i) => (
+                  <p key={i} className="text-gray-600 leading-relaxed">
+                    {p}
+                  </p>
+                ))}
               </div>
             </div>
-          </div>
+          ))}
+        </div>
+      </section>
 
-          {/* Data Collection */}
-          <div className="mb-12">
-            <h2 className="text-3xl font-semibold text-gray-900 mb-6">1. Data We Collect</h2>
-            <div className="bg-gray-50 border border-gray-200 rounded-xl p-6 space-y-4" style={{boxShadow: '0 1px 3px rgba(0,0,0,0.1)'}}>
-              <div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-3">Student Information</h3>
-                <ul className="list-disc list-inside space-y-2 text-gray-600 ml-4">
-                  <li>Full name and student ID</li>
-                  <li>Classroom and grade level</li>
-                  <li>Attendance records</li>
-                  <li>Academic alerts and risk indicators</li>
-                </ul>
-              </div>
-              <div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-3">Staff Information</h3>
-                <ul className="list-disc list-inside space-y-2 text-gray-600 ml-4">
-                  <li>Name and email address</li>
-                  <li>Role (Teacher, Form Master, Administrator)</li>
-                  <li>Assigned classes and subjects</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-
-          {/* How We Use Data */}
-          <div className="mb-12">
-            <h2 className="text-3xl font-semibold text-gray-900 mb-6">2. How We Use Data</h2>
-            <div className="bg-gray-50 border border-gray-200 rounded-xl p-6" style={{boxShadow: '0 1px 3px rgba(0,0,0,0.1)'}}>
-              <p className="text-gray-600 mb-4">Student data is used exclusively for:</p>
-              <ul className="list-disc list-inside space-y-2 text-gray-600 ml-4">
-                <li>Attendance tracking</li>
-                <li>Early warning detection</li>
-                <li>Intervention planning</li>
-                <li>Educational reporting</li>
-              </ul>
-              <div className="mt-6 bg-white border border-gray-300 rounded-lg p-4">
-                <p className="text-sm text-gray-700"><strong>Important:</strong> We do NOT sell or share student data with third parties.</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Access Control */}
-          <div className="mb-12">
-            <h2 className="text-3xl font-semibold text-gray-900 mb-6">3. Who Can Access Data</h2>
-            <div className="space-y-4">
-              <div className="border-l-4 border-green-600 pl-6 py-2">
-                <div className="flex items-center gap-2 mb-1">
-                  <Users className="w-5 h-5 text-green-600" />
-                  <h3 className="text-lg font-semibold text-gray-900">Teachers</h3>
-                </div>
-                <p className="text-gray-600">Can view attendance for their assigned classes only</p>
-              </div>
-              <div className="border-l-4 border-green-600 pl-6 py-2">
-                <div className="flex items-center gap-2 mb-1">
-                  <UserCheck className="w-5 h-5 text-green-600" />
-                  <h3 className="text-lg font-semibold text-gray-900">Form Masters</h3>
-                </div>
-                <p className="text-gray-600">Can access data for their assigned classroom only</p>
-              </div>
-              <div className="border-l-4 border-green-600 pl-6 py-2">
-                <div className="flex items-center gap-2 mb-1">
-                  <UserCog className="w-5 h-5 text-green-600" />
-                  <h3 className="text-lg font-semibold text-gray-900">Administrators</h3>
-                </div>
-                <p className="text-gray-600">Have system-wide access for oversight</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Data Security */}
-          <div className="mb-12">
-            <h2 className="text-3xl font-semibold text-gray-900 mb-6">4. Data Security</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-gray-50 border border-gray-200 rounded-xl p-6" style={{boxShadow: '0 1px 3px rgba(0,0,0,0.1)'}}>
-                <div className="flex items-center gap-2 mb-2">
-                  <Lock className="w-5 h-5 text-green-600" />
-                  <h3 className="text-lg font-semibold text-gray-900">Encryption</h3>
-                </div>
-                <p className="text-gray-600">All data is encrypted in transit and at rest</p>
-              </div>
-              <div className="bg-gray-50 border border-gray-200 rounded-xl p-6" style={{boxShadow: '0 1px 3px rgba(0,0,0,0.1)'}}>
-                <div className="flex items-center gap-2 mb-2">
-                  <Key className="w-5 h-5 text-green-600" />
-                  <h3 className="text-lg font-semibold text-gray-900">Authentication</h3>
-                </div>
-                <p className="text-gray-600">Secure JWT-based authentication</p>
-              </div>
-              <div className="bg-gray-50 border border-gray-200 rounded-xl p-6" style={{boxShadow: '0 1px 3px rgba(0,0,0,0.1)'}}>
-                <div className="flex items-center gap-2 mb-2">
-                  <FileText className="w-5 h-5 text-green-600" />
-                  <h3 className="text-lg font-semibold text-gray-900">Audit Logs</h3>
-                </div>
-                <p className="text-gray-600">All activities logged for 7 years</p>
-              </div>
-              <div className="bg-gray-50 border border-gray-200 rounded-xl p-6" style={{boxShadow: '0 1px 3px rgba(0,0,0,0.1)'}}>
-                <div className="flex items-center gap-2 mb-2">
-                  <Database className="w-5 h-5 text-green-600" />
-                  <h3 className="text-lg font-semibold text-gray-900">Backups</h3>
-                </div>
-                <p className="text-gray-600">Daily encrypted backups</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Data Retention */}
-          <div className="mb-12">
-            <h2 className="text-3xl font-semibold text-gray-900 mb-6">5. Data Retention</h2>
-            <div className="bg-gray-50 border border-gray-200 rounded-xl p-6" style={{boxShadow: '0 1px 3px rgba(0,0,0,0.1)'}}>
-              <ul className="space-y-3 text-gray-600">
-                <li className="flex items-start gap-3">
-                  <span className="text-green-600 font-semibold">•</span>
-                  <span><strong>Attendance Records:</strong> Retained for 7 years</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <span className="text-green-600 font-semibold">•</span>
-                  <span><strong>Intervention Cases:</strong> Retained for 7 years</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <span className="text-green-600 font-semibold">•</span>
-                  <span><strong>Audit Logs:</strong> Retained for 7 years (FERPA requirement)</span>
-                </li>
-              </ul>
-            </div>
-          </div>
-
-          {/* Contact */}
-          <div className="mb-12">
-            <h2 className="text-3xl font-semibold text-gray-900 mb-6">6. Contact Information</h2>
-            <div className="bg-gray-50 border border-gray-200 rounded-xl p-6" style={{boxShadow: '0 1px 3px rgba(0,0,0,0.1)'}}>
-              <p className="text-gray-600 mb-4">For questions about this Privacy Policy:</p>
-              <div className="space-y-2 text-gray-900">
-                <p><strong>Email:</strong> <a href="mailto:privacy@school.edu" className="text-green-600 hover:underline">privacy@school.edu</a></p>
-                <p><strong>Phone:</strong> <a href="tel:+252123456789" className="text-green-600 hover:underline">+252 12 345 6789</a></p>
-              </div>
-            </div>
-          </div>
-
-          {/* Acknowledgment */}
-          <div className="bg-green-600 rounded-xl p-8 text-white text-center">
-            <h3 className="text-2xl font-semibold mb-4">Your Privacy Matters</h3>
-            <p className="text-lg mb-6 text-green-50">
-              We are committed to protecting student data and maintaining the highest standards of privacy and security.
-            </p>
-            <Link 
-              to="/help-support" 
-              className="inline-block px-8 py-3 bg-white text-green-600 font-medium rounded-lg hover:shadow-xl transition-all"
-            >
-              Contact Support
-            </Link>
-          </div>
+      {/* Legal footer */}
+      <section className="bg-gray-50 border-t border-gray-200">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 text-center">
+          <p className="text-sm text-gray-600 leading-relaxed max-w-2xl mx-auto">
+            This policy is governed by the{' '}
+            <span className="font-medium text-gray-900">
+              Somalia Data Protection Act (Law No. 005 of 2023)
+            </span>{' '}
+            and aligned with{' '}
+            <span className="font-medium text-gray-900">GDPR principles</span> and the{' '}
+            <span className="font-medium text-gray-900">AU Data Policy Framework</span>.
+          </p>
+          <p className="text-xs text-gray-400 mt-4">
+            © 2026 School Early Warning Support System. All rights reserved.
+          </p>
         </div>
       </section>
 

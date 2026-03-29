@@ -62,6 +62,7 @@ export default function Login() {
   const [show2FA, setShow2FA] = useState(false);
   const [tempEmail, setTempEmail] = useState('');
   const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [agreedToPolicy, setAgreedToPolicy] = useState(false);
 
   const navigate = useNavigate();
 
@@ -301,10 +302,28 @@ export default function Login() {
                 </button>
               </div>
 
+              {/* Policy Agreement */}
+              <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-xl border border-gray-200">
+                <input
+                  id="policy-agree"
+                  type="checkbox"
+                  checked={agreedToPolicy}
+                  onChange={(e) => setAgreedToPolicy(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 accent-green-600 cursor-pointer flex-shrink-0"
+                />
+                <label htmlFor="policy-agree" className="text-xs text-gray-600 leading-relaxed cursor-pointer">
+                  I have read and agree to the{' '}
+                  <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-green-600 font-medium hover:underline">
+                    Privacy Policy &amp; EULA
+                  </a>
+                  . By signing in, I acknowledge my data protection obligations under the Somalia Data Protection Act (Law No. 005 of 2023).
+                </label>
+              </div>
+
               {/* Submit Button */}
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || !agreedToPolicy}
                 className="w-full py-3.5 rounded-xl bg-green-600 text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{ transition: 'all 0.2s' }}
                 onMouseEnter={(e) => !loading && (e.target.style.backgroundColor = '#15803D')}

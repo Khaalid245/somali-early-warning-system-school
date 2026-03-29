@@ -20,6 +20,7 @@ export default function LandingFooter() {
               <Link to="/" className="block hover:text-green-400 transition">Home</Link>
               <Link to="/about" className="block hover:text-green-400 transition">About</Link>
               <Link to="/contact" className="block hover:text-green-400 transition">Contact</Link>
+              <Link to="/privacy-policy" className="block hover:text-green-400 transition">Privacy Policy</Link>
             </div>
           </div>
 
