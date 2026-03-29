@@ -1,0 +1,12 @@
+# IDE & Editor
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Python
+__pycache__/
+
+# Amazon Q
+q-dev-chat-*.md
