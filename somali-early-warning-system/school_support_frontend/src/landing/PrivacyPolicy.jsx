@@ -53,9 +53,9 @@ const clauses = [
     number: '6.',
     title: 'Data Retention and Deletion',
     paragraphs: [
-      'Student data collected through this system is retained for the duration of the active academic year plus one additional calendar year, to support continuity of care, institutional reporting, and compliance requirements. Audit logs are retained for a minimum of seven years in accordance with FERPA-aligned institutional compliance standards.',
+      'Student data collected through this system is retained for the duration of the active academic year plus one additional calendar year, to support continuity of care, institutional reporting, and compliance requirements. Audit logs are retained for a minimum of seven years in accordance with applicable institutional data governance standards.',
       'Following the expiry of the applicable retention period, all associated personal data will be securely and permanently deleted from the system in accordance with data minimisation principles and the requirements of the Somalia Data Protection Act, Law No. 005 of 2023.',
-      'Users or guardians who wish to request a review of data held about a student, or to request correction or deletion of inaccurate data, may submit a formal written request to the school administrator, who is responsible for facilitating access in compliance with applicable data protection law.',
+      'Users and guardians have the right to access, correct, and request deletion of personal data held about a student within this system, in line with applicable data protection principles. Users or guardians who wish to exercise these rights may submit a formal written request to the school administrator, who is responsible for facilitating access in compliance with applicable data protection law.',
     ],
   },
   {
