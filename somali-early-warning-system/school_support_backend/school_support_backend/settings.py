@@ -44,6 +44,8 @@ if not SECRET_KEY:
 
 # Application definition
 
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
 INSTALLED_APPS = [
     'corsheaders',
 
